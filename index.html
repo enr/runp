@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Asciidoctor 2.0.12">
+<meta name="author" content="runp contributors">
+<title>Runp</title>
+<style>
+/* Asciidoctor default stylesheet | MIT License | https://asciidoctor.org */
+
+@import url(//fonts.googleapis.com/css?family=Montserrat|Open+Sans);
+@import url(https://cdn.jsdelivr.net/gh/asciidoctor/asciidoctor@2.0/data/stylesheets/asciidoctor-default.css);
+
+:root {
+  --maincolor: #ffffff;
+  --primarycolor: #294172;
+  --secondarycolor: #3c6eb4;
+  --tertiarycolor: #cccccc;
+  --highlightcolor: #f8f8f8;
+  --codecolor: #294172;
+  --sidebarbackground: #cacaca;
+  --linkcolor: #0d47a1;
+  --linkcoloralternate: #db3279;
+  --white: #ffffff;
+  --black: #000000;
+}
+
+body {
+  font-family: "Open Sans", sans-serif;
+  background-color: var(--maincolor);
+  color: var(--black);
+}
+
+#header,
+#content,
+#footnotes,
+#footer {
+  max-width: 80em;
+}
+
+h1 {
+  color: var(--primarycolor) !important;
+  font-family: "Montserrat", sans-serif;
+}
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--secondarycolor) !important;
+  font-family: "Montserrat", sans-serif;
+}
+.title {
+  color: var(--black) !important;
+  font-family: "Open Sans", sans-serif;
+  font-style: normal;
+  font-weight: normal;
+}
+a {
+  text-decoration: none;
+}
+p {
+  font-family: "Open Sans", sans-serif !important;
+}
+#toc.toc2 a:link {
+  color: var(--linkcolor);
+}
+blockquote {
+  color: var(--linkcoloralternate) !important;
+}
+.quoteblock blockquote:before {
+  color: var(--linkcoloralternate);
+}
+code {
+  color: var(--codecolor);
+  background-color: var(--highlightcolor) !important;
+}
+mark {
+  background-color: var(--highlightcolor);
+}
+
+th {
+  background-color: var(--maincolor);
+  color: var(--black) !important;
+}
+td {
+  background-color: var(--maincolor);
+  color: var(--black) !important;
+}
+
+#toc.toc2 {
+  background-color: var(--sidebarbackground);
+}
+#toctitle {
+  color: var(--white);
+}
+
+/* Responsiveness fixes */
+video {
+  max-width: 100%;
+}
+
+@media all and (max-width: 600px) {
+  table {
+    width: 55vw !important;
+    font-size: 3vw;
+  }
+}
+
+</style>
+<style>
+pre.rouge table td { padding: 5px; }
+pre.rouge table pre { margin: 0; }
+pre.rouge .cm {
+  color: #999988;
+  font-style: italic;
+}
+pre.rouge .cp {
+  color: #999999;
+  font-weight: bold;
+}
+pre.rouge .c1 {
+  color: #999988;
+  font-style: italic;
+}
+pre.rouge .cs {
+  color: #999999;
+  font-weight: bold;
+  font-style: italic;
+}
+pre.rouge .c, pre.rouge .ch, pre.rouge .cd, pre.rouge .cpf {
+  color: #999988;
+  font-style: italic;
+}
+pre.rouge .err {
+  color: #a61717;
+  background-color: #e3d2d2;
+}
+pre.rouge .gd {
+  color: #000000;
+  background-color: #ffdddd;
+}
+pre.rouge .ge {
+  color: #000000;
+  font-style: italic;
+}
+pre.rouge .gr {
+  color: #aa0000;
+}
+pre.rouge .gh {
+  color: #999999;
+}
+pre.rouge .gi {
+  color: #000000;
+  background-color: #ddffdd;
+}
+pre.rouge .go {
+  color: #888888;
+}
+pre.rouge .gp {
+  color: #555555;
+}
+pre.rouge .gs {
+  font-weight: bold;
+}
+pre.rouge .gu {
+  color: #aaaaaa;
+}
+pre.rouge .gt {
+  color: #aa0000;
+}
+pre.rouge .kc {
+  color: #000000;
+  font-weight: bold;
+}
+pre.rouge .kd {
+  color: #000000;
+  font-weight: bold;
+}
+pre.rouge .kn {
+  color: #000000;
+  font-weight: bold;
+}
+pre.rouge .kp {
+  color: #000000;
+  font-weight: bold;
+}
+pre.rouge .kr {
+  color: #000000;
+  font-weight: bold;
+}
+pre.rouge .kt {
+  color: #445588;
+  font-weight: bold;
+}
+pre.rouge .k, pre.rouge .kv {
+  color: #000000;
+  font-weight: bold;
+}
+pre.rouge .mf {
+  color: #009999;
+}
+pre.rouge .mh {
+  color: #009999;
+}
+pre.rouge .il {
+  color: #009999;
+}
+pre.rouge .mi {
+  color: #009999;
+}
+pre.rouge .mo {
+  color: #009999;
+}
+pre.rouge .m, pre.rouge .mb, pre.rouge .mx {
+  color: #009999;
+}
+pre.rouge .sa {
+  color: #000000;
+  font-weight: bold;
+}
+pre.rouge .sb {
+  color: #d14;
+}
+pre.rouge .sc {
+  color: #d14;
+}
+pre.rouge .sd {
+  color: #d14;
+}
+pre.rouge .s2 {
+  color: #d14;
+}
+pre.rouge .se {
+  color: #d14;
+}
+pre.rouge .sh {
+  color: #d14;
+}
+pre.rouge .si {
+  color: #d14;
+}
+pre.rouge .sx {
+  color: #d14;
+}
+pre.rouge .sr {
+  color: #009926;
+}
+pre.rouge .s1 {
+  color: #d14;
+}
+pre.rouge .ss {
+  color: #990073;
+}
+pre.rouge .s, pre.rouge .dl {
+  color: #d14;
+}
+pre.rouge .na {
+  color: #008080;
+}
+pre.rouge .bp {
+  color: #999999;
+}
+pre.rouge .nb {
+  color: #0086B3;
+}
+pre.rouge .nc {
+  color: #445588;
+  font-weight: bold;
+}
+pre.rouge .no {
+  color: #008080;
+}
+pre.rouge .nd {
+  color: #3c5d5d;
+  font-weight: bold;
+}
+pre.rouge .ni {
+  color: #800080;
+}
+pre.rouge .ne {
+  color: #990000;
+  font-weight: bold;
+}
+pre.rouge .nf, pre.rouge .fm {
+  color: #990000;
+  font-weight: bold;
+}
+pre.rouge .nl {
+  color: #990000;
+  font-weight: bold;
+}
+pre.rouge .nn {
+  color: #555555;
+}
+pre.rouge .nt {
+  color: #000080;
+}
+pre.rouge .vc {
+  color: #008080;
+}
+pre.rouge .vg {
+  color: #008080;
+}
+pre.rouge .vi {
+  color: #008080;
+}
+pre.rouge .nv, pre.rouge .vm {
+  color: #008080;
+}
+pre.rouge .ow {
+  color: #000000;
+  font-weight: bold;
+}
+pre.rouge .o {
+  color: #000000;
+  font-weight: bold;
+}
+pre.rouge .w {
+  color: #bbbbbb;
+}
+pre.rouge {
+  background-color: #f8f8f8;
+}
+</style>
+</head>
+<body class="book">
+<div id="header">
+<h1>Runp</h1>
+<div class="details">
+<span id="author" class="author">runp contributors</span><br>
+<span id="revnumber">version 0.3.0-dev</span>
+</div>
+</div>
+<div id="content">
+<div id="preamble">
+<div class="sectionbody">
+<div style="page-break-after: always;"></div>
+<div class="imageblock">
+<div class="content">
+<img src="https://github.com/enr/runp/workflows/CI%20Linux%20Mac/badge.svg" alt="CI Linux Mac">
+</div>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="https://github.com/enr/runp/workflows/CI%20Windows/badge.svg" alt="CI Windows">
+</div>
+</div>
+<div class="paragraph">
+<p><a href="https://github.com/enr/runp/releases/latest">Download last artifacts</a> |
+ <a href="https://enr.github.io/runp/pdf/runp_manual.pdf">This manual as PDF</a> |
+ Build revision <code>9457bfc89ae38c1cd550dc21aeafe93063cc14d3</code></p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_book">Overview</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Like <code>docker-compose</code> but not just for containers.</p>
+</div>
+<div class="paragraph">
+<p>Today, every non-trivial software project is compound of a number of parts (applications, libraries, services)
+running together in a lot of environments: virtual machines, Docker containers, physical boxes, cloud&#8230;&#8203;</p>
+</div>
+<div class="paragraph">
+<p>Runp allows you to specify what and how you want to run and helps you to start the system as a whole,
+running all needed processes in parallel (like Docker compose, Foreman et simili).</p>
+</div>
+<div class="paragraph">
+<p>This speeds up the setup of a working environment compared to the usual approaches like custom scripts, documentation (written or spoken), or, more commonly, leaving it to the developer to figure out.</p>
+</div>
+<div class="paragraph">
+<p>Runp uses a <code>Runpfile</code>, a sort of a sofisticated <code>Procfile</code> that describes the project as a system composed of
+<code>units</code> each of which can run a different type of process such as:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>processes on the physical box</p>
+</li>
+<li>
+<p>container processes</p>
+</li>
+<li>
+<p>SSH tunnel processes</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Moreover the Runpfile handles:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Working directory per process</p>
+</li>
+<li>
+<p>Environment variables per process</p>
+</li>
+<li>
+<p>User defined vars per system, defined in the Runpfile or passed at runtime as command line arguments</p>
+</li>
+<li>
+<p>Processes dependency: a process can wait for a given condition to start, e.g. a file appearing or another process being ready</p>
+</li>
+<li>
+<p>Not only <em>long running</em> processes but <em>one shot commands</em> too</p>
+</li>
+<li>
+<p>Windows OS</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>An example of a <code>Runpfile</code> :</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">name</span><span class="pi">:</span> <span class="s">Example</span>
+<span class="na">description</span><span class="pi">:</span> <span class="pi">|</span>
+  <span class="s">Sample Runpfile to show how to start an host process and a container</span>
+<span class="na">units</span><span class="pi">:</span>
+  <span class="na">be</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">Backend app</span>
+    <span class="c1"># this process is running on host machine</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">mvn clean compile quarkus:dev</span>
+      <span class="na">workdir</span><span class="pi">:</span> <span class="s">backend</span>
+      <span class="na">env</span><span class="pi">:</span>
+        <span class="c1"># inherit PATH from host system to find needed tools (mvn and java)</span>
+        <span class="na">PATH</span><span class="pi">:</span> <span class="s">$PATH</span>
+      <span class="na">await</span><span class="pi">:</span>
+        <span class="c1"># wait for DB</span>
+        <span class="na">resource</span><span class="pi">:</span> <span class="s">tcp4://localhost:5432/</span>
+        <span class="na">timeout</span><span class="pi">:</span> <span class="s">0h0m10s</span>
+  <span class="na">db</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">Database</span>
+    <span class="c1"># this process is running in a container</span>
+    <span class="na">container</span><span class="pi">:</span>
+      <span class="na">image</span><span class="pi">:</span> <span class="s">postgres:alpine</span>
+      <span class="na">ports</span><span class="pi">:</span>
+        <span class="pi">-</span> <span class="s2">"</span><span class="s">5432:5432"</span>
+      <span class="na">env</span><span class="pi">:</span>
+        <span class="na">POSTGRES_PASSWORD</span><span class="pi">:</span> <span class="s">secret</span>
+        <span class="na">POSTGRES_USER</span><span class="pi">:</span> <span class="s">user</span>
+        <span class="na">POSTGRES_DB</span><span class="pi">:</span> <span class="s">database</span></code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_usage">Usage</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>Run runp</strong></p>
+</div>
+<div class="paragraph">
+<p>Some command:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>runp --help                          # generic help
+runp help up                         # describes the command "up"
+runp up                              # run the runpfile in the current directory
+runp -d up -f /path/to/runpfile.yaml # run in debug mode processes in the given Runpfile
+runp encrypt --key test secret       # encrypt "secret" using the key "test" and print
+                                     # out the value to use in a Runpfile
+runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>App waiting for DB</strong></p>
+</div>
+<div class="paragraph">
+<p>A backend app running on host waiting for a DB running in a container to be available:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">units</span><span class="pi">:</span>
+  <span class="na">be</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">Backend app</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">mvn clean compile quarkus:dev</span>
+      <span class="na">workdir</span><span class="pi">:</span> <span class="s">backend</span>
+      <span class="na">env</span><span class="pi">:</span>
+        <span class="c1"># inherit PATH from host system to find mvn and java</span>
+        <span class="na">PATH</span><span class="pi">:</span> <span class="s">$PATH</span>
+      <span class="na">await</span><span class="pi">:</span>
+        <span class="na">resource</span><span class="pi">:</span> <span class="s">tcp4://localhost:5432/</span>
+        <span class="na">timeout</span><span class="pi">:</span> <span class="s">0h0m10s</span>
+  <span class="na">db</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">Database</span>
+    <span class="na">container</span><span class="pi">:</span>
+      <span class="na">image</span><span class="pi">:</span> <span class="s">postgres:alpine</span>
+      <span class="na">ports</span><span class="pi">:</span>
+        <span class="pi">-</span> <span class="s2">"</span><span class="s">5432:5432"</span>
+      <span class="na">env</span><span class="pi">:</span>
+        <span class="na">POSTGRES_PASSWORD</span><span class="pi">:</span> <span class="s">pass</span>
+        <span class="na">POSTGRES_USER</span><span class="pi">:</span> <span class="s">user</span>
+        <span class="na">POSTGRES_DB</span><span class="pi">:</span> <span class="s">dbname</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Use containers volumes</strong></p>
+</div>
+<div class="paragraph">
+<p>Run containers and volumes (example is from the book Docker in action - Manning):</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">name</span><span class="pi">:</span> <span class="s">Containers Runpfile</span>
+<span class="na">description</span><span class="pi">:</span> <span class="s">This is Runpfile showing Docker volumes</span>
+<span class="na">units</span><span class="pi">:</span>
+  <span class="na">fowler</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">The Fowler collection</span>
+    <span class="na">container</span><span class="pi">:</span>
+      <span class="na">image</span><span class="pi">:</span> <span class="s">alpine:3.12</span>
+      <span class="na">skip_rm</span><span class="pi">:</span> <span class="no">true</span>
+      <span class="na">mounts</span><span class="pi">:</span>
+        <span class="pi">-</span> <span class="s2">"</span><span class="s">type=volume,dst=/library/PoEAA"</span>
+        <span class="pi">-</span> <span class="s2">"</span><span class="s">type=bind,src=/tmp,dst=/library/DSL"</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="pi">|</span>
+        <span class="s">echo "Fowler collection created"</span>
+  <span class="na">knuth</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">The Knuth collection</span>
+    <span class="na">container</span><span class="pi">:</span>
+      <span class="na">image</span><span class="pi">:</span> <span class="s">alpine:3.12</span>
+      <span class="na">skip_rm</span><span class="pi">:</span> <span class="no">true</span>
+      <span class="na">mounts</span><span class="pi">:</span>
+        <span class="pi">-</span> <span class="s2">"</span><span class="s">type=volume,dst=/library/TAoCP.vol1"</span>
+        <span class="pi">-</span> <span class="s2">"</span><span class="s">type=volume,dst=/library/TAoCP.vol2"</span>
+        <span class="pi">-</span> <span class="s2">"</span><span class="s">type=volume,dst=/library/TAoCP.vol3"</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="pi">|</span>
+        <span class="s">echo "Knuth collection created"</span>
+  <span class="na">reader</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">The avid reader</span>
+    <span class="na">container</span><span class="pi">:</span>
+      <span class="na">image</span><span class="pi">:</span> <span class="s">alpine:3.12</span>
+      <span class="na">volumes_from</span><span class="pi">:</span>
+        <span class="pi">-</span> <span class="s">fowler</span>
+        <span class="pi">-</span> <span class="s">knuth</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="pi">|</span>
+        <span class="s">ls -l /library/</span>
+      <span class="na">await</span><span class="pi">:</span>
+        <span class="na">timeout</span><span class="pi">:</span> <span class="s">0h0m3s</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>On Windows</strong></p>
+</div>
+<div class="paragraph">
+<p>Windows is supported:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">name</span><span class="pi">:</span> <span class="s">Test Runpfile</span>
+<span class="na">description</span><span class="pi">:</span> <span class="s">This is Runpfile</span>
+<span class="na">units</span><span class="pi">:</span>
+  <span class="na">await</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">read environment variables</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">set</span>
+      <span class="na">env</span><span class="pi">:</span>
+        <span class="c1"># in env block variables have the unix notation</span>
+        <span class="na">MYHOME</span><span class="pi">:</span> <span class="s">${HOME}</span>
+  <span class="na">echo</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">echo the value of %OS% env var</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">echo %OS%</span>
+  <span class="na">infiniteloop</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">infinite loop</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="c1"># this script is in examples/ directory</span>
+      <span class="na">executable</span><span class="pi">:</span> <span class="s">infinite.cmd</span>
+      <span class="na">workdir</span><span class="pi">:</span> <span class="s">examples</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>SSH tunnel to reach a remote LDAP</strong></p>
+</div>
+<div class="paragraph">
+<p>A backend app running on host using LDAP on remote server available using SSH tunneling.</p>
+</div>
+<div class="paragraph">
+<p>SSH tunnel manage three auth methods:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>identity_file</code>: the path to the private key, ie <code>~/.ssh/id_rsa</code></p>
+</li>
+<li>
+<p><code>secret</code>: the SSH server password in plain text</p>
+</li>
+<li>
+<p><code>encrypted_secret</code>: the SSH server password encrypted and in base 64
+(you can create it using <code>runp encrypt</code>)</p>
+</li>
+</ul>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">units</span><span class="pi">:</span>
+  <span class="na">be</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">Backend app</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">mybackendapp</span>
+      <span class="na">workdir</span><span class="pi">:</span> <span class="s">backend</span>
+  <span class="na">ldap</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">LDAP</span>
+    <span class="na">ssh_tunnel</span><span class="pi">:</span>
+      <span class="na">user</span><span class="pi">:</span> <span class="s">runp</span>
+      <span class="na">auth</span><span class="pi">:</span>
+        <span class="c1">#identity_file: ~/tmp/runpssh/ssh/runp</span>
+        <span class="c1">#secret: "plain text secret"</span>
+        <span class="na">encrypted_secret</span><span class="pi">:</span> <span class="s2">"</span><span class="s">NsM1hcAy/L2TfACgfzbhYyb9j5a2ySYcARFDKkv7HTk="</span>
+      <span class="na">local</span><span class="pi">:</span>
+        <span class="c1"># localhost is the default</span>
+        <span class="na">port</span><span class="pi">:</span> <span class="m">389</span>
+      <span class="na">jump</span><span class="pi">:</span>
+        <span class="na">host</span><span class="pi">:</span> <span class="s">sshserver</span>
+        <span class="na">port</span><span class="pi">:</span> <span class="m">22</span>
+      <span class="na">target</span><span class="pi">:</span>
+        <span class="na">host</span><span class="pi">:</span> <span class="s">ldapserver</span>
+        <span class="na">port</span><span class="pi">:</span> <span class="s">389</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Use secrets</strong></p>
+</div>
+<div class="paragraph">
+<p>SSH tunnel process allows user to use secrets to specify the password.</p>
+</div>
+<div class="paragraph">
+<p>To create the encrypted secret:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>runp encrypt -k thekey SECRET</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>To run a Runpfile containing an <code>encrypted_secret</code> you have to pass the key to the
+<code>up</code> command (the key must coincide with the one used to encrypt).</p>
+</div>
+<div class="paragraph">
+<p>You can pass the key on command line using the options <code>--key</code> or <code>--key-env</code></p>
+</div>
+<div class="paragraph">
+<p>Using the <code>-k</code>/<code>--key</code> argument the key is in plain text on the command line:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>runp up -k thekey</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Use the <code>--key-env</code> argument Runp looks up for that environment variable and use its value as key:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>runp up --key-env RUNP_SECRET</pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Use environment variables</strong></p>
+</div>
+<div class="paragraph">
+<p>A one-shot command using custom environment variables:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml">  <span class="na">env3</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">echo command</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">echo ${MYHOME}</span>
+      <span class="na">workdir</span><span class="pi">:</span> <span class="s">..</span>
+      <span class="na">env</span><span class="pi">:</span>
+        <span class="na">MYHOME</span><span class="pi">:</span> <span class="s">${HOME}</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>User defined variables</strong></p>
+</div>
+<div class="paragraph">
+<p>Use runtime vars:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">vars</span><span class="pi">:</span>
+  <span class="na">foo</span><span class="pi">:</span> <span class="s">FOO_DEFAULT_VALUE</span>
+<span class="na">units</span><span class="pi">:</span>
+  <span class="na">vars-test-unit</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">echo a user defined var</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">echo __{{vars foo}}__</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The var <code>foo</code> will have value <code>FOO_DEFAULT_VALUE</code> or can be set from command line:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code>$ bin/runp --debug up -f examples/Runpfile-vars.yml --var foo=bar</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Implicit variables</strong></p>
+</div>
+<div class="paragraph">
+<p>Runp adds to the context some variables:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>runp_workdir</code>: user current working directory as absolute path</p>
+</li>
+<li>
+<p><code>runp_root</code>: directory parent of the Runpfile as absolute path</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Usage:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">units</span><span class="pi">:</span>
+  <span class="na">vars</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">echo implicit vars from Runp</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s2">"</span><span class="s">echo</span><span class="nv"> </span><span class="s">runp_workdir={{vars</span><span class="nv"> </span><span class="s">runp_workdir}}</span><span class="nv"> </span><span class="s">runp_root={{vars</span><span class="nv"> </span><span class="s">runp_root}}"</span></code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_license">License</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License 2.0</a> - Copyright &#169; 2020-TODAY runp contributors.</p>
+</div>
+</div>
+</div>
+</div>
+<div id="footer">
+<div id="footer-text">
+Version 0.3.0-dev<br>
+Last updated 2021-02-10 22:18:08 UTC
+</div>
+</div>
+</body>
+</html>
