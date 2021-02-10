@@ -1,7 +1,0 @@
-name: Test Runpfile
-description: This is Runpfile
-units:
-  vars:
-    description: echo implicit vars from Runp
-    host:
-      command: "echo runp_workdir={{vars runp_workdir}} runp_root={{vars runp_root}}"
