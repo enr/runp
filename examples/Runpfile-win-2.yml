@@ -1,0 +1,17 @@
+name: Test Runpfile
+description: This is Runpfile
+units:
+  await:
+    description: read environment variables
+    host:
+      command: set
+      env:
+        MYHOME: ${HOME}
+  echo:
+    description: echo the value of %OS% env var
+    host:
+      command: echo %OS%
+  infiniteloop:
+    description: infinite loop
+    host:
+      executable: infinite.cmd

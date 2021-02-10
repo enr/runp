@@ -1,0 +1,35 @@
+name: Test Runpfile
+description: This is Runpfile showing Docker volumes
+units:
+  fowler:
+    description: The Fowler collection
+    container:
+      image: alpine:3.12
+      skip_rm: true
+      mounts:
+        - "type=volume,dst=/library/PoEAA"
+        - "type=bind,src=/tmp,dst=/library/DSL"
+      command: |
+        echo "Fowler collection created"
+  knuth:
+    description: The Knuth collection
+    container:
+      image: alpine:3.12
+      skip_rm: true
+      mounts:
+        - "type=volume,dst=/library/TAoCP.vol1"
+        - "type=volume,dst=/library/TAoCP.vol2"
+        - "type=volume,dst=/library/TAoCP.vol3"
+      command: |
+        echo "Knuth collection created"
+  reader:
+    description: The avid reader
+    container:
+      image: alpine:3.12
+      volumes_from:
+        - fowler
+        - knuth
+      command: |
+        ls -l /library/
+      await:
+        timeout: 0h0m3s

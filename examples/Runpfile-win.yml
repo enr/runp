@@ -1,0 +1,64 @@
+name: Test Runpfile
+description: This is Runpfile
+units:
+  pwd:
+    description: pwd equivalent
+    host:
+      command: echo %cd%
+      workdir: /opt/maven/bin
+  goenv:
+    description: pwd equivalent
+    host:
+      executable: /opt/go/bin/go.exe
+      workdir: /opt/maven/bin
+      args:
+        - env
+      env:
+        # Go needs $TMP
+        TMP: \tmp
+  ls:
+    description: ls equivalent
+    host:
+      command: dir
+      workdir: /opt/maven/bin
+  mvn:
+    description: mvn version
+    host:
+      command: mvn clean package -DskipTests
+      workdir: /projects/sia/milo-supports/queuesend
+      env:
+        PATH: ${PATH}
+        JAVA_HOME: ${JAVA_HOME}
+        MAVEN_OPTS: ${MAVEN_OPTS}
+        # Windows needs this:
+        SystemRoot: ${SystemRoot}
+        CD: ${CD}
+        TMP: /tmp
+  await:
+    description: await
+    host:
+      command: dir queuesend\target
+      workdir: /projects/sia/milo-supports
+      await:
+        resource: file:///projects/sia/milo-supports/queuesend/target/queuesend.war
+        timeout: 0h0m50s
+  go:
+    description: go version
+    host:
+      command:  go version
+      env:
+        PATH: ${PATH}
+        GOPATH: ${GOPATH}
+        TMP: \tmp
+  env:
+    description: env
+    host:
+      command: set
+      env:
+        PATH: ${PATH}
+        JAVA_HOME: ${JAVA_HOME}
+        MAVEN_OPTS: ${MAVEN_OPTS}
+        # Windows needs this:
+        SystemRoot: ${SystemRoot}
+        CD: ${CD}
+        TMP: /tmp

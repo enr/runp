@@ -1,0 +1,25 @@
+name: Await DB
+description: |
+  Sample Runpfile to show how to wait for a DB
+units:
+  be:
+    description: Backend app
+    host:
+      command: mvn clean compile quarkus:dev
+      workdir: backend
+      env:
+        # inherit PATH from host system to find mvn and java
+        PATH: $PATH
+      await:
+        resource: tcp4://localhost:5432/
+        timeout: 0h0m10s
+  db:
+    description: Database
+    container:
+      image: postgres:alpine
+      ports:
+        - "5432:5432"
+      env:
+        POSTGRES_PASSWORD: ppp
+        POSTGRES_USER: uuu
+        POSTGRES_DB: db_db

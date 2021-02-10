@@ -1,0 +1,9 @@
+name: Test Runpfile
+description: This is Runpfile
+units:
+  await1:
+    description: env command
+    host:
+      command: env
+      env:
+        MYHOME: ${HOME}

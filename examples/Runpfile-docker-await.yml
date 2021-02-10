@@ -1,0 +1,23 @@
+name: Test Runpfile
+description: |
+  This is Runpfile showing how to wait for an http resource
+units:
+  run:
+    description: docker from shell
+    host:
+      command: docker run -t --rm hello-world
+      workdir: /tmp
+      await:
+        resource: http://localhost:8000
+        timeout: 0h0m25s
+  img:
+    description: docker dsl
+    container:
+      image: hello-world
+  # docker run -d --name web-test -p 80:8000 crccheck/hello-world
+  hello-web:
+    description: crccheck/hello-world
+    container:
+      image: crccheck/hello-world
+      ports:
+        - "8000:8000"

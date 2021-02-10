@@ -1,0 +1,21 @@
+name: Test Runpfile
+description: This is Runpfile
+units:
+  echo:
+    description: Echo hello world
+    host:
+      executable: echo
+      args:
+        - hello
+        - "--to"
+        - world
+  error:
+    description: Command not in path
+    host:
+      command: aha
+      workdir: /tmp
+  pwd:
+    description: Pwd relative to this Runpfile
+    host:
+      command: pwd
+      workdir: ../..
