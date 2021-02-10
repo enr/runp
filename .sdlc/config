@@ -8,4 +8,3 @@ SDLC_DIST_DIR='dist'
 SDLC_E2E_DIR='e2e'
 
 APP_VERSION='0.3.0-dev' # APP_VERSION_AUTOLINE this line is automatically managed
-
