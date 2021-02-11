@@ -18,7 +18,7 @@ specs:
       output:
         stdout:
           contains_all:
-            - NAMEXXXXXXXXXXXXXXXX
+            - NAME
             - USAGE
             - COMMANDS
             - OPTIONS
