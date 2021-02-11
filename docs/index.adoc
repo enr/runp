@@ -188,6 +188,7 @@ units:
   echo:
     description: echo the value of %OS% env var
     host:
+      # in command env vars have the specific OS notation
       command: echo %OS%
   infiniteloop:
     description: infinite loop

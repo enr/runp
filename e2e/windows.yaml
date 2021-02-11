@@ -61,3 +61,23 @@ specs:
             - COMMANDS
         stderr:
           is_empty: true
+  env_vars:
+    description: env vars are used
+    command:
+      working_dir: ..
+      exe: bin/runp
+      ext:
+        windows: .exe
+      args:
+        - "up"
+        - "--file"
+        - "examples/Runpfile-env-win.yml"
+    expectations:
+      status:
+        equals_to: 0
+      output:
+        stdout:
+          contains_all:
+            - __foo-env-is-bar__
+        stderr:
+          is_empty: true

@@ -1,0 +1,10 @@
+name: Test Runpfile
+description: This is Runpfile
+units:
+  env:
+    description: echo environment variable
+    host:
+      command: echo __%FOO_ENV%__
+      workdir: ..
+      env:
+        FOO_ENV: foo-env-is-bar

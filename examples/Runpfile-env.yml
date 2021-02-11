@@ -24,6 +24,6 @@ units:
     description: env command
     host:
       executable: /usr/bin/env
-      workdir: ~/tmp
+      workdir: ~
       env:
         MYJAVA: ${JAVA_HOME}
