@@ -38,7 +38,7 @@ specs:
         - "--var"
         - "foo=qwerty"
         - "--file"
-        - "examples/Runpfile-env-e2e.yml"
+        - "examples/Runpfile-env-nix.yml"
     expectations:
       status:
         equals_to: 4
