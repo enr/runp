@@ -331,7 +331,7 @@ pre.rouge {
 <h1>Runp</h1>
 <div class="details">
 <span id="author" class="author">runp contributors</span><br>
-<span id="revnumber">version 0.3.0-dev</span>
+<span id="revnumber">version 0.3.0</span>
 </div>
 </div>
 <div id="content">
@@ -351,7 +351,7 @@ pre.rouge {
 <div class="paragraph">
 <p><a href="https://github.com/enr/runp/releases/latest">Download last artifacts</a> |
  <a href="https://enr.github.io/runp/pdf/runp_manual.pdf">This manual as PDF</a> |
- Build revision <code>88c2e6b75a1f132f6b8fa3c66a1a42f1ea8e007c</code></p>
+ Build revision <code>111be8f945e775ac28298854c286def41ea5b1ac</code></p>
 </div>
 </div>
 </div>
@@ -395,19 +395,19 @@ running all needed processes in parallel (like Docker compose, Foreman et simili
 <div class="ulist">
 <ul>
 <li>
-<p>Working directory per process</p>
+<p>working directory per process</p>
 </li>
 <li>
-<p>Environment variables per process</p>
+<p>wnvironment variables per process</p>
 </li>
 <li>
-<p>User defined vars per system, defined in the Runpfile or passed at runtime as command line arguments</p>
+<p>user defined vars per system, defined in the Runpfile or passed at runtime as command line arguments</p>
 </li>
 <li>
-<p>Processes dependency: a process can wait for a given condition to start, e.g. a file appearing or another process being ready</p>
+<p>processes dependency: a process can wait for a given condition to start, e.g. a file appearing or another process being ready</p>
 </li>
 <li>
-<p>Not only <em>long running</em> processes but <em>one shot commands</em> too</p>
+<p>not only <em>long running</em> processes but <em>one shot commands</em> too</p>
 </li>
 <li>
 <p>Windows OS</p>
@@ -421,32 +421,42 @@ running all needed processes in parallel (like Docker compose, Foreman et simili
 <div class="content">
 <pre class="rouge highlight"><code data-lang="yaml"><span class="na">name</span><span class="pi">:</span> <span class="s">Example</span>
 <span class="na">description</span><span class="pi">:</span> <span class="pi">|</span>
-  <span class="s">Sample Runpfile to show how to start an host process and a container</span>
+  <span class="s">Sample Runpfile to show runp functionalities</span>
 <span class="na">units</span><span class="pi">:</span>
   <span class="na">be</span><span class="pi">:</span>
     <span class="na">description</span><span class="pi">:</span> <span class="s">Backend app</span>
     <span class="c1"># this process is running on host machine</span>
     <span class="na">host</span><span class="pi">:</span>
-      <span class="na">command</span><span class="pi">:</span> <span class="s">mvn clean compile quarkus:dev</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">node app.js</span>
       <span class="na">workdir</span><span class="pi">:</span> <span class="s">backend</span>
       <span class="na">env</span><span class="pi">:</span>
-        <span class="c1"># inherit PATH from host system to find needed tools (mvn and java)</span>
+        <span class="c1"># inherit PATH from host system to find needed tools (e.g. node)</span>
         <span class="na">PATH</span><span class="pi">:</span> <span class="s">$PATH</span>
       <span class="na">await</span><span class="pi">:</span>
-        <span class="c1"># wait for DB</span>
+        <span class="c1"># wait for the DB being available</span>
         <span class="na">resource</span><span class="pi">:</span> <span class="s">tcp4://localhost:5432/</span>
         <span class="na">timeout</span><span class="pi">:</span> <span class="s">0h0m10s</span>
-  <span class="na">db</span><span class="pi">:</span>
-    <span class="na">description</span><span class="pi">:</span> <span class="s">Database</span>
+  <span class="na">mail</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">Test mail server</span>
     <span class="c1"># this process is running in a container</span>
     <span class="na">container</span><span class="pi">:</span>
-      <span class="na">image</span><span class="pi">:</span> <span class="s">postgres:alpine</span>
+      <span class="na">image</span><span class="pi">:</span> <span class="s">mailhog/mailhog</span>
       <span class="na">ports</span><span class="pi">:</span>
-        <span class="pi">-</span> <span class="s2">"</span><span class="s">5432:5432"</span>
-      <span class="na">env</span><span class="pi">:</span>
-        <span class="na">POSTGRES_PASSWORD</span><span class="pi">:</span> <span class="s">secret</span>
-        <span class="na">POSTGRES_USER</span><span class="pi">:</span> <span class="s">user</span>
-        <span class="na">POSTGRES_DB</span><span class="pi">:</span> <span class="s">database</span></code></pre>
+        <span class="pi">-</span> <span class="s2">"</span><span class="s">8025:8025"</span>
+        <span class="pi">-</span> <span class="s2">"</span><span class="s">1025:1025"</span>
+  <span class="na">db</span><span class="pi">:</span>
+    <span class="c1"># This process is reachable through SSH port forwarding</span>
+    <span class="na">user</span><span class="pi">:</span> <span class="s">user</span>
+    <span class="na">auth</span><span class="pi">:</span>
+      <span class="na">identity_file</span><span class="pi">:</span> <span class="s">~/.ssh/id_rsa</span>
+    <span class="na">local</span><span class="pi">:</span>
+      <span class="na">port</span><span class="pi">:</span> <span class="m">5432</span>
+    <span class="na">jump</span><span class="pi">:</span>
+      <span class="na">host</span><span class="pi">:</span> <span class="s">dev.host</span>
+      <span class="na">port</span><span class="pi">:</span> <span class="m">22</span>
+    <span class="na">target</span><span class="pi">:</span>
+      <span class="na">host</span><span class="pi">:</span> <span class="s">corporate.db</span>
+      <span class="na">port</span><span class="pi">:</span> <span class="s">5432</span></code></pre>
 </div>
 </div>
 </div>
@@ -749,8 +759,8 @@ runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
 </div>
 <div id="footer">
 <div id="footer-text">
-Version 0.3.0-dev<br>
-Last updated 2021-02-11 17:05:02 UTC
+Version 0.3.0<br>
+Last updated 2021-02-11 21:28:38 UTC
 </div>
 </div>
 </body>
