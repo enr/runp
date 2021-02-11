@@ -1,13 +1,8 @@
 
 on:
   push:
-    branches:
-      - main
-      - gh-pages
-# on:
-#   push:
-#     tags:
-#       - 'v*'
+    tags:
+      - 'v*'
 
 name: Create Website
 
