@@ -39,11 +39,11 @@ Runp uses a `Runpfile`, a sort of a sofisticated `Procfile` that describes the p
 
 Moreover the Runpfile handles:
 
-- Working directory per process
-- Environment variables per process
-- User defined vars per system, defined in the Runpfile or passed at runtime as command line arguments
-- Processes dependency: a process can wait for a given condition to start, e.g. a file appearing or another process being ready
-- Not only _long running_ processes but _one shot commands_ too
+- working directory per process
+- wnvironment variables per process
+- user defined vars per system, defined in the Runpfile or passed at runtime as command line arguments
+- processes dependency: a process can wait for a given condition to start, e.g. a file appearing or another process being ready
+- not only _long running_ processes but _one shot commands_ too
 - Windows OS
 
 An example of a `Runpfile` :
@@ -52,32 +52,42 @@ An example of a `Runpfile` :
 ----
 name: Example
 description: |
-  Sample Runpfile to show how to start an host process and a container
+  Sample Runpfile to show runp functionalities
 units:
   be:
     description: Backend app
     # this process is running on host machine
     host:
-      command: mvn clean compile quarkus:dev
+      command: node app.js
       workdir: backend
       env:
-        # inherit PATH from host system to find needed tools (mvn and java)
+        # inherit PATH from host system to find needed tools (e.g. node)
         PATH: $PATH
       await:
-        # wait for DB
+        # wait for the DB being available
         resource: tcp4://localhost:5432/
         timeout: 0h0m10s
-  db:
-    description: Database
+  mail:
+    description: Test mail server
     # this process is running in a container
     container:
-      image: postgres:alpine
+      image: mailhog/mailhog
       ports:
-        - "5432:5432"
-      env:
-        POSTGRES_PASSWORD: secret
-        POSTGRES_USER: user
-        POSTGRES_DB: database
+        - "8025:8025"
+        - "1025:1025"
+  db:
+    # This process is reachable through SSH port forwarding
+    user: user
+    auth:
+      identity_file: ~/.ssh/id_rsa
+    local:
+      port: 5432
+    jump:
+      host: dev.host
+      port: 22
+    target:
+      host: corporate.db
+      port: 5432
 ----
 
 ## Usage
