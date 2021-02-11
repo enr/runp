@@ -81,6 +81,18 @@ func TestRunpfileLoad(t *testing.T) {
 	}
 }
 
+func TestMultiError(t *testing.T) {
+	expected := `e1
+error 2
+`
+	var errors multiError
+	errors = append(errors, fmt.Errorf(`e1`))
+	errors = append(errors, fmt.Errorf(`error 2`))
+	if errors.Error() != expected {
+		t.Errorf(`multiError expected output "%s", got "%s"`, expected, errors.Error())
+	}
+}
+
 func compareErrors(rp string, actualErrors []error, expectedErrorMessages []string, t *testing.T) {
 	if len(actualErrors) != len(expectedErrorMessages) {
 		t.Errorf("Runppfile %s, expected errors size %d but got %d\n", rp, len(expectedErrorMessages), len(actualErrors))

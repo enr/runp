@@ -163,6 +163,7 @@ func (e multiError) Error() string {
 
 	for _, err := range e {
 		sb.WriteString(err.Error())
+		sb.WriteString("\n")
 	}
 	return sb.String()
 }
