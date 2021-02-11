@@ -30,3 +30,34 @@ func TestEncryptionDecryption(t *testing.T) {
 	}
 
 }
+func TestDecryptionError(t *testing.T) {
+	passphrase := `secret`
+	message := `the secret message`
+
+	enc, err := Encrypt([]byte(message), passphrase)
+	if err != nil {
+		t.Errorf("Encryption error %v", err)
+	}
+	encB64, err := EncryptToBase64([]byte(message), passphrase)
+	if err != nil {
+		t.Errorf("Encryption base 64 error %v", err)
+	}
+
+	_, err = Decrypt(enc, `the wrong key`)
+	if err == nil {
+		t.Errorf("An error was expected (decrypt using wrong key)")
+	}
+	_, err = Decrypt([]byte(`not encrypted!`), passphrase)
+	if err == nil {
+		t.Errorf("An error was expected (decrypt an invalid value)")
+	}
+	_, err = DecryptBase64(encB64, `the wrong key`)
+	if err == nil {
+		t.Errorf("An error was expected (decrypt base64 using invalid key)")
+	}
+	_, err = DecryptBase64(`not base64`, passphrase)
+	if err == nil {
+		t.Errorf("An error was expected (decrypt base64 an invalid base64)")
+	}
+
+}

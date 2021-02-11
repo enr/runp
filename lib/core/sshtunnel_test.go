@@ -96,6 +96,7 @@ func Test01(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error %v", err)
 	}
+	defer cmd.Stop()
 
 	go func() {
 		err = cmd.Wait()

@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"path/filepath"
 	"testing"
 )
 
@@ -35,8 +36,20 @@ var executions = []testCase{
 	},
 }
 
+func TestResolveRunpfile(t *testing.T) {
+	ui = CreateMainLogger(" ", 6, `TEST`, true, false)
+	p := `../../examples/Runpfile-await-db.yml`
+	rpp, err := ResolveRunpfilePath(p)
+	if err != nil {
+		t.Errorf("ResolveRunpfilePath %s, unexpected error %v", p, err)
+	}
+	if !filepath.IsAbs(rpp) {
+		t.Errorf("ResolveRunpfilePath %s, expected absolute path but got %s", p, rpp)
+	}
+}
+
 func TestRunpfileLoad(t *testing.T) {
-	// LoadUI(clui.VerbosityLevelLow)
+	ui = CreateMainLogger(" ", 6, `TEST`, true, false)
 	i := ""
 	for _, d := range executions {
 		i = i + "."
