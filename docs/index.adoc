@@ -136,6 +136,45 @@ units:
         POSTGRES_DB: dbname
 ----
 
+**Containers**
+
+Containers can talk to each other thorough a Docker network (`runp-network`).
+
+The container name (the host name exposed to other containers) is set to `runp-${UNIT NAME}` or to the field `name`.
+
+This Runpfile starts Wordpress and MySql:
+
+[source,yaml]
+----
+name: Wordpress Runpfile
+description: Runpfile to run Wordpress and MySql
+units:
+  db:
+    container:
+      name: db
+      image: mysql:5.7
+      ports:
+        - "3306:3306"
+      env:
+        MYSQL_ROOT_PASSWORD: somewordpress
+        MYSQL_DATABASE: wordpress
+        MYSQL_USER: wordpress
+        MYSQL_PASSWORD: wordpress
+  wordpress:
+    container:
+      image: wordpress:latest
+      ports:
+        - "8000:80"
+      env:
+        WORDPRESS_DB_HOST: db:3306
+        WORDPRESS_DB_USER: wordpress
+        WORDPRESS_DB_PASSWORD: wordpress
+        WORDPRESS_DB_NAME: wordpress
+      await:
+        resource: tcp4://localhost:3306/
+        timeout: 0h0m20s
+----
+
 **Use containers volumes**
 
 Run containers and volumes (example is from the book Docker in action - Manning):
