@@ -1,20 +1,18 @@
 package core
 
 import (
-	"bytes"
 	"fmt"
-	"io"
+	"io/ioutil"
 	mr "math/rand"
 	"os"
 	"strconv"
-	"sync"
 	"testing"
 )
 
-func collectLogOutput(f func()) string {
+func captureOutput(f func(), t *testing.T) string {
 	r, w, err := os.Pipe()
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	stdout := os.Stdout
 	stderr := os.Stderr
@@ -24,20 +22,13 @@ func collectLogOutput(f func()) string {
 	}()
 	os.Stdout = w
 	os.Stderr = w
-
-	out := make(chan string)
-	wg := new(sync.WaitGroup)
-	wg.Add(1)
-	go func() {
-		var buf bytes.Buffer
-		wg.Done()
-		io.Copy(&buf, r)
-		out <- buf.String()
-	}()
-	wg.Wait()
 	f()
-	w.Close()
-	return <-out
+	err = w.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, _ := ioutil.ReadAll(r)
+	return string(out)
 }
 
 func TestWriteLinef(t *testing.T) {
@@ -52,9 +43,9 @@ func TestWriteLinef(t *testing.T) {
 
 	var written int
 	var err error
-	out := collectLogOutput(func() {
+	out := captureOutput(func() {
 		written, err = sut.WriteLinef(`hello %s`, world)
-	})
+	}, t)
 	if out != expected {
 		t.Errorf("Expected output '%s', got '%s'", expected, out)
 	}
@@ -80,9 +71,9 @@ func TestWrite(t *testing.T) {
 
 	var written int
 	var err error
-	out := collectLogOutput(func() {
+	out := captureOutput(func() {
 		written, err = sut.Write([]byte(message))
-	})
+	}, t)
 	if out != expected {
 		t.Errorf("Expected output '%s', got '%s'", expected, out)
 	}
@@ -104,9 +95,9 @@ func TestLogDebug(t *testing.T) {
 
 	var written int
 	var err error
-	out := collectLogOutput(func() {
+	out := captureOutput(func() {
 		written, err = sut.Debugf(`hello %s`, world)
-	})
+	}, t)
 	if out != `` {
 		t.Errorf("Expected no output, got '%s'", out)
 	}
