@@ -11,8 +11,8 @@ import (
 	"testing"
 )
 
-func captureOutput(f func()) string {
-	reader, writer, err := os.Pipe()
+func collectLogOutput(f func()) string {
+	r, w, err := os.Pipe()
 	if err != nil {
 		panic(err)
 	}
@@ -22,8 +22,8 @@ func captureOutput(f func()) string {
 		os.Stdout = stdout
 		os.Stderr = stderr
 	}()
-	os.Stdout = writer
-	os.Stderr = writer
+	os.Stdout = w
+	os.Stderr = w
 
 	out := make(chan string)
 	wg := new(sync.WaitGroup)
@@ -31,12 +31,12 @@ func captureOutput(f func()) string {
 	go func() {
 		var buf bytes.Buffer
 		wg.Done()
-		io.Copy(&buf, reader)
+		io.Copy(&buf, r)
 		out <- buf.String()
 	}()
 	wg.Wait()
 	f()
-	writer.Close()
+	w.Close()
 	return <-out
 }
 
@@ -52,7 +52,7 @@ func TestWriteLinef(t *testing.T) {
 
 	var written int
 	var err error
-	out := captureOutput(func() {
+	out := collectLogOutput(func() {
 		written, err = sut.WriteLinef(`hello %s`, world)
 	})
 	if out != expected {
@@ -80,7 +80,7 @@ func TestWrite(t *testing.T) {
 
 	var written int
 	var err error
-	out := captureOutput(func() {
+	out := collectLogOutput(func() {
 		written, err = sut.Write([]byte(message))
 	})
 	if out != expected {
@@ -104,7 +104,7 @@ func TestLogDebug(t *testing.T) {
 
 	var written int
 	var err error
-	out := captureOutput(func() {
+	out := collectLogOutput(func() {
 		written, err = sut.Debugf(`hello %s`, world)
 	})
 	if out != `` {

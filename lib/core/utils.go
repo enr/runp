@@ -160,7 +160,6 @@ type multiError []error
 
 func (e multiError) Error() string {
 	var sb strings.Builder
-
 	for _, err := range e {
 		sb.WriteString(err.Error())
 		sb.WriteString("\n")

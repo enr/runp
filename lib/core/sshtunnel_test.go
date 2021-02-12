@@ -16,7 +16,7 @@ import (
 	"github.com/enr/go-files/files"
 )
 
-func Test01(t *testing.T) {
+func TestSSHTunnelHappyPath(t *testing.T) {
 
 	ConfigureUI(testLogger, LoggerConfig{
 		Debug: true,
@@ -129,5 +129,4 @@ func Test01(t *testing.T) {
 			t.Errorf("Response from local, expected: <%s> got <%s>", stubResponse, b)
 		}
 	}
-
 }

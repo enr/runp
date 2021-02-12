@@ -45,3 +45,24 @@ specs:
       output:
         stderr:
           is_empty: false
+  command_list:
+    description: list units in runpfile
+    command:
+      working_dir: ..
+      exe: bin/runp
+      ext:
+        windows: .exe
+      args:
+        - "ls"
+        - "--file"
+        - "examples/Runpfile-docker-wordpress.yml"
+    expectations:
+      status:
+        equals_to: 0
+      output:
+        stdout:
+          contains_all:
+            - "db: database"
+            - wordpress
+        stderr:
+          is_empty: true

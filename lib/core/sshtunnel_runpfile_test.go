@@ -36,6 +36,7 @@ local:
   port: 9000
 jump:
   host: 192.168.0.4
+  port: 2200
 
 ---`
 
@@ -48,6 +49,7 @@ jump:
 
 	expected := expectedSSHTunnelProcess{
 		local: `localhost:9000`,
+		jump:  `192.168.0.4:2200`,
 	}
 
 	assertSSHTunnelProcess(cp, expected, t)
@@ -56,5 +58,8 @@ jump:
 func assertSSHTunnelProcess(cp *SSHTunnelProcess, expected expectedSSHTunnelProcess, t *testing.T) {
 	if expected.local != "" && expected.local != cp.Local.String() {
 		t.Errorf(`local host expected:%s got:%s`, expected.local, cp.Local.String())
+	}
+	if expected.jump != "" && expected.jump != cp.Jump.String() {
+		t.Errorf(`jump host expected:%s got:%s`, expected.jump, cp.Jump.String())
 	}
 }

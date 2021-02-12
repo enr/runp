@@ -19,7 +19,7 @@ description: |
   Sample Runpfile to show runp functionalities
 units:
   web:
-    description: Backend app
+    description: Web app
     # this process is running on host machine
     host:
       command: node app.js
@@ -40,18 +40,20 @@ units:
         - "8025:8025"
         - "1025:1025"
   db:
+    description: Corporate DB
     # This process is reachable through SSH port forwarding
-    user: user
-    auth:
-      identity_file: ~/.ssh/id_rsa
-    local:
-      port: 5432
-    jump:
-      host: dev.host
-      port: 22
-    target:
-      host: corporate.db
-      port: 5432
+    ssh_tunnel:
+      user: user
+      auth:
+        identity_file: ~/.ssh/id_rsa
+      local:
+        port: 5432
+      jump:
+        host: dev.host
+        port: 22
+      target:
+        host: corporate.db
+        port: 5432
 ```
 
 Run runp:

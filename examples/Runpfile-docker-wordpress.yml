@@ -2,6 +2,7 @@ name: Wordpress Runpfile
 description: Runpfile to run Wordpress and MySql
 units:
   db:
+    description: database
     container:
       name: db
       image: mysql:5.7
