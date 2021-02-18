@@ -40,7 +40,7 @@ Runp uses a `Runpfile`, a sort of a sofisticated `Procfile` that describes the p
 Moreover the Runpfile handles:
 
 - working directory per process
-- wnvironment variables per process
+- environment variables per process
 - user defined vars per system, defined in the Runpfile or passed at runtime as command line arguments
 - processes dependency: a process can wait for a given condition to start, e.g. a file appearing or another process being ready
 - not only _long running_ processes but _one shot commands_ too
