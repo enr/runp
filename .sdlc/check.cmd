@@ -55,5 +55,5 @@ for /f %%x in ('dir /AD /B /S cmd') do (
 )
 
 cd %project_dir%
-go test -v github.com/enr/runp/e2e
+go test -mod vendor -v github.com/enr/runp/e2e
 

@@ -12,7 +12,7 @@ github.com/creack/pty
 # github.com/daviddengcn/go-colortext v1.0.0
 ## explicit
 github.com/daviddengcn/go-colortext
-# github.com/enr/go-files v0.2.0
+# github.com/enr/go-files v0.3.0
 ## explicit
 github.com/enr/go-files/files
 # github.com/enr/qac v0.2.0
@@ -39,7 +39,7 @@ github.com/subosito/gotenv
 # github.com/urfave/cli/v2 v2.3.0
 ## explicit
 github.com/urfave/cli/v2
-# golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
+# golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
 ## explicit
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/chacha20
@@ -50,13 +50,12 @@ golang.org/x/crypto/internal/subtle
 golang.org/x/crypto/poly1305
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
-# golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c
+# golang.org/x/sys v0.0.0-20210412220455-f1c623a9e750
 ## explicit
 golang.org/x/sys/cpu
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 # golang.org/x/text v0.3.3
-## explicit
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm
 # gopkg.in/yaml.v2 v2.4.0
