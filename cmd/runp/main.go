@@ -79,7 +79,9 @@ func main() {
 
 	app.Before = func(c *cli.Context) error {
 		debug := c.Bool("debug")
-		colorize := !c.Bool("no-color")
+		_, noColorEnv := os.LookupEnv("NO_COLOR")
+		avoidColor := noColorEnv || c.Bool("no-color")
+		colorize := !avoidColor
 		ui = core.CreateMainLogger(" ", 6, "%s> ", debug, colorize)
 		processLoggerConfiguration := core.LoggerConfig{
 			Debug: debug,

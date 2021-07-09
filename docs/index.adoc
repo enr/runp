@@ -368,6 +368,15 @@ units:
       command: "echo runp_workdir={{vars runp_workdir}} runp_root={{vars runp_root}}"
 ----
 
+**Disabling color output**
+
+To have plain, non-colored text output set the environment variable `NO_COLOR` or use the option `--no-color`:
+
+----
+NO_COLOR=1 ./bin/runp -d up -f examples/Runpfile-many-units.yml
+./bin/runp -d --no-color up -f examples/Runpfile-many-units.yml
+----
+
 ## License
 
 http://www.apache.org/licenses/LICENSE-2.0[Apache License 2.0] - Copyright (C) 2020-TODAY {project-authors}.
