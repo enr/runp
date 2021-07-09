@@ -39,18 +39,19 @@ github.com/subosito/gotenv
 # github.com/urfave/cli/v2 v2.3.0
 ## explicit
 github.com/urfave/cli/v2
-# golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
+# golang.org/x/crypto v0.0.0-20210616213533-5ff15b29337e
 ## explicit
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/chacha20
 golang.org/x/crypto/curve25519
+golang.org/x/crypto/curve25519/internal/field
 golang.org/x/crypto/ed25519
 golang.org/x/crypto/ed25519/internal/edwards25519
 golang.org/x/crypto/internal/subtle
 golang.org/x/crypto/poly1305
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
-# golang.org/x/sys v0.0.0-20210412220455-f1c623a9e750
+# golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c
 ## explicit
 golang.org/x/sys/cpu
 golang.org/x/sys/internal/unsafeheader
