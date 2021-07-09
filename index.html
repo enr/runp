@@ -331,7 +331,7 @@ pre.rouge {
 <h1>Runp</h1>
 <div class="details">
 <span id="author" class="author">runp contributors</span><br>
-<span id="revnumber">version 0.3.1</span>
+<span id="revnumber">version 0.4.0</span>
 </div>
 </div>
 <div id="content">
@@ -351,7 +351,7 @@ pre.rouge {
 <div class="paragraph">
 <p><a href="https://github.com/enr/runp/releases/latest">Download last artifacts</a> |
  <a href="https://enr.github.io/runp/pdf/runp_manual.pdf">This manual as PDF</a> |
- Build revision <code>d3242ba4f86dd73d4234cb4cdbdce1e2033997c4</code></p>
+ Build revision <code>dca0fbdfa8fc40a762740f44fa927d497ebcb64b</code></p>
 </div>
 </div>
 </div>
@@ -398,7 +398,7 @@ running all needed processes in parallel (like Docker compose, Foreman et simili
 <p>working directory per process</p>
 </li>
 <li>
-<p>wnvironment variables per process</p>
+<p>environment variables per process</p>
 </li>
 <li>
 <p>user defined vars per system, defined in the Runpfile or passed at runtime as command line arguments</p>
@@ -423,8 +423,8 @@ running all needed processes in parallel (like Docker compose, Foreman et simili
 <span class="na">description</span><span class="pi">:</span> <span class="pi">|</span>
   <span class="s">Sample Runpfile to show runp functionalities</span>
 <span class="na">units</span><span class="pi">:</span>
-  <span class="na">be</span><span class="pi">:</span>
-    <span class="na">description</span><span class="pi">:</span> <span class="s">Backend app</span>
+  <span class="na">web</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">Web app</span>
     <span class="c1"># this process is running on host machine</span>
     <span class="na">host</span><span class="pi">:</span>
       <span class="na">command</span><span class="pi">:</span> <span class="s">node app.js</span>
@@ -445,18 +445,20 @@ running all needed processes in parallel (like Docker compose, Foreman et simili
         <span class="pi">-</span> <span class="s2">"</span><span class="s">8025:8025"</span>
         <span class="pi">-</span> <span class="s2">"</span><span class="s">1025:1025"</span>
   <span class="na">db</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">Corporate DB</span>
     <span class="c1"># This process is reachable through SSH port forwarding</span>
-    <span class="na">user</span><span class="pi">:</span> <span class="s">user</span>
-    <span class="na">auth</span><span class="pi">:</span>
-      <span class="na">identity_file</span><span class="pi">:</span> <span class="s">~/.ssh/id_rsa</span>
-    <span class="na">local</span><span class="pi">:</span>
-      <span class="na">port</span><span class="pi">:</span> <span class="m">5432</span>
-    <span class="na">jump</span><span class="pi">:</span>
-      <span class="na">host</span><span class="pi">:</span> <span class="s">dev.host</span>
-      <span class="na">port</span><span class="pi">:</span> <span class="m">22</span>
-    <span class="na">target</span><span class="pi">:</span>
-      <span class="na">host</span><span class="pi">:</span> <span class="s">corporate.db</span>
-      <span class="na">port</span><span class="pi">:</span> <span class="s">5432</span></code></pre>
+    <span class="na">ssh_tunnel</span><span class="pi">:</span>
+      <span class="na">user</span><span class="pi">:</span> <span class="s">user</span>
+      <span class="na">auth</span><span class="pi">:</span>
+        <span class="na">identity_file</span><span class="pi">:</span> <span class="s">~/.ssh/id_rsa</span>
+      <span class="na">local</span><span class="pi">:</span>
+        <span class="na">port</span><span class="pi">:</span> <span class="m">5432</span>
+      <span class="na">jump</span><span class="pi">:</span>
+        <span class="na">host</span><span class="pi">:</span> <span class="s">dev.host</span>
+        <span class="na">port</span><span class="pi">:</span> <span class="m">22</span>
+      <span class="na">target</span><span class="pi">:</span>
+        <span class="na">host</span><span class="pi">:</span> <span class="s">corporate.db</span>
+        <span class="na">port</span><span class="pi">:</span> <span class="s">5432</span></code></pre>
 </div>
 </div>
 </div>
@@ -511,6 +513,49 @@ runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
         <span class="na">POSTGRES_PASSWORD</span><span class="pi">:</span> <span class="s">pass</span>
         <span class="na">POSTGRES_USER</span><span class="pi">:</span> <span class="s">user</span>
         <span class="na">POSTGRES_DB</span><span class="pi">:</span> <span class="s">dbname</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Containers</strong></p>
+</div>
+<div class="paragraph">
+<p>Containers can talk to each other thorough a Docker network (<code>runp-network</code>).</p>
+</div>
+<div class="paragraph">
+<p>The container name (the host name exposed to other containers) is set to <code>runp-${UNIT NAME}</code> or to the field <code>name</code>.</p>
+</div>
+<div class="paragraph">
+<p>This Runpfile starts Wordpress and MySql:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">name</span><span class="pi">:</span> <span class="s">Wordpress Runpfile</span>
+<span class="na">description</span><span class="pi">:</span> <span class="s">Runpfile to run Wordpress and MySql</span>
+<span class="na">units</span><span class="pi">:</span>
+  <span class="na">db</span><span class="pi">:</span>
+    <span class="na">container</span><span class="pi">:</span>
+      <span class="na">name</span><span class="pi">:</span> <span class="s">db</span>
+      <span class="na">image</span><span class="pi">:</span> <span class="s">mysql:5.7</span>
+      <span class="na">ports</span><span class="pi">:</span>
+        <span class="pi">-</span> <span class="s2">"</span><span class="s">3306:3306"</span>
+      <span class="na">env</span><span class="pi">:</span>
+        <span class="na">MYSQL_ROOT_PASSWORD</span><span class="pi">:</span> <span class="s">somewordpress</span>
+        <span class="na">MYSQL_DATABASE</span><span class="pi">:</span> <span class="s">wordpress</span>
+        <span class="na">MYSQL_USER</span><span class="pi">:</span> <span class="s">wordpress</span>
+        <span class="na">MYSQL_PASSWORD</span><span class="pi">:</span> <span class="s">wordpress</span>
+  <span class="na">wordpress</span><span class="pi">:</span>
+    <span class="na">container</span><span class="pi">:</span>
+      <span class="na">image</span><span class="pi">:</span> <span class="s">wordpress:latest</span>
+      <span class="na">ports</span><span class="pi">:</span>
+        <span class="pi">-</span> <span class="s2">"</span><span class="s">8000:80"</span>
+      <span class="na">env</span><span class="pi">:</span>
+        <span class="na">WORDPRESS_DB_HOST</span><span class="pi">:</span> <span class="s">db:3306</span>
+        <span class="na">WORDPRESS_DB_USER</span><span class="pi">:</span> <span class="s">wordpress</span>
+        <span class="na">WORDPRESS_DB_PASSWORD</span><span class="pi">:</span> <span class="s">wordpress</span>
+        <span class="na">WORDPRESS_DB_NAME</span><span class="pi">:</span> <span class="s">wordpress</span>
+      <span class="na">await</span><span class="pi">:</span>
+        <span class="na">resource</span><span class="pi">:</span> <span class="s">tcp4://localhost:3306/</span>
+        <span class="na">timeout</span><span class="pi">:</span> <span class="s">0h0m20s</span></code></pre>
 </div>
 </div>
 <div class="paragraph">
@@ -746,6 +791,18 @@ runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
       <span class="na">command</span><span class="pi">:</span> <span class="s2">"</span><span class="s">echo</span><span class="nv"> </span><span class="s">runp_workdir={{vars</span><span class="nv"> </span><span class="s">runp_workdir}}</span><span class="nv"> </span><span class="s">runp_root={{vars</span><span class="nv"> </span><span class="s">runp_root}}"</span></code></pre>
 </div>
 </div>
+<div class="paragraph">
+<p><strong>Disabling color output</strong></p>
+</div>
+<div class="paragraph">
+<p>To have plain, non-colored text output set the environment variable <code>NO_COLOR</code> or use the option <code>--no-color</code>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>NO_COLOR=1 ./bin/runp -d up -f examples/Runpfile-many-units.yml
+./bin/runp -d --no-color up -f examples/Runpfile-many-units.yml</pre>
+</div>
+</div>
 </div>
 </div>
 <div class="sect1">
@@ -759,8 +816,8 @@ runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
 </div>
 <div id="footer">
 <div id="footer-text">
-Version 0.3.1<br>
-Last updated 2021-02-18 13:18:12 UTC
+Version 0.4.0<br>
+Last updated 2021-07-09 21:44:24 UTC
 </div>
 </div>
 </body>
