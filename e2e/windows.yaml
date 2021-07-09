@@ -81,3 +81,23 @@ specs:
             - __foo-env-is-bar__
         stderr:
           is_empty: true
+  subdirs:
+    command:
+      working_dir: ../testdata/runpfiles/subdirs/foo
+      exe: ../../../../bin/runp
+      args:
+        - "up"
+        - "--file"
+        - "../runp/test.yml"
+      ext:
+        windows: .exe
+    expectations:
+      status:
+        equals_to: 0
+      output:
+        stdout:
+          contains_all:
+            - testdata\runpfiles\subdirs\foo
+            - testdata\runpfiles\subdirs\bar
+        stderr:
+          is_empty: true

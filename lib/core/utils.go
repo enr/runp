@@ -153,7 +153,7 @@ func resolvePath(pd string, root string) (string, error) {
 	if filepath.IsAbs(pwd) {
 		return filepath.FromSlash(pwd), nil
 	}
-	return filepath.Abs(filepath.FromSlash(path.Join(root, pwd)))
+	return filepath.Abs(path.Join(filepath.FromSlash(root), filepath.FromSlash(pwd)))
 }
 
 type multiError []error
