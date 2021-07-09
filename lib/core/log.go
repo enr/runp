@@ -32,15 +32,6 @@ type clogger struct {
 	colors  bool
 }
 
-var colors = []ct.Color{
-	ct.Green,
-	ct.Cyan,
-	ct.Magenta,
-	ct.Yellow,
-	ct.Blue,
-	ct.Red,
-}
-
 // process log color index
 var ci int
 var mutex = new(sync.Mutex)
@@ -69,7 +60,7 @@ func (l *clogger) WriteLine(line string) (int, error) {
 	}
 	mutex.Lock()
 	if l.colors {
-		ct.ChangeColor(colors[l.idx], false, ct.None, false)
+		ct.ChangeColor(labelColors[l.idx].foreground, false, labelColors[l.idx].background, false)
 	}
 	fmt.Printf(l.format, l.proc)
 	if l.colors {
@@ -96,7 +87,7 @@ func (l *clogger) Write(p []byte) (int, error) {
 
 			mutex.Lock()
 			if l.colors {
-				ct.ChangeColor(colors[l.idx], false, ct.None, false)
+				ct.ChangeColor(labelColors[l.idx].foreground, false, labelColors[l.idx].background, false)
 			}
 			fmt.Printf(l.format, l.proc)
 			if l.colors {
@@ -130,7 +121,7 @@ func CreateMainLogger(proc string, longest int, format string, debug bool, color
 	}
 	l := &clogger{idx: ci, proc: n, longest: longest, format: format, debug: debug, colors: colorize}
 	ci++
-	if ci >= len(colors) {
+	if ci >= len(labelColors) {
 		ci = 0
 	}
 	return l
