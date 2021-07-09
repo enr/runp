@@ -1,0 +1,15 @@
+units:
+  foo:
+    description: foo
+    host:
+      command: echo %CD%
+      workdir: ../foo
+      env:
+        PATH: $PATH
+  bar:
+    description: bar
+    host:
+      command: echo %CD%
+      workdir: ../bar
+      env:
+        PATH: $PATH
