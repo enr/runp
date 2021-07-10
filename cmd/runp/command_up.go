@@ -53,8 +53,8 @@ func doUp(c *cli.Context) error {
 	}
 
 	ui.Debugf("Up using runpfile root %s", runpfile.Root)
-	tf := core.NewExecutor(runpfile)
-	tf.Start()
+	executor := core.NewExecutor(runpfile)
+	executor.Start()
 	if err != nil {
 		return exitErrorf(3, "Error executing Runpfile %s. Exit", c.String("f"))
 	}

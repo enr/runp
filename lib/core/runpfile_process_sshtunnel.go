@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -44,6 +45,8 @@ type SSHTunnelProcess struct {
 	Local  Endpoint
 	Jump   Endpoint
 	Target Endpoint
+	// command executed to test connection to jump server
+	TestCommand string `yaml:"test_command"`
 
 	id          string
 	vars        map[string]string
@@ -61,7 +64,38 @@ func (p *SSHTunnelProcess) ID() string {
 
 // Preconditions check if process can be started
 func (p *SSHTunnelProcess) Preconditions() error {
+	//
+	if p.TestCommand != "" {
+		cmdout, err := p.executeCmd(p.TestCommand)
+		ui.Debugf("Test command %s :\n%s", p.TestCommand, cmdout.String())
+		return err
+	}
 	return nil
+}
+
+func (p *SSHTunnelProcess) executeCmd(command string) (*bytes.Buffer, error) {
+	config, err := p.resolveSSHCommandConfiguration()
+	if err != nil {
+		return nil, err
+	}
+	ui.Debugf("config %v", config)
+	hostname := p.Jump.Host
+	port := p.Jump.Port
+	ui.Debugf("Test command %s %s %d", p.TestCommand, hostname, port)
+	conn, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", hostname, port), config)
+	if err != nil {
+		return nil, err
+	}
+	session, err := conn.NewSession()
+	if err != nil {
+		return nil, err
+	}
+	defer session.Close()
+	ui.Debugf("session %v", session)
+	var stdoutBuf bytes.Buffer
+	session.Stdout = &stdoutBuf
+	session.Run(command)
+	return &stdoutBuf, nil
 }
 
 // StopTimeout duration to wait to force kill process
@@ -83,7 +117,21 @@ func (p *SSHTunnelProcess) SetID(id string) {
 
 // StartCommand ho
 func (p *SSHTunnelProcess) StartCommand() (RunpCommand, error) {
+	config, err := p.resolveSSHCommandConfiguration()
+	if err != nil {
+		return nil, err
+	}
+	p.cmd = &SSHTunnelCommandWrapper{
+		config:        config,
+		localAddress:  p.Local.String(),
+		jumpAddress:   p.Jump.String(),
+		targetAddress: p.Target.String(),
+	}
 
+	return p.cmd, nil
+}
+
+func (p *SSHTunnelProcess) resolveSSHCommandConfiguration() (*ssh.ClientConfig, error) {
 	cliPreprocessor := newCliPreprocessor(p.vars)
 	authMethods := []ssh.AuthMethod{}
 	if p.Auth.IdentityFile != "" {
@@ -126,15 +174,7 @@ func (p *SSHTunnelProcess) StartCommand() (RunpCommand, error) {
 		Auth:            authMethods,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
-
-	p.cmd = &SSHTunnelCommandWrapper{
-		config:        config,
-		localAddress:  p.Local.String(),
-		jumpAddress:   p.Jump.String(),
-		targetAddress: p.Target.String(),
-	}
-
-	return p.cmd, nil
+	return config, nil
 }
 
 // StopCommand ho

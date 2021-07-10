@@ -28,21 +28,21 @@ type RunpUnit struct {
 // Process for the sub process
 func (u *RunpUnit) Process() RunpProcess {
 	if u.Container != nil {
-		u.Container.vars = u.vars
-		u.Container.secretKey = u.secretKey
-		u.Container.stopTimeout = u.StopTimeout
+		// u.Container.vars = u.vars
+		// u.Container.secretKey = u.secretKey
+		// u.Container.stopTimeout = u.StopTimeout
 		return u.Container
 	}
 	if u.Host != nil {
-		u.Host.vars = u.vars
-		u.Host.secretKey = u.secretKey
-		u.Host.stopTimeout = u.StopTimeout
+		// u.Host.vars = u.vars
+		// u.Host.secretKey = u.secretKey
+		// u.Host.stopTimeout = u.StopTimeout
 		return u.Host
 	}
 	if u.SSHTunnel != nil {
-		u.SSHTunnel.vars = u.vars
-		u.SSHTunnel.secretKey = u.secretKey
-		u.SSHTunnel.stopTimeout = u.StopTimeout
+		// u.SSHTunnel.vars = u.vars
+		// u.SSHTunnel.secretKey = u.secretKey
+		// u.SSHTunnel.stopTimeout = u.StopTimeout
 		return u.SSHTunnel
 	}
 	return nil

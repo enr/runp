@@ -55,12 +55,21 @@ func (e *RunpfileExecutor) Start() {
 		unit.secretKey = e.rf.SecretKey
 		if unit.Host != nil {
 			host = unit.Host
+			host.vars = unit.vars
+			host.secretKey = unit.secretKey
+			host.stopTimeout = unit.StopTimeout
 		}
 		if unit.Container != nil {
 			container = unit.Container
+			container.vars = unit.vars
+			container.secretKey = unit.secretKey
+			container.stopTimeout = unit.StopTimeout
 		}
 		if unit.SSHTunnel != nil {
 			sshTunnel = unit.SSHTunnel
+			sshTunnel.vars = unit.vars
+			sshTunnel.secretKey = unit.secretKey
+			sshTunnel.stopTimeout = unit.StopTimeout
 		}
 	}
 
