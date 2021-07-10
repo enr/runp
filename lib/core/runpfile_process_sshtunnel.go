@@ -84,9 +84,11 @@ func (p *SSHTunnelProcess) SetID(id string) {
 // StartCommand ho
 func (p *SSHTunnelProcess) StartCommand() (RunpCommand, error) {
 
+	cliPreprocessor := newCliPreprocessor(p.vars)
 	authMethods := []ssh.AuthMethod{}
 	if p.Auth.IdentityFile != "" {
-		identityFile, err := resolvePath(p.Auth.IdentityFile, "")
+		aif := cliPreprocessor.process(p.Auth.IdentityFile)
+		identityFile, err := resolvePath(aif, "")
 		if err != nil {
 			return nil, err
 		}
@@ -97,7 +99,8 @@ func (p *SSHTunnelProcess) StartCommand() (RunpCommand, error) {
 		authMethods = append(authMethods, publicKeyFile(identityFile))
 	}
 	if p.Auth.Secret != "" {
-		authMethods = append(authMethods, ssh.Password(p.Auth.Secret))
+		as := cliPreprocessor.process(p.Auth.Secret)
+		authMethods = append(authMethods, ssh.Password(as))
 		ui.Debugf("Connecting using secret")
 	}
 	if p.Auth.EncryptedSecret != "" {
@@ -117,9 +120,9 @@ func (p *SSHTunnelProcess) StartCommand() (RunpCommand, error) {
 	if len(authMethods) == 0 {
 		return nil, errors.New("No Auth method set")
 	}
-
+	sshUser := cliPreprocessor.process(p.User)
 	config := &ssh.ClientConfig{
-		User:            p.User,
+		User:            sshUser,
 		Auth:            authMethods,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}

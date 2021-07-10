@@ -1,13 +1,20 @@
 name: Test Runpfile
 description: Runpfile to test SSH tunneling
 units:
+  keys:
+    description: chmod keys
+    host:
+      command: |
+        chmod 700 "{{vars runp_workdir}}/testdata/keys" && \
+        chmod 600 "{{vars runp_workdir}}/testdata/keys/runp" && \
+        chmod 600 "{{vars runp_workdir}}/testdata/keys/runp.pub"
   tunnel:
     description: SSH tunnel to target using jump
     ssh_tunnel:
       user: runp
       auth:
         # Path to the private key
-        identity_file: ~/tmp/runpssh/ssh/runp
+        identity_file: "{{vars runp_workdir}}/testdata/keys/runp"
         # The ssh server password in plain text
         #secret: "xxx"
         # The ssh server password encrypted and in base 64
@@ -50,4 +57,4 @@ units:
       command: "curl http://localhost:8001"
       await:
         resource: "http://localhost:8001"
-        timeout: 0h0m5s
+        timeout: 0h0m15s
