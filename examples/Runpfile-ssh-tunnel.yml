@@ -14,7 +14,7 @@ units:
       user: runp
       auth:
         # Path to the private key
-        identity_file: "{{vars runp_workdir}}/testdata/keys/runp"
+        identity_file: "{{vars runp_workdir}}/testdata/keys/runpXX"
         # The ssh server password in plain text
         #secret: "xxx"
         # The ssh server password encrypted and in base 64
