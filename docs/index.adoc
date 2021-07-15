@@ -249,6 +249,39 @@ units:
       workdir: examples
 ----
 
+Some programs, especially on Windows, implicitly use OS specific environment variables.
+
+If you run into strange problems try adding these to the env block:
+
+[source,yaml]
+----
+# Windows env vars
+SystemRoot: ${SystemRoot}
+ALLUSERSPROFILE: ${ALLUSERSPROFILE}
+APPDATA: ${APPDATA}
+CommonProgramFiles: ${CommonProgramFiles}
+CommonProgramW6432: ${CommonProgramW6432}
+ComSpec: ${ComSpec}
+DriverData: ${DriverData}
+HOMEDRIVE: ${HOMEDRIVE}
+HOMEPATH: ${HOMEPATH}
+LOCALAPPDATA: ${LOCALAPPDATA}
+OS: ${OS}
+PATHEXT: ${PATHEXT}
+ProgramData: ${ProgramData}
+ProgramFiles: ${ProgramFiles}
+ProgramW6432: ${ProgramW6432}
+PSModulePath: ${PSModulePath}
+PUBLIC: ${PUBLIC}
+SESSIONNAME: ${SESSIONNAME}
+SystemDrive: ${SystemDrive}
+TEMP=: ${TEMP}
+TMP: ${TMP}
+USERNAME: ${USERNAME}
+USERPROFILE: ${USERPROFILE}
+windir: ${windir}
+----
+
 **SSH tunnel to reach a remote LDAP**
 
 A backend app running on host using LDAP on remote server available using SSH tunneling.
