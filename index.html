@@ -331,7 +331,7 @@ pre.rouge {
 <h1>Runp</h1>
 <div class="details">
 <span id="author" class="author">runp contributors</span><br>
-<span id="revnumber">version 0.4.0</span>
+<span id="revnumber">version 0.4.1</span>
 </div>
 </div>
 <div id="content">
@@ -351,7 +351,7 @@ pre.rouge {
 <div class="paragraph">
 <p><a href="https://github.com/enr/runp/releases/latest">Download last artifacts</a> |
  <a href="https://enr.github.io/runp/pdf/runp_manual.pdf">This manual as PDF</a> |
- Build revision <code>dca0fbdfa8fc40a762740f44fa927d497ebcb64b</code></p>
+ Build revision <code>31d6b3a736021b099840af72e68da1dd46c8660c</code></p>
 </div>
 </div>
 </div>
@@ -635,6 +635,41 @@ runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
 </div>
 </div>
 <div class="paragraph">
+<p>Some programs, especially on Windows, implicitly use OS specific environment variables.</p>
+</div>
+<div class="paragraph">
+<p>If you run into strange problems try adding these to the env block:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="c1"># Windows env vars</span>
+<span class="na">SystemRoot</span><span class="pi">:</span> <span class="s">${SystemRoot}</span>
+<span class="na">ALLUSERSPROFILE</span><span class="pi">:</span> <span class="s">${ALLUSERSPROFILE}</span>
+<span class="na">APPDATA</span><span class="pi">:</span> <span class="s">${APPDATA}</span>
+<span class="na">CommonProgramFiles</span><span class="pi">:</span> <span class="s">${CommonProgramFiles}</span>
+<span class="na">CommonProgramW6432</span><span class="pi">:</span> <span class="s">${CommonProgramW6432}</span>
+<span class="na">ComSpec</span><span class="pi">:</span> <span class="s">${ComSpec}</span>
+<span class="na">DriverData</span><span class="pi">:</span> <span class="s">${DriverData}</span>
+<span class="na">HOMEDRIVE</span><span class="pi">:</span> <span class="s">${HOMEDRIVE}</span>
+<span class="na">HOMEPATH</span><span class="pi">:</span> <span class="s">${HOMEPATH}</span>
+<span class="na">LOCALAPPDATA</span><span class="pi">:</span> <span class="s">${LOCALAPPDATA}</span>
+<span class="na">OS</span><span class="pi">:</span> <span class="s">${OS}</span>
+<span class="na">PATHEXT</span><span class="pi">:</span> <span class="s">${PATHEXT}</span>
+<span class="na">ProgramData</span><span class="pi">:</span> <span class="s">${ProgramData}</span>
+<span class="na">ProgramFiles</span><span class="pi">:</span> <span class="s">${ProgramFiles}</span>
+<span class="na">ProgramW6432</span><span class="pi">:</span> <span class="s">${ProgramW6432}</span>
+<span class="na">PSModulePath</span><span class="pi">:</span> <span class="s">${PSModulePath}</span>
+<span class="na">PUBLIC</span><span class="pi">:</span> <span class="s">${PUBLIC}</span>
+<span class="na">SESSIONNAME</span><span class="pi">:</span> <span class="s">${SESSIONNAME}</span>
+<span class="na">SystemDrive</span><span class="pi">:</span> <span class="s">${SystemDrive}</span>
+<span class="s">TEMP=</span><span class="pi">:</span> <span class="s">${TEMP}</span>
+<span class="na">TMP</span><span class="pi">:</span> <span class="s">${TMP}</span>
+<span class="na">USERNAME</span><span class="pi">:</span> <span class="s">${USERNAME}</span>
+<span class="na">USERPROFILE</span><span class="pi">:</span> <span class="s">${USERPROFILE}</span>
+<span class="na">windir</span><span class="pi">:</span> <span class="s">${windir}</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
 <p><strong>SSH tunnel to reach a remote LDAP</strong></p>
 </div>
 <div class="paragraph">
@@ -816,8 +851,8 @@ runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
 </div>
 <div id="footer">
 <div id="footer-text">
-Version 0.4.0<br>
-Last updated 2021-07-09 21:44:24 UTC
+Version 0.4.1<br>
+Last updated 2021-09-14 19:43:05 UTC
 </div>
 </div>
 </body>
