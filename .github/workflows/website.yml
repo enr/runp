@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: 'asciidoctor/docker-asciidoctor:1.4.0'
+    container: 'asciidoctor/docker-asciidoctor:1.11.0'
     steps:
     - name: Prepare container
       run: |
