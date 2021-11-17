@@ -13,8 +13,8 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/urfave/cli/v2 v2.3.0
-	golang.org/x/crypto v0.0.0-20210915214749-c084706c2272
-	golang.org/x/sys v0.0.0-20210917161153-d61c044b1678 // indirect
+	golang.org/x/crypto v0.0.0-20211117183948-ae814b36b871
+	golang.org/x/sys v0.0.0-20211117180635-dee7805ff2e1 // indirect
 	gopkg.in/yaml.v2 v2.4.0
 
 )

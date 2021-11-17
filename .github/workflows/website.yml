@@ -8,14 +8,14 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: 'asciidoctor/docker-asciidoctor:1.11.0'
+    container: 'asciidoctor/docker-asciidoctor:1.14.0'
     steps:
     - name: Prepare container
       run: |
         echo Preparing container
         apk --update add git
     - name: Checkout code
-      uses: actions/checkout@v1
+      uses: actions/checkout@v2
     - name: Create website
       env:
         GH_TOKEN: ${{ secrets.ACTION_ACCESS_TOKEN }}
