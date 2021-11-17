@@ -18,10 +18,11 @@ func TestProcessString(t *testing.T) {
 }
 
 func TestProcessString02(t *testing.T) {
-	input := `{{ vars runp_workdir }}/config`
-	expected := `/tmp/config`
+	input := `{{ vars runp_workdir }}/config {{vars test_dir}}`
+	expected := `/tmp/config .`
 	vars := map[string]string{
 		"runp_workdir": "/tmp",
+		"test_dir":     ".",
 	}
 	cliPreprocessor := newCliPreprocessor(vars)
 	actual := cliPreprocessor.process(input)

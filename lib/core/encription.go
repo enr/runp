@@ -7,7 +7,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
-	"fmt"
 	"io"
 	mr "math/rand"
 	"strconv"
@@ -75,7 +74,7 @@ func Decrypt(data []byte, passphrase string) ([]byte, error) {
 func DecryptBase64(encoded string, passphrase string) ([]byte, error) {
 	decoded, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil {
-		fmt.Println("decode error:", err)
+		ui.WriteLinef("decode error: %v", err)
 		return []byte{}, err
 	}
 	return Decrypt(decoded, passphrase)

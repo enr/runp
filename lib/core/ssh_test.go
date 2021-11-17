@@ -1,5 +1,4 @@
 //go:build darwin || freebsd || linux || netbsd || openbsd
-// +build darwin freebsd linux netbsd openbsd
 
 package core
 
@@ -87,7 +86,7 @@ func httpServer(e Endpoint, stubResponse string, t *testing.T) *http.Server {
 		MaxHeaderBytes: 1 << 20,
 	}
 	go func() {
-		ts.ListenAndServe()
+		t.Log(ts.ListenAndServe())
 
 	}()
 	return ts

@@ -94,6 +94,7 @@ func LoadRunpfileFromPath(runpfilePath string) (*Runpfile, error) {
 	}
 	rf.Root, _ = filepath.Abs(filepath.Dir(runpfilePath))
 	for id, unit := range rf.Units {
+		unit.vars = rf.Vars
 		if unit.Name == "" {
 			unit.Name = id
 		}

@@ -66,3 +66,23 @@ specs:
             - wordpress
         stderr:
           is_empty: true
+  vardir:
+    description: vars are usable in workdir
+    command:
+      working_dir: ..
+      exe: bin/runp
+      ext:
+        windows: .exe
+      args:
+        - "up"
+        - "--file"
+        - "examples/Runpfile-vardir.yml"
+    expectations:
+      status:
+        equals_to: 0
+      output:
+        stdout:
+          contains_all:
+            - __.__
+        stderr:
+          is_empty: true

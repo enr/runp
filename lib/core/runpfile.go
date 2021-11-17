@@ -27,23 +27,21 @@ type RunpUnit struct {
 
 // Process for the sub process
 func (u *RunpUnit) Process() RunpProcess {
+	cliPreprocessor := newCliPreprocessor(u.vars)
 	if u.Container != nil {
-		// u.Container.vars = u.vars
-		// u.Container.secretKey = u.secretKey
-		// u.Container.stopTimeout = u.StopTimeout
-		return u.Container
+		container := u.Container
+		container.WorkingDir = cliPreprocessor.process(u.Container.WorkingDir)
+		return container
 	}
 	if u.Host != nil {
-		// u.Host.vars = u.vars
-		// u.Host.secretKey = u.secretKey
-		// u.Host.stopTimeout = u.StopTimeout
-		return u.Host
+		host := u.Host
+		host.WorkingDir = cliPreprocessor.process(u.Host.WorkingDir)
+		return host
 	}
 	if u.SSHTunnel != nil {
-		// u.SSHTunnel.vars = u.vars
-		// u.SSHTunnel.secretKey = u.secretKey
-		// u.SSHTunnel.stopTimeout = u.StopTimeout
-		return u.SSHTunnel
+		tunnel := u.SSHTunnel
+		tunnel.WorkingDir = cliPreprocessor.process(u.SSHTunnel.WorkingDir)
+		return tunnel
 	}
 	return nil
 }
