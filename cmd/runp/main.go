@@ -22,6 +22,7 @@ Build date: %s
 
 func listenForShutdown(ch <-chan os.Signal) {
 	<-ch
+	core.ResetColor()
 	runningProcesses := appContext.GetRunningProcesses()
 	ui.Debug("Managing shutdown...")
 	if len(runningProcesses) == 0 {
@@ -57,6 +58,7 @@ func listenForShutdown(ch <-chan os.Signal) {
 		}
 
 	}
+	core.ResetColor()
 	os.Exit(0)
 }
 

@@ -9,3 +9,5 @@ units:
     description: infinite win
     host:
       command: infinite.cmd
+      env:
+        PATH: ${PATH}

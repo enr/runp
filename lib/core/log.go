@@ -126,3 +126,8 @@ func CreateMainLogger(proc string, longest int, format string, debug bool, color
 	}
 	return l
 }
+
+// ResetColor resets the foreground and background to original colors
+func ResetColor() {
+	ct.ResetColor()
+}

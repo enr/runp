@@ -3,6 +3,6 @@
 
 :loop
 echo infinite %DATE% %TIME%
-sleep 2
+PING -n 2 127.0.0.1>nul
 
 goto loop
