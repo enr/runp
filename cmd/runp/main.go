@@ -22,7 +22,6 @@ Build date: %s
 
 func listenForShutdown(ch <-chan os.Signal) {
 	<-ch
-	core.ResetColor()
 	runningProcesses := appContext.GetRunningProcesses()
 	ui.Debug("Managing shutdown...")
 	if len(runningProcesses) == 0 {
@@ -37,7 +36,6 @@ func listenForShutdown(ch <-chan os.Signal) {
 	for _, process := range runningProcesses {
 		ui.WriteLinef("Stop running process %s", process.ID())
 		cmd := process.StopCommand()
-		core.ResetColor()
 		duration := process.StopTimeout()
 		if err := cmd.Start(); err != nil {
 			ui.WriteLinef("Error calling stop command for process %s: %v", process.ID(), err)
@@ -56,10 +54,7 @@ func listenForShutdown(ch <-chan os.Signal) {
 		} else {
 			ui.Debugf("Stopped %s with no error\n", process.ID())
 		}
-		core.ResetColor()
-
 	}
-	core.ResetColor()
 	os.Exit(0)
 }
 
@@ -68,8 +63,6 @@ func main() {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt, os.Kill)
 	go listenForShutdown(ch)
-
-	core.ResetColor()
 
 	app := cli.NewApp()
 	app.Name = "runp"
