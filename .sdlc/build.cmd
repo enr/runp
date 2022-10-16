@@ -23,9 +23,11 @@ echo bin_dir       %bin_dir%
 
 cd %project_dir%
 
+set buildmode=readonly
 IF DEFINED SDLC_GO_VENDOR (
     echo Using Go vendor
     set GOPROXY=off
+    set buildmode=vendor
 )
 
 SETLOCAL ENABLEDELAYEDEXPANSION
@@ -39,7 +41,7 @@ for /f %%x in ('dir /AD /B /S cmd') do (
         echo Deleting old bin !exe_path!
         DEL /F !exe_path!
     )
-    call go build -mod vendor  ^
+    call go build -mod %buildmode%  ^
          -ldflags "-s -X %module_name%/lib/core.Version=%APP_VERSION% -X %module_name%/lib/core.BuildTime=%TIMESTAMP% -X %module_name%/lib/core.GitCommit=win-dev-commit" ^
          -o !exe_path! "%module_name%/cmd/!bin_name!"
 )

@@ -52,9 +52,11 @@ hash gocyclo 2>/dev/null || {
   go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
 }
 
+buildmode='readonly'
 [[ -n "$SDLC_GO_VENDOR" ]] && {
-  echo 'Detected Go vendor mode: set GOPROXY=off'
   export GOPROXY='off'
+  buildmode='vendor'
+  echo "Detected Go vendor mode: set GOPROXY=off and buildmode ${buildmode}"
 }
 
 cd "${PRJ_HOME}"
@@ -66,9 +68,9 @@ for dir in $(find "$LIB_DIR" -mindepth 1 -maxdepth 1 -type d); do
   echo "--- golint"
   diff <(golint ./...) <(printf "")
   echo "--- go fmt"
-  go fmt -mod vendor ./...
+  go fmt -mod "$buildmode" ./...
   echo "--- go vet"
-  go vet -mod vendor ./...
+  go vet -mod "$buildmode" ./...
   echo "--- goimports"
   goimports -w .
   diff <(goimports -d .) <(printf "")
@@ -76,7 +78,7 @@ for dir in $(find "$LIB_DIR" -mindepth 1 -maxdepth 1 -type d); do
   diff <(gocyclo -over 15 .) <(printf "")
   cd "$dir"
   echo "--- go test -cover ./..."
-  go test -mod vendor -cover ./...
+  go test -mod "$buildmode" -cover ./...
 done
 
 for dir in $(find "$CMDS_DIR" -mindepth 1 -maxdepth 1 -type d); do

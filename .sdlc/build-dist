@@ -36,9 +36,11 @@ hash zip 2>/dev/null || {
 [[ -d "$dist_dir" ]] && rm -r "$dist_dir"
 mkdir -p "$dist_dir"
 
+buildmode='readonly'
 [[ -n "$SDLC_GO_VENDOR" ]] && {
-  echo 'Detected Go vendor mode: set GOPROXY=off'
   export GOPROXY='off'
+  buildmode='vendor'
+  echo "Detected Go vendor mode: set GOPROXY=off and buildmode ${buildmode}"
 }
 
 platforms="windows/amd64 linux/amd64 darwin/amd64"

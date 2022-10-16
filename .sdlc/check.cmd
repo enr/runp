@@ -20,9 +20,11 @@ echo project_dir   %project_dir%
 echo module_name   %module_name%
 echo bin_dir       %bin_dir%
 
+set buildmode=readonly
 IF DEFINED SDLC_GO_VENDOR (
     echo Using Go vendor
     set GOPROXY=off
+    set buildmode=vendor
 )
 
 cd %project_dir%
@@ -31,8 +33,8 @@ SETLOCAL ENABLEDELAYEDEXPANSION
 for /f %%x in ('dir /AD /B /S lib') do (
     echo --- go test lib %%x
     cd %%x
-    call go test -mod vendor -race ./...
-    call go test -mod vendor -cover ./...
+    call go test -mod %buildmode% -race ./...
+    call go test -mod %buildmode% -cover ./...
 )
 
 cd %project_dir%
@@ -48,12 +50,11 @@ for /f %%x in ('dir /AD /B /S cmd') do (
         echo Deleting old bin !exe_path!
         DEL /F !exe_path!
     )
-    call go build -mod vendor  ^
+    call go build -mod %buildmode%  ^
          -ldflags "-s -X %module_name%/lib/core.Version=%APP_VERSION% -X %module_name%/lib/core.BuildTime=%TIMESTAMP% -X %module_name%/lib/core.GitCommit=win-dev-commit" ^
          -o !exe_path! "%module_name%/cmd/!bin_name!"
-    call go test -mod vendor -cover ./...
+    call go test -mod %buildmode% -cover ./...
 )
 
 cd %project_dir%
-go test -mod vendor -v github.com/enr/runp/e2e
-
+go test -mod %buildmode% -v %module_name%/e2e
