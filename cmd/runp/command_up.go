@@ -34,6 +34,7 @@ func doUp(c *cli.Context) error {
 	}
 	vars[`runp_root`] = runpfile.Root
 	vars[`runp_workdir`] = wd
+	vars[`runp_file_separator`] = string(os.PathSeparator)
 	runpfile.Vars = vars
 
 	kev := c.String(`key-env`)
