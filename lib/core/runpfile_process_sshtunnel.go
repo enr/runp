@@ -64,7 +64,6 @@ func (p *SSHTunnelProcess) ID() string {
 
 // Preconditions check if process can be started
 func (p *SSHTunnelProcess) Preconditions() error {
-	//
 	if p.TestCommand != "" {
 		cmdout, err := p.executeCmd(p.TestCommand)
 		ui.Debugf("Test command %s :\n%s", p.TestCommand, cmdout.String())
@@ -78,7 +77,6 @@ func (p *SSHTunnelProcess) executeCmd(command string) (*bytes.Buffer, error) {
 	if err != nil {
 		return nil, err
 	}
-	ui.Debugf("config %v", config)
 	hostname := p.Jump.Host
 	port := p.Jump.Port
 	ui.Debugf("Test command %s %s %d", p.TestCommand, hostname, port)
@@ -91,7 +89,6 @@ func (p *SSHTunnelProcess) executeCmd(command string) (*bytes.Buffer, error) {
 		return nil, err
 	}
 	defer session.Close()
-	ui.Debugf("session %v", session)
 	var stdoutBuf bytes.Buffer
 	session.Stdout = &stdoutBuf
 	session.Run(command)

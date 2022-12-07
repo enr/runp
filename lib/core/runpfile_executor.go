@@ -74,27 +74,36 @@ func (e *RunpfileExecutor) Start() {
 	}
 
 	var err error
-	// preconditions are executed one for each process type
-	if host != nil {
-		err = host.Preconditions()
-		if err != nil {
-			ui.WriteLinef("Error in Preconditions for process host: %v", err)
-			return
+	for _, unit := range e.rf.Units {
+		if unit.Host != nil {
+			host = unit.Host
+			err = host.Preconditions()
+			if err != nil {
+				ui.WriteLinef("Error in Preconditions for process host: %v", err)
+				break
+			}
+		}
+		if unit.Container != nil {
+			container = unit.Container
+			err = container.Preconditions()
+			if err != nil {
+				ui.WriteLinef("Error in Preconditions for process container: %v", err)
+				break
+			}
+		}
+		if unit.SSHTunnel != nil {
+			sshTunnel = unit.SSHTunnel
+			err = sshTunnel.Preconditions()
+			if err != nil {
+				ui.WriteLinef("Error in Preconditions for process SSH tunnel: %v", err)
+				break
+			}
 		}
 	}
-	if container != nil {
-		err = container.Preconditions()
-		if err != nil {
-			ui.WriteLinef("Error in Preconditions for process container: %v", err)
-			return
-		}
-	}
-	if sshTunnel != nil {
-		err = sshTunnel.Preconditions()
-		if err != nil {
-			ui.WriteLinef("Error in Preconditions for process SSH tunnel: %v", err)
-			return
-		}
+
+	if err != nil {
+		ui.WriteLinef("Error in Preconditions, exit: %v", err)
+		return
 	}
 
 	for _, unit := range e.rf.Units {

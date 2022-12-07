@@ -137,6 +137,8 @@ func (c *SSHTunnelCommandWrapper) forward() error {
 	// Copy localConnection.Reader to jumpToTargetConnection.Writer
 	go func() {
 		if c.localConnection == nil || c.jumpToTargetConnection == nil {
+			c.pf("Missing connection: local=%v jump=%v", c.localConnection, c.jumpToTargetConnection)
+			return
 		}
 		_, err = io.Copy(c.jumpToTargetConnection, c.localConnection)
 		if err != nil {
@@ -147,6 +149,7 @@ func (c *SSHTunnelCommandWrapper) forward() error {
 	// Copy jumpToTargetConnection.Reader to localConnection.Writer
 	go func() {
 		if c.localConnection == nil || c.jumpToTargetConnection == nil {
+			c.pf("Missing connection: local=%v jump=%v", c.localConnection, c.jumpToTargetConnection)
 			return
 		}
 		_, err = io.Copy(c.localConnection, c.jumpToTargetConnection)
