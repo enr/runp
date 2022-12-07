@@ -21,6 +21,17 @@ sh -c "${SDLC_DIR}/website"
 
 echo "Publishing GH pages"
 
+# Fix git safe.directory in container
+[[ -n "$HOME" ]] && {
+  mkdir -p "$HOME"
+  echo "
+[safe]
+    directory = *
+" >> "${HOME}/.gitconfig"
+echo " Written ${HOME}/.gitconfig"
+cat "${HOME}/.gitconfig"
+}
+
 commit_user=$(git show -s --format='%an' "$GITHUB_SHA")
 commit_email=$(git show -s --format='%ae' "$GITHUB_SHA")
 echo "Using ${commit_user} / ${commit_email} ${GITHUB_SHA}"
