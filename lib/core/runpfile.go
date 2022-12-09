@@ -24,7 +24,7 @@ type RunpUnit struct {
 
 	vars      map[string]string
 	secretKey string
-	//cliPreprocessor *cliPreprocessor
+	process   RunpProcess
 }
 
 // Preconditions.
@@ -34,6 +34,13 @@ func (u *RunpUnit) ToPreconditions() []Precondition {
 
 // Process for the sub process
 func (u *RunpUnit) Process() RunpProcess {
+	if u.process == nil {
+		u.process = u.buildProcess()
+	}
+	return u.process
+}
+
+func (u *RunpUnit) buildProcess() RunpProcess {
 	cliPreprocessor := newCliPreprocessor(u.vars)
 	if u.Container != nil {
 		container := u.Container

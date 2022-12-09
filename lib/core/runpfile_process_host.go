@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"time"
 )
 
@@ -121,7 +122,7 @@ func (p *HostProcess) buildCmdExecutable() (*exec.Cmd, error) {
 	p1, err := exec.LookPath(exe)
 	if err != nil {
 		ui.Debugf("Executable '%s' not found", exe)
-		m := path.Join(p.WorkingDir, exe)
+		m := filepath.FromSlash(path.Join(p.WorkingDir, exe))
 		p2, err := exec.LookPath(m)
 		if err != nil {
 			ui.WriteLinef("Executable for process '%s' not found. Tried '%s' and '%s' \n", p.ID(), exe, m)
