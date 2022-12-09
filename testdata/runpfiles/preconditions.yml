@@ -5,7 +5,7 @@ units:
     description: test unit
     preconditions:
       - os:
-          include: windows
+          inclusion: windows
       - runp_version:
           min: 0.5.0
       - commands:

@@ -22,6 +22,9 @@ github.com/enr/qac
 github.com/enr/runcmd
 # github.com/extemporalgenome/slug v0.0.0-20150414033109-0320c85e32e0
 github.com/extemporalgenome/slug
+# github.com/hashicorp/go-version v1.6.0
+## explicit
+github.com/hashicorp/go-version
 # github.com/kr/pty v1.1.8
 ## explicit
 github.com/kr/pty
