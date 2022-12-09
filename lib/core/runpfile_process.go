@@ -6,7 +6,7 @@ import "time"
 // questo viene usato come running process
 type RunpProcess interface {
 	ID() string
-	Preconditions() error
+	VerifyPreconditions() error
 	SetID(string)
 	StartCommand() (RunpCommand, error)
 	StopCommand() RunpCommand

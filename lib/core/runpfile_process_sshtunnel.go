@@ -62,8 +62,8 @@ func (p *SSHTunnelProcess) ID() string {
 	return p.id
 }
 
-// Preconditions check if process can be started
-func (p *SSHTunnelProcess) Preconditions() error {
+// VerifyPreconditions check if process can be started
+func (p *SSHTunnelProcess) VerifyPreconditions() error {
 	if p.TestCommand != "" {
 		cmdout, err := p.executeCmd(p.TestCommand)
 		ui.Debugf("Test command %s :\n%s", p.TestCommand, cmdout.String())

@@ -43,8 +43,8 @@ func (p *HostProcess) SetID(id string) {
 	p.id = id
 }
 
-// Preconditions check if process can be started
-func (p *HostProcess) Preconditions() error {
+// VerifyPreconditions check if process can be started
+func (p *HostProcess) VerifyPreconditions() error {
 	return nil
 }
 

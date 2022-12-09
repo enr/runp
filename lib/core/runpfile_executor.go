@@ -77,7 +77,7 @@ func (e *RunpfileExecutor) Start() {
 	for _, unit := range e.rf.Units {
 		if unit.Host != nil {
 			host = unit.Host
-			err = host.Preconditions()
+			err = host.VerifyPreconditions()
 			if err != nil {
 				ui.WriteLinef("Error in Preconditions for process host: %v", err)
 				break
@@ -85,7 +85,7 @@ func (e *RunpfileExecutor) Start() {
 		}
 		if unit.Container != nil {
 			container = unit.Container
-			err = container.Preconditions()
+			err = container.VerifyPreconditions()
 			if err != nil {
 				ui.WriteLinef("Error in Preconditions for process container: %v", err)
 				break
@@ -93,7 +93,7 @@ func (e *RunpfileExecutor) Start() {
 		}
 		if unit.SSHTunnel != nil {
 			sshTunnel = unit.SSHTunnel
-			err = sshTunnel.Preconditions()
+			err = sshTunnel.VerifyPreconditions()
 			if err != nil {
 				ui.WriteLinef("Error in Preconditions for process SSH tunnel: %v", err)
 				break

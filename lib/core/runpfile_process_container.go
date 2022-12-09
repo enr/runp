@@ -231,8 +231,8 @@ func (p *ContainerProcess) IsStartable() (bool, error) {
 	return true, nil
 }
 
-// Preconditions check if process can be started
-func (p *ContainerProcess) Preconditions() error {
+// VerifyPreconditions check if process can be started
+func (p *ContainerProcess) VerifyPreconditions() error {
 	docker, err := exec.LookPath("docker")
 	if err != nil {
 		ui.WriteLinef("Unable to find docker executable: %v", err)
