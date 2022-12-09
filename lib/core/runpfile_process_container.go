@@ -273,7 +273,7 @@ func (p *ContainerProcess) VerifyPreconditions() error {
 	if err != nil {
 		return err
 	}
-	out, err = command.Output()
+	_, err = command.Output()
 	if err != nil {
 		return err
 	}

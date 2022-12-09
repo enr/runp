@@ -163,9 +163,7 @@ func (p *HostProcess) resolveShell() (string, []string, error) {
 
 func (p *HostProcess) resolveEnvironment() []string {
 	environment := []string{}
-	for _, item := range envAsArray(p.Env) {
-		environment = append(environment, item)
-	}
+	environment = append(environment, envAsArray(p.Env)...)
 	return environment
 }
 
