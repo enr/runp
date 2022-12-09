@@ -90,7 +90,7 @@ func (p *SSHTunnelProcess) executeCmd(command string) (*bytes.Buffer, error) {
 	}
 	hostname := p.Jump.Host
 	port := p.Jump.Port
-	ui.Debugf("Test command %s %s %d", p.TestCommand, hostname, port)
+	ui.Debugf("Test command %s on %s:%d", p.TestCommand, hostname, port)
 	conn, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", hostname, port), config)
 	if err != nil {
 		return nil, err

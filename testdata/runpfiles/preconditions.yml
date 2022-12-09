@@ -8,6 +8,9 @@ units:
           include: windows
       - runp_version:
           min: 0.5.0
+      - commands:
+          hostname: hostname
+          ping-backend: ping -c 1 backend.server.local
     host:
       command: env
       workdir: ${HOME}
