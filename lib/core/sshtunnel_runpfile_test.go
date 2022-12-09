@@ -62,4 +62,7 @@ func assertSSHTunnelProcess(cp *SSHTunnelProcess, expected expectedSSHTunnelProc
 	if expected.jump != "" && expected.jump != cp.Jump.String() {
 		t.Errorf(`jump host expected:%s got:%s`, expected.jump, cp.Jump.String())
 	}
+	if expected.target != "" && expected.target != cp.Target.String() {
+		t.Errorf(`target host expected:%s got:%s`, expected.target, cp.Target.String())
+	}
 }

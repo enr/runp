@@ -32,10 +32,11 @@ type ContainerProcess struct {
 	Env        map[string]string
 	Await      AwaitCondition
 
-	id          string
-	vars        map[string]string
-	secretKey   string
-	stopTimeout string
+	id            string
+	vars          map[string]string
+	preconditions []Precondition
+	secretKey     string
+	stopTimeout   string
 }
 
 // ID for the sub process
@@ -231,8 +232,21 @@ func (p *ContainerProcess) IsStartable() (bool, error) {
 	return true, nil
 }
 
+// SetPreconditions set preconditions.
+func (p *ContainerProcess) SetPreconditions(preconditions []Precondition) {
+	p.preconditions = preconditions
+}
+
 // VerifyPreconditions check if process can be started
 func (p *ContainerProcess) VerifyPreconditions() error {
+	var err error
+	for _, p := range p.preconditions {
+		err = p.Verify()
+		if err != nil {
+			return err
+		}
+	}
+
 	docker, err := exec.LookPath("docker")
 	if err != nil {
 		ui.WriteLinef("Unable to find docker executable: %v", err)

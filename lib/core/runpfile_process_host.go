@@ -26,11 +26,12 @@ type HostProcess struct {
 	Env        map[string]string
 	Await      AwaitCondition
 
-	id          string
-	cmd         *exec.Cmd
-	vars        map[string]string
-	secretKey   string
-	stopTimeout string
+	id            string
+	cmd           *exec.Cmd
+	vars          map[string]string
+	preconditions []Precondition
+	secretKey     string
+	stopTimeout   string
 }
 
 // ID for the sub process
@@ -43,8 +44,20 @@ func (p *HostProcess) SetID(id string) {
 	p.id = id
 }
 
+// SetPreconditions set preconditions.
+func (p *HostProcess) SetPreconditions(preconditions []Precondition) {
+	p.preconditions = preconditions
+}
+
 // VerifyPreconditions check if process can be started
 func (p *HostProcess) VerifyPreconditions() error {
+	var err error
+	for _, p := range p.preconditions {
+		err = p.Verify()
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

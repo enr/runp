@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"time"
 
 	"github.com/enr/go-files/files"
@@ -48,13 +47,12 @@ type SSHTunnelProcess struct {
 	// command executed to test connection to jump server
 	TestCommand string `yaml:"test_command"`
 
-	id          string
-	vars        map[string]string
-	secretKey   string
-	connection  net.Conn
-	proceed     bool
-	cmd         *SSHTunnelCommandWrapper
-	stopTimeout string
+	id            string
+	vars          map[string]string
+	secretKey     string
+	preconditions []Precondition
+	cmd           *SSHTunnelCommandWrapper
+	stopTimeout   string
 }
 
 // ID for the sub process
@@ -62,8 +60,21 @@ func (p *SSHTunnelProcess) ID() string {
 	return p.id
 }
 
+// SetPreconditions set preconditions.
+func (p *SSHTunnelProcess) SetPreconditions(preconditions []Precondition) {
+	p.preconditions = preconditions
+}
+
 // VerifyPreconditions check if process can be started
 func (p *SSHTunnelProcess) VerifyPreconditions() error {
+	var err error
+	for _, p := range p.preconditions {
+		err = p.Verify()
+		if err != nil {
+			return err
+		}
+	}
+
 	if p.TestCommand != "" {
 		cmdout, err := p.executeCmd(p.TestCommand)
 		ui.Debugf("Test command %s :\n%s", p.TestCommand, cmdout.String())

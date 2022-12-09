@@ -1,0 +1,13 @@
+name: Test Runpfile
+description: This is Runpfile
+units:
+  test1:
+    description: test unit
+    preconditions:
+      - os:
+          include: windows
+      - runp_version:
+          min: 0.5.0
+    host:
+      command: env
+      workdir: ${HOME}

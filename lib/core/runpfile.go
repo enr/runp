@@ -13,16 +13,23 @@ type Runpfile struct {
 
 // RunpUnit is...
 type RunpUnit struct {
-	Name        string
-	Description string
-	StopTimeout string `yaml:"stop_timeout"`
-	Host        *HostProcess
-	Container   *ContainerProcess
-	SSHTunnel   *SSHTunnelProcess `yaml:"ssh_tunnel"`
+	Name          string
+	Description   string
+	StopTimeout   string `yaml:"stop_timeout"`
+	Preconditions []map[string]interface{}
+
+	Host      *HostProcess
+	Container *ContainerProcess
+	SSHTunnel *SSHTunnelProcess `yaml:"ssh_tunnel"`
 
 	vars      map[string]string
 	secretKey string
 	//cliPreprocessor *cliPreprocessor
+}
+
+// Preconditions.
+func (u *RunpUnit) ToPreconditions() []Precondition {
+	return []Precondition{}
 }
 
 // Process for the sub process
