@@ -27,16 +27,6 @@ type RunpUnit struct {
 	process   RunpProcess
 }
 
-// func (u *RunpUnit) ToPreconditions() []Precondition {
-// 	p := []Precondition{}
-// 	for _, m := range u.Preconditions {
-// 		for k, v := range m {
-// 			fmt.Printf("precondition key=%s v=%v \n", k, v)
-// 		}
-// 	}
-// 	return p
-// }
-
 // Process for the sub process
 func (u *RunpUnit) Process() RunpProcess {
 	if u.process == nil {

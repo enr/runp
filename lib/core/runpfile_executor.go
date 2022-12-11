@@ -79,7 +79,6 @@ func (e *RunpfileExecutor) Start() {
 		if unit.Host != nil {
 			host = unit.Host
 			pr = host.VerifyPreconditions()
-			ui.WriteLinef("---------     res %v  \n", pr)
 			if pr.Vote != Proceed {
 				block = true
 				ui.WriteLinef("Preconditions not satisfied (%v): %v", pr.Vote, pr.Reasons)

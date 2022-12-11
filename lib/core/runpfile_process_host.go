@@ -52,7 +52,6 @@ func (p *HostProcess) SetPreconditions(preconditions Preconditions) {
 
 // VerifyPreconditions check if process can be started
 func (p *HostProcess) VerifyPreconditions() PreconditionVerifyResult {
-	ui.WriteLinef(":::::::::::::::::   verify")
 	return p.preconditions.Verify()
 }
 

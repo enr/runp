@@ -93,8 +93,6 @@ func (c *ExecCommandStopper) Stop() error {
 	if c.cmd.ProcessState == nil || c.cmd.ProcessState.Exited() {
 		return nil
 	}
-
-	//ui.WriteLinef("%s %v", c.id, c.cmd.ProcessState.Exited())
 	return p.Kill()
 }
 

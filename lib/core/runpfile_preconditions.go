@@ -54,9 +54,8 @@ func (p *Preconditions) Verify() PreconditionVerifyResult {
 	var vr PreconditionVerifyResult
 	res := PreconditionVerifyResult{Vote: Proceed, Reasons: []string{}}
 	for _, v := range preconditions {
-		ui.WriteLinef("in preconditions verify %v \n", v)
 		vr = v.Verify()
-		ui.WriteLinef("in preconditions verify %v \n", vr)
+		ui.Debugf("Precondition %v: %v", v, vr)
 		if vr.Vote == Proceed {
 			continue
 		}
@@ -110,9 +109,6 @@ func (p *OsPrecondition) Verify() PreconditionVerifyResult {
 			return PreconditionVerifyResult{Vote: Proceed}
 		}
 	}
-	// if p.inclusion != "" && p.inclusion != p.current {
-	// 	return fmt.Errorf(`inclusion "%s" but current is "%s" `, p.inclusion, p.current)
-	// }
 	return PreconditionVerifyResult{
 		Vote:    Stop,
 		Reasons: []string{fmt.Sprintf(`current os "%s" not in %v`, current, p.Inclusions)},

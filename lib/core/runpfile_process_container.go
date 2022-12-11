@@ -245,13 +245,6 @@ func (p *ContainerProcess) VerifyPreconditions() PreconditionVerifyResult {
 		return res
 	}
 	var err error
-	// for _, p := range p.preconditions {
-	// 	err = p.Verify()
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
-
 	docker, err := exec.LookPath("docker")
 	if err != nil {
 		return PreconditionVerifyResult{
