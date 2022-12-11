@@ -7,8 +7,9 @@ units:
       os:
         inclusions:
           - windows
-      # - runp_version:
-      #     min: 0.5.0
+      runp:
+        operator: LessThan
+        version: 0.5.0
       # - commands:
       #     hostname: hostname
       #     ping-backend: ping -c 1 backend.server.local

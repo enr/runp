@@ -3,10 +3,13 @@ package core
 import (
 	"fmt"
 	"runtime"
+
+	"github.com/hashicorp/go-version"
 )
 
 // Precondition is.
 type Precondition interface {
+	IsSet() bool
 	Verify() PreconditionVerifyResult
 }
 
@@ -43,17 +46,22 @@ type PreconditionVerifyResult struct {
 
 // Preconditions ...
 type Preconditions struct {
-	Os OsPrecondition
+	Os   OsPrecondition
+	Runp RunpVersionPrecondition
 }
 
 // Verify ...
 func (p *Preconditions) Verify() PreconditionVerifyResult {
 	preconditions := []Precondition{
 		&p.Os,
+		&p.Runp,
 	}
 	var vr PreconditionVerifyResult
 	res := PreconditionVerifyResult{Vote: Proceed, Reasons: []string{}}
 	for _, v := range preconditions {
+		if !v.IsSet() {
+			continue
+		}
 		vr = v.Verify()
 		ui.Debugf("Precondition %v: %v", v, vr)
 		if vr.Vote == Proceed {
@@ -65,36 +73,87 @@ func (p *Preconditions) Verify() PreconditionVerifyResult {
 	return res
 }
 
-// // RunpVersionPrecondition checks Runp version.
-// type RunpVersionPrecondition struct {
-// }
+// VersionComparationOperator ...
+type VersionComparationOperator string
 
-// func (p *RunpVersionPrecondition) Verify() error {
-// 	current, err := version.NewVersion(Version)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	required, err := version.NewVersion("1.5+metadata")
-// 	if err != nil {
-// 		return err
-// 	}
-// 	if !current.GreaterThanOrEqual(required) {
-// 		return fmt.Errorf(`current "%s" but required is "%s" `, current, required)
-// 	}
-// 	return nil
-// }
+const (
+	// None ...
+	None VersionComparationOperator = "None"
+	// LessThan ...
+	LessThan = "LessThan"
+	// LessThanOrEqual ...
+	LessThanOrEqual = "LessThanOrEqual"
+	// Equal ...
+	Equal = "Equal"
+	// GreaterThanOrEqual ...
+	GreaterThanOrEqual = "GreaterThanOrEqual"
+	// GreaterThan ...
+	GreaterThan = "GreaterThan"
+)
 
-// func NewOsPrecondition(spec map[string]interface{}) (OsPrecondition, error) {
-// 	var inclusion string
-//
-// 	if val, ok := spec["inclusion"]; ok {
-// 		inclusion = fmt.Sprintf("%v", val)
-// 	}
-// 	return OsPrecondition{
-// 		current:   current,
-// 		inclusion: inclusion,
-// 	}, nil
-// }
+// RunpVersionPrecondition checks Runp version.
+type RunpVersionPrecondition struct {
+	Operator VersionComparationOperator
+	Version  string
+}
+
+// Verify ...
+func (p *RunpVersionPrecondition) Verify() PreconditionVerifyResult {
+	currentVersion, err := version.NewVersion(Version)
+
+	if err != nil {
+		return PreconditionVerifyResult{
+			Vote:    Stop,
+			Reasons: []string{fmt.Sprintf(`error getting current version %v`, err)},
+		}
+	}
+	targetVersion, err := version.NewVersion(p.Version)
+
+	if err != nil {
+		return PreconditionVerifyResult{
+			Vote:    Stop,
+			Reasons: []string{fmt.Sprintf(`error parsing version %v`, err)},
+		}
+	}
+
+	switch p.Operator {
+	case LessThan:
+		if currentVersion.LessThan(targetVersion) {
+			ui.Debugf(`Runp version precondition satisfied: %s %s %s`, p.Version, p.Operator, targetVersion)
+			return PreconditionVerifyResult{Vote: Proceed}
+		}
+	case LessThanOrEqual:
+		if currentVersion.LessThanOrEqual(targetVersion) {
+			ui.Debugf(`Runp version precondition satisfied: %s %s %s`, p.Version, p.Operator, targetVersion)
+			return PreconditionVerifyResult{Vote: Proceed}
+		}
+	case Equal:
+		if currentVersion.Equal(targetVersion) {
+			ui.Debugf(`Runp version precondition satisfied: %s %s %s`, p.Version, p.Operator, targetVersion)
+			return PreconditionVerifyResult{Vote: Proceed}
+		}
+	case GreaterThanOrEqual:
+		if currentVersion.GreaterThanOrEqual(targetVersion) {
+			ui.Debugf(`Runp version precondition satisfied: %s %s %s`, p.Version, p.Operator, targetVersion)
+			return PreconditionVerifyResult{Vote: Proceed}
+		}
+	case GreaterThan:
+		if currentVersion.GreaterThan(targetVersion) {
+			ui.Debugf(`Runp version precondition satisfied: %s %s %s`, p.Version, p.Operator, targetVersion)
+			return PreconditionVerifyResult{Vote: Proceed}
+		}
+	}
+
+	return PreconditionVerifyResult{
+		Vote:    Stop,
+		Reasons: []string{fmt.Sprintf(`version "%s" is not %s current %v`, p.Version, p.Operator, targetVersion)},
+	}
+}
+
+// IsSet ...
+func (p *RunpVersionPrecondition) IsSet() bool {
+	return p.Operator != "" && p.Version != ""
+}
 
 // OsPrecondition verify os.
 type OsPrecondition struct {
@@ -113,4 +172,9 @@ func (p *OsPrecondition) Verify() PreconditionVerifyResult {
 		Vote:    Stop,
 		Reasons: []string{fmt.Sprintf(`current os "%s" not in %v`, current, p.Inclusions)},
 	}
+}
+
+// IsSet ...
+func (p *OsPrecondition) IsSet() bool {
+	return len(p.Inclusions) > 0
 }
