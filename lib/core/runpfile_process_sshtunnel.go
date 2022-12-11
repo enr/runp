@@ -66,21 +66,25 @@ func (p *SSHTunnelProcess) SetPreconditions(preconditions Preconditions) {
 }
 
 // VerifyPreconditions check if process can be started
-func (p *SSHTunnelProcess) VerifyPreconditions() error {
-	// var err error
-	// for _, p := range p.preconditions {
-	// 	err = p.Verify()
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
+func (p *SSHTunnelProcess) VerifyPreconditions() PreconditionVerifyResult {
+
+	res := p.preconditions.Verify()
+	if res.Vote != Proceed {
+		return res
+	}
 
 	if p.TestCommand != "" {
 		cmdout, err := p.executeCmd(p.TestCommand)
 		ui.Debugf("Test command %s :\n%s", p.TestCommand, cmdout.String())
-		return err
+		return PreconditionVerifyResult{
+			Vote:    Stop,
+			Reasons: []string{fmt.Sprintf("Error executing test command: %v", err)},
+		}
 	}
-	return nil
+	return PreconditionVerifyResult{
+		Vote:    Proceed,
+		Reasons: []string{},
+	}
 }
 
 func (p *SSHTunnelProcess) executeCmd(command string) (*bytes.Buffer, error) {

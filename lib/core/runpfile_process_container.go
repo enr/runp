@@ -238,7 +238,12 @@ func (p *ContainerProcess) SetPreconditions(preconditions Preconditions) {
 }
 
 // VerifyPreconditions check if process can be started
-func (p *ContainerProcess) VerifyPreconditions() error {
+func (p *ContainerProcess) VerifyPreconditions() PreconditionVerifyResult {
+
+	res := p.preconditions.Verify()
+	if res.Vote != Proceed {
+		return res
+	}
 	var err error
 	// for _, p := range p.preconditions {
 	// 	err = p.Verify()
@@ -249,33 +254,53 @@ func (p *ContainerProcess) VerifyPreconditions() error {
 
 	docker, err := exec.LookPath("docker")
 	if err != nil {
-		ui.WriteLinef("Unable to find docker executable: %v", err)
-		return err
+		return PreconditionVerifyResult{
+			Vote:    Stop,
+			Reasons: []string{fmt.Sprintf("Unable to find docker executable: %v", err)},
+		}
 	}
 	cmdLine := fmt.Sprintf("%s network ls -q --filter name=runp-network --format '{{ .Name }}'", docker)
 	ui.Debugf("PRECONDITIONS command:\n%s", cmdLine)
 	command, err := cmd(cmdLine)
 	if err != nil {
-		return err
+		return PreconditionVerifyResult{
+			Vote:    Stop,
+			Reasons: []string{fmt.Sprintf("Error in command %s: %v", cmdLine, err)},
+		}
 	}
 	out, err := command.Output()
 	if err != nil {
-		return err
+		return PreconditionVerifyResult{
+			Vote:    Stop,
+			Reasons: []string{fmt.Sprintf("Error in command output %s: %v", cmdLine, err)},
+		}
 	}
 	so := strings.TrimSpace(string(out))
 	ui.Debugf("PRECONDITIONS command output:\n<%s>", so)
 	if so == "runp-network" {
-		return nil
+		return PreconditionVerifyResult{
+			Vote:    Proceed,
+			Reasons: []string{},
+		}
 	}
 	cmdLine = fmt.Sprintf("%s network create runp-network", docker)
 	ui.Debugf("PRECONDITIONS command:\n%s", cmdLine)
 	command, err = cmd(cmdLine)
 	if err != nil {
-		return err
+		return PreconditionVerifyResult{
+			Vote:    Stop,
+			Reasons: []string{fmt.Sprintf("Error creating network %s: %v", cmdLine, err)},
+		}
 	}
 	_, err = command.Output()
 	if err != nil {
-		return err
+		return PreconditionVerifyResult{
+			Vote:    Stop,
+			Reasons: []string{fmt.Sprintf("Error in command output %s: %v", cmdLine, err)},
+		}
 	}
-	return nil
+	return PreconditionVerifyResult{
+		Vote:    Proceed,
+		Reasons: []string{},
+	}
 }

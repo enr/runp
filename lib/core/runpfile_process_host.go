@@ -51,15 +51,9 @@ func (p *HostProcess) SetPreconditions(preconditions Preconditions) {
 }
 
 // VerifyPreconditions check if process can be started
-func (p *HostProcess) VerifyPreconditions() error {
-	// var err error
-	// 	for _, p := range p.preconditions {
-	// 		err = p.Verify()
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 	}
-	return nil
+func (p *HostProcess) VerifyPreconditions() PreconditionVerifyResult {
+	ui.WriteLinef(":::::::::::::::::   verify")
+	return p.preconditions.Verify()
 }
 
 // StopTimeout duration to wait to force kill process

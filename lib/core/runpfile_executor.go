@@ -73,36 +73,41 @@ func (e *RunpfileExecutor) Start() {
 		}
 	}
 
-	var err error
+	block := false
+	var pr PreconditionVerifyResult
 	for _, unit := range e.rf.Units {
 		if unit.Host != nil {
 			host = unit.Host
-			err = host.VerifyPreconditions()
-			if err != nil {
-				ui.WriteLinef("Error in Preconditions for process host: %v", err)
+			pr = host.VerifyPreconditions()
+			ui.WriteLinef("---------     res %v  \n", pr)
+			if pr.Vote != Proceed {
+				block = true
+				ui.WriteLinef("Preconditions not satisfied (%v): %v", pr.Vote, pr.Reasons)
 				break
 			}
 		}
 		if unit.Container != nil {
 			container = unit.Container
-			err = container.VerifyPreconditions()
-			if err != nil {
-				ui.WriteLinef("Error in Preconditions for process container: %v", err)
+			pr = container.VerifyPreconditions()
+			if pr.Vote != Proceed {
+				block = true
+				ui.WriteLinef("Preconditions not satisfied (%s): %v", pr.Vote, pr.Reasons)
 				break
 			}
 		}
 		if unit.SSHTunnel != nil {
 			sshTunnel = unit.SSHTunnel
-			err = sshTunnel.VerifyPreconditions()
-			if err != nil {
-				ui.WriteLinef("Error in Preconditions for process SSH tunnel: %v", err)
+			pr = sshTunnel.VerifyPreconditions()
+			if pr.Vote != Proceed {
+				block = true
+				ui.WriteLinef("Preconditions not satisfied (%s): %v", pr.Vote, pr.Reasons)
 				break
 			}
 		}
 	}
 
-	if err != nil {
-		ui.WriteLinef("Error in Preconditions, exit: %v", err)
+	if block {
+		ui.WriteLine("Error in Preconditions, exit")
 		return
 	}
 

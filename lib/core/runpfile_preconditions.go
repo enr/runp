@@ -22,15 +22,48 @@ const (
 	Proceed = 2
 )
 
+func (e PreconditionVote) String() string {
+	switch e {
+	case Unknown:
+		return "UNKNOWN"
+	case Stop:
+		return "STOP"
+	case Proceed:
+		return "PROCEED"
+	default:
+		return fmt.Sprintf("%d", int64(e))
+	}
+}
+
 // PreconditionVerifyResult ...
 type PreconditionVerifyResult struct {
-	Vote   PreconditionVote
-	Reason string
+	Vote    PreconditionVote
+	Reasons []string
 }
 
 // Preconditions ...
 type Preconditions struct {
 	Os OsPrecondition
+}
+
+// Verify ...
+func (p *Preconditions) Verify() PreconditionVerifyResult {
+	preconditions := []Precondition{
+		&p.Os,
+	}
+	var vr PreconditionVerifyResult
+	res := PreconditionVerifyResult{Vote: Proceed, Reasons: []string{}}
+	for _, v := range preconditions {
+		ui.WriteLinef("in preconditions verify %v \n", v)
+		vr = v.Verify()
+		ui.WriteLinef("in preconditions verify %v \n", vr)
+		if vr.Vote == Proceed {
+			continue
+		}
+		res.Vote = Stop
+		res.Reasons = append(res.Reasons, vr.Reasons...)
+	}
+	return res
 }
 
 // // RunpVersionPrecondition checks Runp version.
@@ -80,5 +113,8 @@ func (p *OsPrecondition) Verify() PreconditionVerifyResult {
 	// if p.inclusion != "" && p.inclusion != p.current {
 	// 	return fmt.Errorf(`inclusion "%s" but current is "%s" `, p.inclusion, p.current)
 	// }
-	return PreconditionVerifyResult{Vote: Proceed, Reason: fmt.Sprintf(`current os "%s" not in %v`, current, p.Inclusions)}
+	return PreconditionVerifyResult{
+		Vote:    Stop,
+		Reasons: []string{fmt.Sprintf(`current os "%s" not in %v`, current, p.Inclusions)},
+	}
 }
