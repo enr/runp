@@ -3,55 +3,82 @@ package core
 import (
 	"fmt"
 	"runtime"
-
-	version "github.com/hashicorp/go-version"
 )
 
 // Precondition is.
 type Precondition interface {
-	Verify() error
+	Verify() PreconditionVerifyResult
 }
 
-// RunpVersionPrecondition checks Runp version.
-type RunpVersionPrecondition struct {
+// PreconditionVote ...
+type PreconditionVote int64
+
+const (
+	// Unknown vote
+	Unknown PreconditionVote = 0
+	// Stop the process
+	Stop = 1
+	// Proceed the process can be ran
+	Proceed = 2
+)
+
+// PreconditionVerifyResult ...
+type PreconditionVerifyResult struct {
+	Vote   PreconditionVote
+	Reason string
 }
 
-func (p *RunpVersionPrecondition) Verify() error {
-	current, err := version.NewVersion(Version)
-	if err != nil {
-		return err
-	}
-	required, err := version.NewVersion("1.5+metadata")
-	if err != nil {
-		return err
-	}
-	if !current.GreaterThanOrEqual(required) {
-		return fmt.Errorf(`current "%s" but required is "%s" `, current, required)
-	}
-	return nil
+// Preconditions ...
+type Preconditions struct {
+	Os OsPrecondition
 }
 
-func NewOsPrecondition(spec map[string]interface{}) (OsPrecondition, error) {
-	var inclusion string
-	current := runtime.GOOS
-	if val, ok := spec["inclusion"]; ok {
-		inclusion = fmt.Sprintf("%v", val)
-	}
-	return OsPrecondition{
-		current:   current,
-		inclusion: inclusion,
-	}, nil
-}
+// // RunpVersionPrecondition checks Runp version.
+// type RunpVersionPrecondition struct {
+// }
+
+// func (p *RunpVersionPrecondition) Verify() error {
+// 	current, err := version.NewVersion(Version)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	required, err := version.NewVersion("1.5+metadata")
+// 	if err != nil {
+// 		return err
+// 	}
+// 	if !current.GreaterThanOrEqual(required) {
+// 		return fmt.Errorf(`current "%s" but required is "%s" `, current, required)
+// 	}
+// 	return nil
+// }
+
+// func NewOsPrecondition(spec map[string]interface{}) (OsPrecondition, error) {
+// 	var inclusion string
+//
+// 	if val, ok := spec["inclusion"]; ok {
+// 		inclusion = fmt.Sprintf("%v", val)
+// 	}
+// 	return OsPrecondition{
+// 		current:   current,
+// 		inclusion: inclusion,
+// 	}, nil
+// }
 
 // OsPrecondition verify os.
 type OsPrecondition struct {
-	inclusion string
-	current   string
+	Inclusions []string
 }
 
-func (p *OsPrecondition) Verify() error {
-	if p.inclusion != "" && p.inclusion != p.current {
-		return fmt.Errorf(`inclusion "%s" but current is "%s" `, p.inclusion, p.current)
+// Verify ...
+func (p *OsPrecondition) Verify() PreconditionVerifyResult {
+	current := runtime.GOOS
+	for _, v := range p.Inclusions {
+		if v == current {
+			return PreconditionVerifyResult{Vote: Proceed}
+		}
 	}
-	return nil
+	// if p.inclusion != "" && p.inclusion != p.current {
+	// 	return fmt.Errorf(`inclusion "%s" but current is "%s" `, p.inclusion, p.current)
+	// }
+	return PreconditionVerifyResult{Vote: Proceed, Reason: fmt.Sprintf(`current os "%s" not in %v`, current, p.Inclusions)}
 }

@@ -7,7 +7,7 @@ import "time"
 type RunpProcess interface {
 	ID() string
 	VerifyPreconditions() error
-	SetPreconditions([]Precondition)
+	SetPreconditions(Preconditions)
 	SetID(string)
 	StartCommand() (RunpCommand, error)
 	StopCommand() RunpCommand

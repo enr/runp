@@ -50,7 +50,7 @@ type SSHTunnelProcess struct {
 	id            string
 	vars          map[string]string
 	secretKey     string
-	preconditions []Precondition
+	preconditions Preconditions
 	cmd           *SSHTunnelCommandWrapper
 	stopTimeout   string
 }
@@ -61,19 +61,19 @@ func (p *SSHTunnelProcess) ID() string {
 }
 
 // SetPreconditions set preconditions.
-func (p *SSHTunnelProcess) SetPreconditions(preconditions []Precondition) {
+func (p *SSHTunnelProcess) SetPreconditions(preconditions Preconditions) {
 	p.preconditions = preconditions
 }
 
 // VerifyPreconditions check if process can be started
 func (p *SSHTunnelProcess) VerifyPreconditions() error {
-	var err error
-	for _, p := range p.preconditions {
-		err = p.Verify()
-		if err != nil {
-			return err
-		}
-	}
+	// var err error
+	// for _, p := range p.preconditions {
+	// 	err = p.Verify()
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// }
 
 	if p.TestCommand != "" {
 		cmdout, err := p.executeCmd(p.TestCommand)

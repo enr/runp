@@ -34,7 +34,7 @@ type ContainerProcess struct {
 
 	id            string
 	vars          map[string]string
-	preconditions []Precondition
+	preconditions Preconditions
 	secretKey     string
 	stopTimeout   string
 }
@@ -233,19 +233,19 @@ func (p *ContainerProcess) IsStartable() (bool, error) {
 }
 
 // SetPreconditions set preconditions.
-func (p *ContainerProcess) SetPreconditions(preconditions []Precondition) {
+func (p *ContainerProcess) SetPreconditions(preconditions Preconditions) {
 	p.preconditions = preconditions
 }
 
 // VerifyPreconditions check if process can be started
 func (p *ContainerProcess) VerifyPreconditions() error {
 	var err error
-	for _, p := range p.preconditions {
-		err = p.Verify()
-		if err != nil {
-			return err
-		}
-	}
+	// for _, p := range p.preconditions {
+	// 	err = p.Verify()
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// }
 
 	docker, err := exec.LookPath("docker")
 	if err != nil {

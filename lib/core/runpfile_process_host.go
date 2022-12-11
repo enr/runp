@@ -30,7 +30,7 @@ type HostProcess struct {
 	id            string
 	cmd           *exec.Cmd
 	vars          map[string]string
-	preconditions []Precondition
+	preconditions Preconditions
 	secretKey     string
 	stopTimeout   string
 }
@@ -46,19 +46,19 @@ func (p *HostProcess) SetID(id string) {
 }
 
 // SetPreconditions set preconditions.
-func (p *HostProcess) SetPreconditions(preconditions []Precondition) {
+func (p *HostProcess) SetPreconditions(preconditions Preconditions) {
 	p.preconditions = preconditions
 }
 
 // VerifyPreconditions check if process can be started
 func (p *HostProcess) VerifyPreconditions() error {
-	var err error
-	for _, p := range p.preconditions {
-		err = p.Verify()
-		if err != nil {
-			return err
-		}
-	}
+	// var err error
+	// 	for _, p := range p.preconditions {
+	// 		err = p.Verify()
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 	}
 	return nil
 }
 

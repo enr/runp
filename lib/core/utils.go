@@ -107,7 +107,7 @@ func LoadRunpfileFromPath(runpfilePath string) (*Runpfile, error) {
 			return nil, fail
 		}
 		ui.Debugf("Resolved directory %s: from %s to %s", id, unit.Process().Dir(), wd)
-		unit.Process().SetPreconditions(unit.ToPreconditions())
+		unit.Process().SetPreconditions(unit.Preconditions)
 		unit.Process().SetDir(wd)
 		unit.Process().SetID(unit.Name)
 	}

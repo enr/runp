@@ -1,7 +1,5 @@
 package core
 
-import "fmt"
-
 // Runpfile is the model containing the full configuration.
 type Runpfile struct {
 	Name        string
@@ -18,7 +16,7 @@ type RunpUnit struct {
 	Name          string
 	Description   string
 	StopTimeout   string `yaml:"stop_timeout"`
-	Preconditions []map[string]interface{}
+	Preconditions Preconditions
 
 	Host      *HostProcess
 	Container *ContainerProcess
@@ -29,16 +27,15 @@ type RunpUnit struct {
 	process   RunpProcess
 }
 
-// Preconditions.
-func (u *RunpUnit) ToPreconditions() []Precondition {
-	p := []Precondition{}
-	for _, m := range u.Preconditions {
-		for k, v := range m {
-			fmt.Printf("precondition key=%s v=%v \n", k, v)
-		}
-	}
-	return p
-}
+// func (u *RunpUnit) ToPreconditions() []Precondition {
+// 	p := []Precondition{}
+// 	for _, m := range u.Preconditions {
+// 		for k, v := range m {
+// 			fmt.Printf("precondition key=%s v=%v \n", k, v)
+// 		}
+// 	}
+// 	return p
+// }
 
 // Process for the sub process
 func (u *RunpUnit) Process() RunpProcess {
