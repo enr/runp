@@ -282,6 +282,33 @@ USERPROFILE: ${USERPROFILE}
 windir: ${windir}
 ----
 
+**Run a different command on different operative systems**
+
+Inclusions are compared to `runtime.GOOS`:
+
+```yaml
+units:
+  win:
+    description: Windows unit
+    preconditions:
+      os:
+        inclusions:
+          - windows
+    host:
+      command: /path/to/windows.exe
+      workdir: ${HOME}
+  linux:
+    description: Linux unit
+    preconditions:
+      os:
+        inclusions:
+          - linux
+    host:
+      command: /path/to/linux
+      workdir: ${HOME}
+
+```
+
 **SSH tunnel to reach a remote LDAP**
 
 A backend app running on host using LDAP on remote server available using SSH tunneling.
@@ -409,6 +436,23 @@ To have plain, non-colored text output set the environment variable `NO_COLOR` o
 NO_COLOR=1 ./bin/runp -d up -f examples/Runpfile-many-units.yml
 ./bin/runp -d --no-color up -f examples/Runpfile-many-units.yml
 ----
+
+**Runpfile Runp version**
+
+This unit requires runp version greater tha 0.5.0:
+
+```yaml
+units:
+  test1:
+    description: test unit
+    preconditions:
+      runp:
+        operator: GreaterThan
+        version: 0.5.0
+    host:
+      command: env
+      workdir: ${HOME}
+```
 
 ## License
 
