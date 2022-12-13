@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="generator" content="Asciidoctor 2.0.16">
+<meta name="generator" content="Asciidoctor 2.0.17">
 <meta name="author" content="runp contributors">
 <title>Runp</title>
 <style>
@@ -331,7 +331,7 @@ pre.rouge {
 <h1>Runp</h1>
 <div class="details">
 <span id="author" class="author">runp contributors</span><br>
-<span id="revnumber">version 0.5.2</span>
+<span id="revnumber">version 0.5.4</span>
 </div>
 </div>
 <div id="content">
@@ -351,7 +351,7 @@ pre.rouge {
 <div class="paragraph">
 <p><a href="https://github.com/enr/runp/releases/latest">Download last artifacts</a> |
  <a href="https://enr.github.io/runp/pdf/runp_manual.pdf">This manual as PDF</a> |
- Build revision <code>9548ae256dfa94a6b0bcbd23aaf24480bb6291a5</code></p>
+ Build revision <code>c38f61d9b6b3ea06dacb4a6563b5a580a1a9263d</code></p>
 </div>
 </div>
 </div>
@@ -670,6 +670,35 @@ runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
 </div>
 </div>
 <div class="paragraph">
+<p><strong>Run a different command on different operative systems</strong></p>
+</div>
+<div class="paragraph">
+<p>Inclusions are compared to <code>runtime.GOOS</code>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">units</span><span class="pi">:</span>
+  <span class="na">win</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">Windows unit</span>
+    <span class="na">preconditions</span><span class="pi">:</span>
+      <span class="na">os</span><span class="pi">:</span>
+        <span class="na">inclusions</span><span class="pi">:</span>
+          <span class="pi">-</span> <span class="s">windows</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">/path/to/windows.exe</span>
+      <span class="na">workdir</span><span class="pi">:</span> <span class="s">${HOME}</span>
+  <span class="na">linux</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">Linux unit</span>
+    <span class="na">preconditions</span><span class="pi">:</span>
+      <span class="na">os</span><span class="pi">:</span>
+        <span class="na">inclusions</span><span class="pi">:</span>
+          <span class="pi">-</span> <span class="s">linux</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">/path/to/linux</span>
+      <span class="na">workdir</span><span class="pi">:</span> <span class="s">${HOME}</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
 <p><strong>SSH tunnel to reach a remote LDAP</strong></p>
 </div>
 <div class="paragraph">
@@ -838,6 +867,26 @@ runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
 ./bin/runp -d --no-color up -f examples/Runpfile-many-units.yml</pre>
 </div>
 </div>
+<div class="paragraph">
+<p><strong>Runpfile Runp version</strong></p>
+</div>
+<div class="paragraph">
+<p>This unit requires runp version greater tha 0.5.0:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">units</span><span class="pi">:</span>
+  <span class="na">test1</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">test unit</span>
+    <span class="na">preconditions</span><span class="pi">:</span>
+      <span class="na">runp</span><span class="pi">:</span>
+        <span class="na">operator</span><span class="pi">:</span> <span class="s">GreaterThan</span>
+        <span class="na">version</span><span class="pi">:</span> <span class="s">0.5.0</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">env</span>
+      <span class="na">workdir</span><span class="pi">:</span> <span class="s">${HOME}</span></code></pre>
+</div>
+</div>
 </div>
 </div>
 <div class="sect1">
@@ -851,8 +900,8 @@ runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
 </div>
 <div id="footer">
 <div id="footer-text">
-Version 0.5.2<br>
-Last updated 2021-11-22 19:58:08 UTC
+Version 0.5.4<br>
+Last updated 2022-12-13 13:21:06 UTC
 </div>
 </div>
 </body>
