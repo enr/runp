@@ -1,0 +1,20 @@
+name: Test Runpfile
+description: This is Runpfile
+units:
+  win:
+    description: Windows unit
+    preconditions:
+      os:
+        inclusions:
+          - windows
+    host:
+      command: dir {{vars runp_root}}
+  unix:
+    description: Nix unit
+    preconditions:
+      os:
+        inclusions:
+          - linux
+          - darwin
+    host:
+      command: ls -al {{vars runp_root}}

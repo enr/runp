@@ -32,11 +32,12 @@ type ContainerProcess struct {
 	Env        map[string]string
 	Await      AwaitCondition
 
-	id            string
-	vars          map[string]string
-	preconditions Preconditions
-	secretKey     string
-	stopTimeout   string
+	id                  string
+	vars                map[string]string
+	preconditions       Preconditions
+	secretKey           string
+	stopTimeout         string
+	environmentSettings *EnvironmentSettings
 }
 
 // ID for the sub process
@@ -48,6 +49,11 @@ func (p *ContainerProcess) ID() string {
 func (p *ContainerProcess) SetID(id string) {
 	p.id = id
 }
+
+// SetEnvironmentSettings ...
+// func (p *ContainerProcess) SetEnvironmentSettings(es *EnvironmentSettings) {
+// 	p.environmentSettings = es
+// }
 
 // StartCommand ho
 func (p *ContainerProcess) StartCommand() (RunpCommand, error) {
@@ -62,7 +68,12 @@ func (p *ContainerProcess) StartCommand() (RunpCommand, error) {
 
 // StopCommand ho
 func (p *ContainerProcess) StopCommand() RunpCommand {
-	cl := fmt.Sprintf(`docker stop %s`, p.buildContainerName())
+	containerRunner, err := exec.LookPath(p.environmentSettings.ContainerRunnerExe)
+	if err != nil {
+		ui.WriteLinef("Unable to find container runner %s executable: %v", p.environmentSettings.ContainerRunnerExe, err)
+		// TBD
+	}
+	cl := fmt.Sprintf(`%s stop %s`, containerRunner, p.buildContainerName())
 	cmd, err := cmd(cl)
 	if err != nil {
 		// TBD...
@@ -106,10 +117,16 @@ func (p *ContainerProcess) buildCmdLine() string {
 	img := p.Image
 	ui.Debugf("Run image '%s'\n", img)
 
+	containerRunner, err := exec.LookPath(p.environmentSettings.ContainerRunnerExe)
+	if err != nil {
+		ui.WriteLinef("Unable to find container runner %s executable: %v", p.environmentSettings.ContainerRunnerExe, err)
+		return ""
+	}
 	cliPreprocessor := newCliPreprocessor(p.vars)
 	var sb strings.Builder
 	// rm Automatically remove the container when it exits
-	sb.WriteString("docker run -t ")
+	sb.WriteString(containerRunner)
+	sb.WriteString(" run -t ")
 	if !p.SkipRm {
 		sb.WriteString("--rm ")
 	}
@@ -168,7 +185,6 @@ func (p *ContainerProcess) buildCmdLine() string {
 	}
 	sb.WriteString(img)
 	// command
-	// command: ["-Djboss.http.port=8080", "-Djboss.management.http.port=9990"]
 	if p.Command != "" {
 		sb.WriteString(` `)
 		sb.WriteString(p.Command)
@@ -205,15 +221,15 @@ func (p *ContainerProcess) String() string {
 	return fmt.Sprintf("%T{id=%s container=%s}", p, p.ID(), p.buildContainerName())
 }
 
-// IsStartable always true.
+// IsStartable ...
 func (p *ContainerProcess) IsStartable() (bool, error) {
-	docker, err := exec.LookPath("docker")
+	containerRunner, err := exec.LookPath(p.environmentSettings.ContainerRunnerExe)
 	if err != nil {
-		ui.WriteLinef("Unable to find docker executable: %v", err)
+		ui.WriteLinef("Unable to find container runner %s executable: %v", p.environmentSettings.ContainerRunnerExe, err)
 		return false, err
 	}
 	cn := p.buildContainerName()
-	cmdLine := fmt.Sprintf("%s ps -aq -f name=%s", docker, cn)
+	cmdLine := fmt.Sprintf("%s ps -aq -f name=%s", containerRunner, cn)
 	ui.Debugf("IsStartable command:\n%s", cmdLine)
 	cmd, err := cmd(cmdLine)
 	if err != nil {
@@ -245,15 +261,15 @@ func (p *ContainerProcess) VerifyPreconditions() PreconditionVerifyResult {
 		return res
 	}
 	var err error
-	docker, err := exec.LookPath("docker")
+	containerRunner, err := exec.LookPath(p.environmentSettings.ContainerRunnerExe)
 	if err != nil {
 		return PreconditionVerifyResult{
 			Vote:    Stop,
-			Reasons: []string{fmt.Sprintf("Unable to find docker executable: %v", err)},
+			Reasons: []string{fmt.Sprintf("Unable to find container runner %s executable: %v", p.environmentSettings.ContainerRunnerExe, err)},
 		}
 	}
-	cmdLine := fmt.Sprintf("%s network ls -q --filter name=runp-network --format '{{ .Name }}'", docker)
-	ui.Debugf("PRECONDITIONS command:\n%s", cmdLine)
+	cmdLine := fmt.Sprintf("%s network ls -q --filter name=runp-network --format '{{ .Name }}'", containerRunner)
+	ui.Debugf("Preconditions command:\n%s", cmdLine)
 	command, err := cmd(cmdLine)
 	if err != nil {
 		return PreconditionVerifyResult{
@@ -269,15 +285,15 @@ func (p *ContainerProcess) VerifyPreconditions() PreconditionVerifyResult {
 		}
 	}
 	so := strings.TrimSpace(string(out))
-	ui.Debugf("PRECONDITIONS command output:\n<%s>", so)
+	ui.Debugf("Preconditions command output:\n<%s>", so)
 	if so == "runp-network" {
 		return PreconditionVerifyResult{
 			Vote:    Proceed,
 			Reasons: []string{},
 		}
 	}
-	cmdLine = fmt.Sprintf("%s network create runp-network", docker)
-	ui.Debugf("PRECONDITIONS command:\n%s", cmdLine)
+	cmdLine = fmt.Sprintf("%s network create runp-network", containerRunner)
+	ui.Debugf("Running preconditions command:\n%s", cmdLine)
 	command, err = cmd(cmdLine)
 	if err != nil {
 		return PreconditionVerifyResult{

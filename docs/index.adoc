@@ -295,18 +295,16 @@ units:
         inclusions:
           - windows
     host:
-      command: /path/to/windows.exe
-      workdir: ${HOME}
-  linux:
-    description: Linux unit
+      command: dir {{vars runp_root}}
+  unix:
+    description: Nix unit
     preconditions:
       os:
         inclusions:
           - linux
+          - darwin
     host:
-      command: /path/to/linux
-      workdir: ${HOME}
-
+      command: ls -al {{vars runp_root}}
 ```
 
 **SSH tunnel to reach a remote LDAP**
@@ -416,6 +414,7 @@ Runp adds to the context some variables:
 
 - `runp_workdir`: user current working directory as absolute path
 - `runp_root`: directory parent of the Runpfile as absolute path
+- `runp_file_separator`: OS file separator (`/` on unix, `\` on windows)
 
 Usage:
 
@@ -430,10 +429,15 @@ units:
 
 **Disabling color output**
 
-To have plain, non-colored text output set the environment variable `NO_COLOR` or use the option `--no-color`:
+To have plain, non-colored text output set the environment variable `NO_COLOR`:
 
 ----
 NO_COLOR=1 ./bin/runp -d up -f examples/Runpfile-many-units.yml
+----
+
+or use the option `--no-color`:
+
+----
 ./bin/runp -d --no-color up -f examples/Runpfile-many-units.yml
 ----
 

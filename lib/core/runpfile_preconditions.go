@@ -60,7 +60,6 @@ func (p *Preconditions) Verify() PreconditionVerifyResult {
 			continue
 		}
 		vr = v.Verify()
-		ui.Debugf("Precondition %v: %v", v, vr)
 		if vr.Vote == Proceed {
 			continue
 		}

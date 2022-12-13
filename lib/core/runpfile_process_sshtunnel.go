@@ -47,12 +47,13 @@ type SSHTunnelProcess struct {
 	// command executed to test connection to jump server
 	TestCommand string `yaml:"test_command"`
 
-	id            string
-	vars          map[string]string
-	secretKey     string
-	preconditions Preconditions
-	cmd           *SSHTunnelCommandWrapper
-	stopTimeout   string
+	id                  string
+	vars                map[string]string
+	secretKey           string
+	preconditions       Preconditions
+	cmd                 *SSHTunnelCommandWrapper
+	stopTimeout         string
+	environmentSettings *EnvironmentSettings
 }
 
 // ID for the sub process
@@ -203,6 +204,11 @@ func (p *SSHTunnelProcess) StopCommand() RunpCommand {
 		cmd: p.cmd,
 	}
 }
+
+// SetEnvironmentSettings ...
+// func (p *SSHTunnelProcess) SetEnvironmentSettings(es *EnvironmentSettings) {
+// 	p.environmentSettings = es
+// }
 
 // Dir for the sub process
 func (p *SSHTunnelProcess) Dir() string {

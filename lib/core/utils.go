@@ -115,6 +115,15 @@ func LoadRunpfileFromPath(runpfilePath string) (*Runpfile, error) {
 	return rf, nil
 }
 
+func sliceContains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
+}
+
 func envAsArray(in map[string]string) (out []string) {
 	out = []string{}
 	for name, val := range in {

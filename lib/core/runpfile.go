@@ -22,15 +22,23 @@ type RunpUnit struct {
 	Container *ContainerProcess
 	SSHTunnel *SSHTunnelProcess `yaml:"ssh_tunnel"`
 
-	vars      map[string]string
-	secretKey string
-	process   RunpProcess
+	vars                map[string]string
+	secretKey           string
+	process             RunpProcess
+	environmentSettings *EnvironmentSettings
 }
+
+// SetEnvironmentSettings ...
+// func (u *RunpUnit) SetEnvironmentSettings(es *EnvironmentSettings) {
+// 	u.environmentSettings = es
+// }
 
 // Process for the sub process
 func (u *RunpUnit) Process() RunpProcess {
 	if u.process == nil {
-		u.process = u.buildProcess()
+		p := u.buildProcess()
+		// p.SetEnvironmentSettings(u.environmentSettings)
+		u.process = p
 	}
 	return u.process
 }

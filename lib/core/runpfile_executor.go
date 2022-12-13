@@ -16,16 +16,18 @@ import (
 // NewExecutor creates new RunpfileExecutor
 func NewExecutor(rf *Runpfile) *RunpfileExecutor {
 	return &RunpfileExecutor{
-		rf:            rf,
-		LoggerFactory: createProcessLogger,
+		rf:                  rf,
+		LoggerFactory:       createProcessLogger,
+		environmentSettings: defaultSettings(),
 	}
 }
 
 // RunpfileExecutor Executor implementation for Runpfile.
 type RunpfileExecutor struct {
-	rf            *Runpfile
-	LoggerFactory func(string, int, LoggerConfig) Logger
-	longest       int
+	rf                  *Runpfile
+	LoggerFactory       func(string, int, LoggerConfig) Logger
+	longest             int
+	environmentSettings *EnvironmentSettings
 }
 
 func (e *RunpfileExecutor) longestName() int {
@@ -53,64 +55,71 @@ func (e *RunpfileExecutor) Start() {
 	for _, unit := range e.rf.Units {
 		unit.vars = e.rf.Vars
 		unit.secretKey = e.rf.SecretKey
+		unit.environmentSettings = e.environmentSettings
 		if unit.Host != nil {
 			host = unit.Host
 			host.vars = unit.vars
 			host.secretKey = unit.secretKey
 			host.stopTimeout = unit.StopTimeout
+			host.environmentSettings = e.environmentSettings
 		}
 		if unit.Container != nil {
 			container = unit.Container
 			container.vars = unit.vars
 			container.secretKey = unit.secretKey
 			container.stopTimeout = unit.StopTimeout
+			container.environmentSettings = e.environmentSettings
 		}
 		if unit.SSHTunnel != nil {
 			sshTunnel = unit.SSHTunnel
 			sshTunnel.vars = unit.vars
 			sshTunnel.secretKey = unit.secretKey
 			sshTunnel.stopTimeout = unit.StopTimeout
+			sshTunnel.environmentSettings = e.environmentSettings
 		}
 	}
 
-	block := false
+	skipped := []string{}
 	var pr PreconditionVerifyResult
 	for _, unit := range e.rf.Units {
 		if unit.Host != nil {
 			host = unit.Host
 			pr = host.VerifyPreconditions()
 			if pr.Vote != Proceed {
-				block = true
+				skipped = append(skipped, unit.Name)
 				ui.WriteLinef("Preconditions not satisfied (%v): %v", pr.Vote, pr.Reasons)
-				break
+				continue
 			}
 		}
 		if unit.Container != nil {
 			container = unit.Container
 			pr = container.VerifyPreconditions()
 			if pr.Vote != Proceed {
-				block = true
+				skipped = append(skipped, unit.Name)
 				ui.WriteLinef("Preconditions not satisfied (%s): %v", pr.Vote, pr.Reasons)
-				break
+				continue
 			}
 		}
 		if unit.SSHTunnel != nil {
 			sshTunnel = unit.SSHTunnel
 			pr = sshTunnel.VerifyPreconditions()
 			if pr.Vote != Proceed {
-				block = true
+				skipped = append(skipped, unit.Name)
 				ui.WriteLinef("Preconditions not satisfied (%s): %v", pr.Vote, pr.Reasons)
-				break
+				continue
 			}
 		}
 	}
 
-	if block {
-		ui.WriteLine("Error in Preconditions, exit")
-		return
+	if len(skipped) > 0 {
+		ui.WriteLinef("Some unit skipped preconditions not satisfied: %v", skipped)
 	}
 
 	for _, unit := range e.rf.Units {
+		if sliceContains(skipped, unit.Name) {
+			ui.WriteLinef("Skipped unit %s", unit.Name)
+			continue
+		}
 		wg.Add(1)
 		go e.startUnit(unit, &wg)
 	}
@@ -120,6 +129,7 @@ func (e *RunpfileExecutor) Start() {
 
 func (e *RunpfileExecutor) startUnit(unit *RunpUnit, wg *sync.WaitGroup) {
 	logger := e.LoggerFactory(unit.Name, e.longestName(), processLoggerConfiguration)
+	// unit.SetEnvironmentSettings(e.environmentSettings)
 	process := unit.Process()
 	logger.WriteLinef("Starting %s using working dir %s", unit.Name, process.Dir())
 	appContext := GetApplicationContext()

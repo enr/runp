@@ -9,6 +9,7 @@ type RunpProcess interface {
 	VerifyPreconditions() PreconditionVerifyResult
 	SetPreconditions(Preconditions)
 	SetID(string)
+	// SetEnvironmentSettings(es *EnvironmentSettings)
 	StartCommand() (RunpCommand, error)
 	StopCommand() RunpCommand
 	StopTimeout() time.Duration

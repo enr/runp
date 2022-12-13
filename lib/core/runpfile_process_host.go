@@ -27,12 +27,13 @@ type HostProcess struct {
 	Env        map[string]string
 	Await      AwaitCondition
 
-	id            string
-	cmd           *exec.Cmd
-	vars          map[string]string
-	preconditions Preconditions
-	secretKey     string
-	stopTimeout   string
+	id                  string
+	cmd                 *exec.Cmd
+	vars                map[string]string
+	preconditions       Preconditions
+	secretKey           string
+	stopTimeout         string
+	environmentSettings *EnvironmentSettings
 }
 
 // ID for the sub process
@@ -44,6 +45,11 @@ func (p *HostProcess) ID() string {
 func (p *HostProcess) SetID(id string) {
 	p.id = id
 }
+
+// SetEnvironmentSettings ...
+// func (p *HostProcess) SetEnvironmentSettings(es *EnvironmentSettings) {
+// 	p.environmentSettings = es
+// }
 
 // SetPreconditions set preconditions.
 func (p *HostProcess) SetPreconditions(preconditions Preconditions) {
@@ -138,6 +144,7 @@ func (p *HostProcess) buildCmdCommandline() (*exec.Cmd, error) {
 	if err != nil {
 		return nil, err
 	}
+	ui.Debugf(`Process %s will be started using vars %v`, p.ID(), p.vars)
 	ui.Debugf(`Process %s will be started using shell "%s" %q`, p.ID(), exe, args)
 	cliPreprocessor := newCliPreprocessor(p.vars)
 	cmd := exec.Command(exe, cliPreprocessor.processArgs(args)...)
