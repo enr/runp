@@ -2,8 +2,6 @@ package core
 
 import (
 	"testing"
-
-	yaml "gopkg.in/yaml.v2"
 )
 
 // Mirrors SSHTunnelProcess struct to help write assertions
@@ -41,7 +39,7 @@ jump:
 ---`
 
 	cp := &SSHTunnelProcess{}
-	err := yaml.UnmarshalStrict([]byte(spec), &cp)
+	err := unmarshalStrict([]byte(spec), &cp)
 
 	if err != nil {
 		t.Errorf("Unexpected error %v", err)

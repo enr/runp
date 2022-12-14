@@ -108,6 +108,16 @@ runp encrypt --key test secret       # encrypt "secret" using the key "test" and
 runp ls -f /path/to/runpfile.yaml    # list units in Runpfile
 ----
 
+**Settings**
+
+Runp looks for a settings file in `~/.runp/settings.yaml`.
+
+If the file does not exist or is empty/invalid, Runp starts using these defaults:
+
+```yaml
+container_runner: docker
+```
+
 **App waiting for DB**
 
 A backend app running on host waiting for a DB running in a container to be available:
@@ -139,6 +149,10 @@ units:
 ----
 
 **Containers**
+
+You can set the container engine using the settings file (key: `container_runner`).
+
+WARNING: Only Docker and Podman (as they use the same command line flags) are supported.
 
 Containers can talk to each other thorough a Docker network (`runp-network`).
 

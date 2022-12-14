@@ -3,8 +3,6 @@ package core
 import (
 	"strings"
 	"testing"
-
-	yaml "gopkg.in/yaml.v2"
 )
 
 type expectedHostProcess struct {
@@ -61,7 +59,7 @@ shell:
 ---`
 
 	p := &HostProcess{}
-	err := yaml.UnmarshalStrict([]byte(spec), &p)
+	err := unmarshalStrict([]byte(spec), &p)
 
 	if err != nil {
 		t.Errorf("Unexpected error %v", err)

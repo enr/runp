@@ -1,7 +1,9 @@
 package core
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -12,7 +14,7 @@ import (
 	"github.com/mitchellh/go-homedir"
 
 	"github.com/pkg/errors"
-	yaml "gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v3"
 
 	"github.com/enr/go-files/files"
 )
@@ -132,8 +134,17 @@ func envAsArray(in map[string]string) (out []string) {
 // LoadRunpfileFromData returns an Runpfile object reading []byte.
 func LoadRunpfileFromData(data []byte) (*Runpfile, error) {
 	rf := &Runpfile{}
-	err := yaml.UnmarshalStrict(data, &rf)
+	err := unmarshalStrict(data, &rf)
 	return rf, err
+}
+
+func unmarshalStrict(data []byte, out interface{}) error {
+	dec := yaml.NewDecoder(bytes.NewReader(data))
+	dec.KnownFields(true)
+	if err := dec.Decode(out); err != nil && err != io.EOF {
+		return err
+	}
+	return nil
 }
 
 func resolveWorkingDir(rf *Runpfile, unit *RunpUnit) (string, error) {
