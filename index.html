@@ -331,7 +331,7 @@ pre.rouge {
 <h1>Runp</h1>
 <div class="details">
 <span id="author" class="author">runp contributors</span><br>
-<span id="revnumber">version 0.5.4</span>
+<span id="revnumber">version 0.6.0</span>
 </div>
 </div>
 <div id="content">
@@ -351,7 +351,7 @@ pre.rouge {
 <div class="paragraph">
 <p><a href="https://github.com/enr/runp/releases/latest">Download last artifacts</a> |
  <a href="https://enr.github.io/runp/pdf/runp_manual.pdf">This manual as PDF</a> |
- Build revision <code>c38f61d9b6b3ea06dacb4a6563b5a580a1a9263d</code></p>
+ Build revision <code>8a3ee4fa8a2ec2ec4ce23f26f3df018c4e84aa0e</code></p>
 </div>
 </div>
 </div>
@@ -484,6 +484,20 @@ runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
 </div>
 </div>
 <div class="paragraph">
+<p><strong>Settings</strong></p>
+</div>
+<div class="paragraph">
+<p>Runp looks for a settings file in <code>~/.runp/settings.yaml</code>.</p>
+</div>
+<div class="paragraph">
+<p>If the file does not exist or is empty/invalid, Runp starts using these defaults:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">container_runner</span><span class="pi">:</span> <span class="s">docker</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
 <p><strong>App waiting for DB</strong></p>
 </div>
 <div class="paragraph">
@@ -517,6 +531,21 @@ runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
 </div>
 <div class="paragraph">
 <p><strong>Containers</strong></p>
+</div>
+<div class="paragraph">
+<p>You can set the container engine using the settings file (key: <code>container_runner</code>).</p>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Warning</div>
+</td>
+<td class="content">
+Only Docker and Podman (as they use the same command line flags) are supported.
+</td>
+</tr>
+</table>
 </div>
 <div class="paragraph">
 <p>Containers can talk to each other thorough a Docker network (<code>runp-network</code>).</p>
@@ -685,17 +714,16 @@ runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
         <span class="na">inclusions</span><span class="pi">:</span>
           <span class="pi">-</span> <span class="s">windows</span>
     <span class="na">host</span><span class="pi">:</span>
-      <span class="na">command</span><span class="pi">:</span> <span class="s">/path/to/windows.exe</span>
-      <span class="na">workdir</span><span class="pi">:</span> <span class="s">${HOME}</span>
-  <span class="na">linux</span><span class="pi">:</span>
-    <span class="na">description</span><span class="pi">:</span> <span class="s">Linux unit</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">dir {{vars runp_root}}</span>
+  <span class="na">unix</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">Nix unit</span>
     <span class="na">preconditions</span><span class="pi">:</span>
       <span class="na">os</span><span class="pi">:</span>
         <span class="na">inclusions</span><span class="pi">:</span>
           <span class="pi">-</span> <span class="s">linux</span>
+          <span class="pi">-</span> <span class="s">darwin</span>
     <span class="na">host</span><span class="pi">:</span>
-      <span class="na">command</span><span class="pi">:</span> <span class="s">/path/to/linux</span>
-      <span class="na">workdir</span><span class="pi">:</span> <span class="s">${HOME}</span></code></pre>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">ls -al {{vars runp_root}}</span></code></pre>
 </div>
 </div>
 <div class="paragraph">
@@ -841,6 +869,9 @@ runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
 <li>
 <p><code>runp_root</code>: directory parent of the Runpfile as absolute path</p>
 </li>
+<li>
+<p><code>runp_file_separator</code>: OS file separator (<code>/</code> on unix, <code>\</code> on windows)</p>
+</li>
 </ul>
 </div>
 <div class="paragraph">
@@ -859,12 +890,19 @@ runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
 <p><strong>Disabling color output</strong></p>
 </div>
 <div class="paragraph">
-<p>To have plain, non-colored text output set the environment variable <code>NO_COLOR</code> or use the option <code>--no-color</code>:</p>
+<p>To have plain, non-colored text output set the environment variable <code>NO_COLOR</code>:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre>NO_COLOR=1 ./bin/runp -d up -f examples/Runpfile-many-units.yml
-./bin/runp -d --no-color up -f examples/Runpfile-many-units.yml</pre>
+<pre>NO_COLOR=1 ./bin/runp -d up -f examples/Runpfile-many-units.yml</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>or use the option <code>--no-color</code>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>./bin/runp -d --no-color up -f examples/Runpfile-many-units.yml</pre>
 </div>
 </div>
 <div class="paragraph">
@@ -900,8 +938,8 @@ runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
 </div>
 <div id="footer">
 <div id="footer-text">
-Version 0.5.4<br>
-Last updated 2022-12-13 13:21:06 UTC
+Version 0.6.0<br>
+Last updated 2022-12-14 20:40:54 UTC
 </div>
 </div>
 </body>
