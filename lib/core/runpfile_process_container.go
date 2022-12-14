@@ -50,12 +50,7 @@ func (p *ContainerProcess) SetID(id string) {
 	p.id = id
 }
 
-// SetEnvironmentSettings ...
-// func (p *ContainerProcess) SetEnvironmentSettings(es *EnvironmentSettings) {
-// 	p.environmentSettings = es
-// }
-
-// StartCommand ho
+// StartCommand returns the command starting the process.
 func (p *ContainerProcess) StartCommand() (RunpCommand, error) {
 	cmd, err := p.buildCmdImage()
 	if err != nil {
@@ -66,22 +61,22 @@ func (p *ContainerProcess) StartCommand() (RunpCommand, error) {
 	}, nil
 }
 
-// StopCommand ho
-func (p *ContainerProcess) StopCommand() RunpCommand {
+// StopCommand returns the command stopping the process.
+func (p *ContainerProcess) StopCommand() (RunpCommand, error) {
 	containerRunner, err := exec.LookPath(p.environmentSettings.ContainerRunnerExe)
 	if err != nil {
 		ui.WriteLinef("Unable to find container runner %s executable: %v", p.environmentSettings.ContainerRunnerExe, err)
-		// TBD
+		return nil, err
 	}
 	cl := fmt.Sprintf(`%s stop %s`, containerRunner, p.buildContainerName())
 	cmd, err := cmd(cl)
 	if err != nil {
-		// TBD...
 		ui.WriteLinef("Error building command line '%s': %v", cl, err)
+		return nil, err
 	}
 	return &ExecCommandWrapper{
 		cmd: cmd,
-	}
+	}, nil
 }
 
 // StopTimeout duration to wait to force kill process

@@ -2,16 +2,14 @@ package core
 
 import "time"
 
-// RunpProcess is.
-// questo viene usato come running process
+// RunpProcess is wrapper for running process
 type RunpProcess interface {
 	ID() string
 	VerifyPreconditions() PreconditionVerifyResult
 	SetPreconditions(Preconditions)
 	SetID(string)
-	// SetEnvironmentSettings(es *EnvironmentSettings)
 	StartCommand() (RunpCommand, error)
-	StopCommand() RunpCommand
+	StopCommand() (RunpCommand, error)
 	StopTimeout() time.Duration
 	Dir() string
 	SetDir(string)

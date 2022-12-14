@@ -49,12 +49,6 @@ func (p *RunpVersionPrecondition) Verify() PreconditionVerifyResult {
 		}
 	}
 
-	fmt.Printf("c=%v\n", currentVersion)
-	fmt.Printf("t=%v\n", targetVersion)
-	fmt.Printf("p=%v\n", p)
-	fmt.Printf("p.o=%v\n", p.Operator)
-	fmt.Printf("ui=%v\n", ui)
-
 	switch p.Operator {
 	case LessThan:
 		if currentVersion.LessThan(targetVersion) {

@@ -9,7 +9,6 @@ func TestPreconditions(t *testing.T) {
 		Debug: true,
 		Color: false,
 	})
-	//
 	runpfilePath := "../../testdata/runpfiles/preconditions.yml"
 	rp, err := LoadRunpfileFromPath(runpfilePath)
 	if err != nil {

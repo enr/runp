@@ -28,16 +28,10 @@ type RunpUnit struct {
 	environmentSettings *EnvironmentSettings
 }
 
-// SetEnvironmentSettings ...
-// func (u *RunpUnit) SetEnvironmentSettings(es *EnvironmentSettings) {
-// 	u.environmentSettings = es
-// }
-
-// Process for the sub process
+// Process returns the sub process
 func (u *RunpUnit) Process() RunpProcess {
 	if u.process == nil {
 		p := u.buildProcess()
-		// p.SetEnvironmentSettings(u.environmentSettings)
 		u.process = p
 	}
 	return u.process

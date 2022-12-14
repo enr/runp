@@ -75,9 +75,6 @@ func IsRunpfileValid(runpfile *Runpfile) (bool, []error) {
 		if len(modes) < 1 {
 			errs = append(errs, errors.New("Host, SSHTunnel or Container missing in "+id))
 		}
-		// if !files.IsDir(unit.WorkingDir) {
-		// 	errs = append(errs, errors.New("error in command <"+id+">: no working dir "+unit.WorkingDir))
-		// }
 	}
 	return (len(errs) == 0), errs
 }

@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// ExecCommandWrapper ...
+// ExecCommandWrapper is wrapper for *exec.Cmd
 type ExecCommandWrapper struct {
 	// name string
 	cmd *exec.Cmd
@@ -43,7 +43,7 @@ func (c *ExecCommandWrapper) Stop() error {
 	return c.cmd.Process.Kill()
 }
 
-// Wait ...
+// Wait waits for the command to exit.
 func (c *ExecCommandWrapper) Wait() error {
 	return c.cmd.Wait()
 }
@@ -96,7 +96,7 @@ func (c *ExecCommandStopper) Stop() error {
 	return p.Kill()
 }
 
-// Wait ...
+// Wait waits for the command to exit.
 func (c *ExecCommandStopper) Wait() error {
 	if c.cmd.ProcessState == nil || c.cmd.ProcessState.Exited() {
 		return nil

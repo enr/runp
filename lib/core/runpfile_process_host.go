@@ -46,11 +46,6 @@ func (p *HostProcess) SetID(id string) {
 	p.id = id
 }
 
-// SetEnvironmentSettings ...
-// func (p *HostProcess) SetEnvironmentSettings(es *EnvironmentSettings) {
-// 	p.environmentSettings = es
-// }
-
 // SetPreconditions set preconditions.
 func (p *HostProcess) SetPreconditions(preconditions Preconditions) {
 	p.preconditions = preconditions
@@ -73,7 +68,7 @@ func (p *HostProcess) StopTimeout() time.Duration {
 	return time.Duration(5) * time.Second
 }
 
-// StartCommand ho
+// StartCommand returns the command starting the process.
 func (p *HostProcess) StartCommand() (RunpCommand, error) {
 	var cmd *exec.Cmd
 	var err error
@@ -92,12 +87,12 @@ func (p *HostProcess) StartCommand() (RunpCommand, error) {
 	}, nil
 }
 
-// StopCommand ho
-func (p *HostProcess) StopCommand() RunpCommand {
+// StopCommand returns the command stopping the process.
+func (p *HostProcess) StopCommand() (RunpCommand, error) {
 	return &ExecCommandStopper{
 		id:  p.id,
 		cmd: p.cmd,
-	}
+	}, nil
 }
 
 // Dir for the sub process

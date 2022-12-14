@@ -35,7 +35,7 @@ units:
     description: Test mail server
     # this process is running in a container
     container:
-      image: mailhog/mailhog
+      image: docker.io/mailhog/mailhog
       ports:
         - "8025:8025"
         - "1025:1025"

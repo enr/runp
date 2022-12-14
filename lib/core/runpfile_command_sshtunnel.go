@@ -124,7 +124,6 @@ func (c *SSHTunnelCommandWrapper) forward() error {
 	var err error
 	c.localToJumpConnection, err = ssh.Dial("tcp", c.jumpAddress, c.config)
 	if err != nil {
-		// non riesce a connettersi o cade la connessione
 		c.pf("Error connecting to jump server %s: %v", c.jumpAddress, err)
 		return err
 	}

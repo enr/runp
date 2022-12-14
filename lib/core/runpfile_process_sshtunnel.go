@@ -128,7 +128,7 @@ func (p *SSHTunnelProcess) SetID(id string) {
 	p.id = id
 }
 
-// StartCommand ho
+// StartCommand returns the command starting the process.
 func (p *SSHTunnelProcess) StartCommand() (RunpCommand, error) {
 	config, err := p.resolveSSHCommandConfiguration()
 	if err != nil {
@@ -190,25 +190,15 @@ func (p *SSHTunnelProcess) resolveSSHCommandConfiguration() (*ssh.ClientConfig, 
 	return config, nil
 }
 
-// StopCommand ho
-func (p *SSHTunnelProcess) StopCommand() RunpCommand {
-
-	// fallito in inizializzazione
+// StopCommand returns the command stopping the process.
+func (p *SSHTunnelProcess) StopCommand() (RunpCommand, error) {
 	if p.cmd == nil {
-		return &SSHTunnelCommandStopper{
-			cmd: &SSHTunnelCommandWrapper{},
-		}
+		return nil, errors.New("No Command set")
 	}
-
 	return &SSHTunnelCommandStopper{
 		cmd: p.cmd,
-	}
+	}, nil
 }
-
-// SetEnvironmentSettings ...
-// func (p *SSHTunnelProcess) SetEnvironmentSettings(es *EnvironmentSettings) {
-// 	p.environmentSettings = es
-// }
 
 // Dir for the sub process
 func (p *SSHTunnelProcess) Dir() string {
