@@ -35,10 +35,14 @@ func listenForShutdown(ch <-chan os.Signal) {
 
 	for _, process := range runningProcesses {
 		ui.WriteLinef("Stop running process %s", process.ID())
-		cmd := process.StopCommand()
+		cmd, err := process.StopCommand()
+		if err != nil {
+			ui.WriteLinef("Error loading stopper command for process %s with error: %v\n", process.ID(), err)
+			continue
+		}
 		duration := process.StopTimeout()
 		if err := cmd.Start(); err != nil {
-			ui.WriteLinef("Error calling stop command for process %s: %v", process.ID(), err)
+			ui.WriteLinef("Error calling stop command for process %s: %v\n", process.ID(), err)
 		}
 		f := func() {
 			ui.Debugf("Force process %s kill after 5 seconds", process.ID())
@@ -48,7 +52,7 @@ func listenForShutdown(ch <-chan os.Signal) {
 		timer := time.AfterFunc(duration, f)
 
 		defer timer.Stop()
-		err := cmd.Wait()
+		err = cmd.Wait()
 		if err != nil {
 			ui.WriteLinef("Stopped process %s with error: %v\n", process.ID(), err)
 		} else {
