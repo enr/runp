@@ -331,7 +331,7 @@ pre.rouge {
 <h1>Runp</h1>
 <div class="details">
 <span id="author" class="author">runp contributors</span><br>
-<span id="revnumber">version 0.6.0</span>
+<span id="revnumber">version 0.6.1</span>
 </div>
 </div>
 <div id="content">
@@ -351,7 +351,7 @@ pre.rouge {
 <div class="paragraph">
 <p><a href="https://github.com/enr/runp/releases/latest">Download last artifacts</a> |
  <a href="https://enr.github.io/runp/pdf/runp_manual.pdf">This manual as PDF</a> |
- Build revision <code>8a3ee4fa8a2ec2ec4ce23f26f3df018c4e84aa0e</code></p>
+ Build revision <code>f4a90e24f2f075530e82f4dde810b221e3530054</code></p>
 </div>
 </div>
 </div>
@@ -535,6 +535,14 @@ runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
 <div class="paragraph">
 <p>You can set the container engine using the settings file (key: <code>container_runner</code>).</p>
 </div>
+<div class="paragraph">
+<p>Example:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">container_runner</span><span class="pi">:</span> <span class="s">/path/to/podman</span></code></pre>
+</div>
+</div>
 <div class="admonitionblock warning">
 <table>
 <tr>
@@ -564,7 +572,7 @@ Only Docker and Podman (as they use the same command line flags) are supported.
   <span class="na">db</span><span class="pi">:</span>
     <span class="na">container</span><span class="pi">:</span>
       <span class="na">name</span><span class="pi">:</span> <span class="s">db</span>
-      <span class="na">image</span><span class="pi">:</span> <span class="s">mysql:5.7</span>
+      <span class="na">image</span><span class="pi">:</span> <span class="s">docker.io/mysql:5.7</span>
       <span class="na">ports</span><span class="pi">:</span>
         <span class="pi">-</span> <span class="s2">"</span><span class="s">3306:3306"</span>
       <span class="na">env</span><span class="pi">:</span>
@@ -574,7 +582,7 @@ Only Docker and Podman (as they use the same command line flags) are supported.
         <span class="na">MYSQL_PASSWORD</span><span class="pi">:</span> <span class="s">wordpress</span>
   <span class="na">wordpress</span><span class="pi">:</span>
     <span class="na">container</span><span class="pi">:</span>
-      <span class="na">image</span><span class="pi">:</span> <span class="s">wordpress:latest</span>
+      <span class="na">image</span><span class="pi">:</span> <span class="s">docker.io/wordpress:latest</span>
       <span class="na">ports</span><span class="pi">:</span>
         <span class="pi">-</span> <span class="s2">"</span><span class="s">8000:80"</span>
       <span class="na">env</span><span class="pi">:</span>
@@ -648,12 +656,12 @@ Only Docker and Podman (as they use the same command line flags) are supported.
     <span class="na">host</span><span class="pi">:</span>
       <span class="na">command</span><span class="pi">:</span> <span class="s">set</span>
       <span class="na">env</span><span class="pi">:</span>
-        <span class="c1"># in env block variables have the unix notation</span>
+        <span class="c1"># in env block variables have always the unix notation</span>
         <span class="na">MYHOME</span><span class="pi">:</span> <span class="s">${HOME}</span>
   <span class="na">echo</span><span class="pi">:</span>
     <span class="na">description</span><span class="pi">:</span> <span class="s">echo the value of %OS% env var</span>
     <span class="na">host</span><span class="pi">:</span>
-      <span class="c1"># in command env vars have the specific OS notation</span>
+      <span class="c1"># when used in command, env vars have the specific OS notation</span>
       <span class="na">command</span><span class="pi">:</span> <span class="s">echo %OS%</span>
   <span class="na">infiniteloop</span><span class="pi">:</span>
     <span class="na">description</span><span class="pi">:</span> <span class="s">infinite loop</span>
@@ -711,6 +719,7 @@ Only Docker and Podman (as they use the same command line flags) are supported.
     <span class="na">description</span><span class="pi">:</span> <span class="s">Windows unit</span>
     <span class="na">preconditions</span><span class="pi">:</span>
       <span class="na">os</span><span class="pi">:</span>
+        <span class="c1"># this unit is ran when os is windows</span>
         <span class="na">inclusions</span><span class="pi">:</span>
           <span class="pi">-</span> <span class="s">windows</span>
     <span class="na">host</span><span class="pi">:</span>
@@ -719,6 +728,7 @@ Only Docker and Podman (as they use the same command line flags) are supported.
     <span class="na">description</span><span class="pi">:</span> <span class="s">Nix unit</span>
     <span class="na">preconditions</span><span class="pi">:</span>
       <span class="na">os</span><span class="pi">:</span>
+        <span class="c1"># this unit will be ran when os is linux or darwin</span>
         <span class="na">inclusions</span><span class="pi">:</span>
           <span class="pi">-</span> <span class="s">linux</span>
           <span class="pi">-</span> <span class="s">darwin</span>
@@ -733,7 +743,7 @@ Only Docker and Podman (as they use the same command line flags) are supported.
 <p>A backend app running on host using LDAP on remote server available using SSH tunneling.</p>
 </div>
 <div class="paragraph">
-<p>SSH tunnel manage three auth methods:</p>
+<p>SSH tunnel can use three auth methods using keys:</p>
 </div>
 <div class="ulist">
 <ul>
@@ -789,6 +799,9 @@ Only Docker and Podman (as they use the same command line flags) are supported.
 <div class="content">
 <pre>runp encrypt -k thekey SECRET</pre>
 </div>
+</div>
+<div class="paragraph">
+<p>The above command will encrypt the string <code>SECRET</code> using the password <code>thekey</code>.</p>
 </div>
 <div class="paragraph">
 <p>To run a Runpfile containing an <code>encrypted_secret</code> you have to pass the key to the
@@ -909,7 +922,10 @@ Only Docker and Podman (as they use the same command line flags) are supported.
 <p><strong>Runpfile Runp version</strong></p>
 </div>
 <div class="paragraph">
-<p>This unit requires runp version greater tha 0.5.0:</p>
+<p>A unit can require a constraint on the Runp version.</p>
+</div>
+<div class="paragraph">
+<p>This unit requires runp version greater the 0.5.0:</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -925,6 +941,28 @@ Only Docker and Podman (as they use the same command line flags) are supported.
       <span class="na">workdir</span><span class="pi">:</span> <span class="s">${HOME}</span></code></pre>
 </div>
 </div>
+<div class="paragraph">
+<p>The available operators are:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>LessThan</code></p>
+</li>
+<li>
+<p><code>LessThanOrEqual</code></p>
+</li>
+<li>
+<p><code>Equal</code></p>
+</li>
+<li>
+<p><code>GreaterThanOrEqual</code></p>
+</li>
+<li>
+<p><code>GreaterThan</code></p>
+</li>
+</ul>
+</div>
 </div>
 </div>
 <div class="sect1">
@@ -938,8 +976,8 @@ Only Docker and Podman (as they use the same command line flags) are supported.
 </div>
 <div id="footer">
 <div id="footer-text">
-Version 0.6.0<br>
-Last updated 2022-12-14 20:40:54 UTC
+Version 0.6.1<br>
+Last updated 2022-12-14 20:57:53 UTC
 </div>
 </div>
 </body>
