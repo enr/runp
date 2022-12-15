@@ -104,7 +104,8 @@ func (c *SSHTunnelCommandWrapper) Wait() error {
 			return err
 		}
 		go func() {
-			c.forward()
+			err = c.forward()
+			ui.WriteLinef(`Error in forward: %+v`, err)
 		}()
 	}
 }
@@ -133,6 +134,7 @@ func (c *SSHTunnelCommandWrapper) forward() error {
 		c.pf("Error connecting to target from jump server: %v", err)
 		return err
 	}
+
 	// Copy localConnection.Reader to jumpToTargetConnection.Writer
 	go func() {
 		if c.localConnection == nil || c.jumpToTargetConnection == nil {
@@ -141,7 +143,7 @@ func (c *SSHTunnelCommandWrapper) forward() error {
 		}
 		_, err = io.Copy(c.jumpToTargetConnection, c.localConnection)
 		if err != nil {
-			c.pf("Error connecting local to jump server: %v", err)
+			c.pf("\nError connecting local to jump server:\n%v\n", err)
 		}
 	}()
 
@@ -153,7 +155,7 @@ func (c *SSHTunnelCommandWrapper) forward() error {
 		}
 		_, err = io.Copy(c.localConnection, c.jumpToTargetConnection)
 		if err != nil {
-			c.pf("Error connecting jump server to local: %v", err)
+			c.pf("\nError connecting jump server to local:\n%v\n", err)
 		}
 	}()
 	return nil

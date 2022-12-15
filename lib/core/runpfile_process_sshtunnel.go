@@ -142,7 +142,6 @@ func (p *SSHTunnelProcess) StartCommand() (RunpCommand, error) {
 		jumpAddress:   p.Jump.String(),
 		targetAddress: p.Target.String(),
 	}
-
 	return p.cmd, nil
 }
 
@@ -168,7 +167,7 @@ func (p *SSHTunnelProcess) resolveSSHCommandConfiguration() (*ssh.ClientConfig, 
 	}
 	if p.Auth.EncryptedSecret != "" {
 		key := p.secretKey
-		ui.WriteLinef("KEY %s", key)
+		ui.WriteLinef("Using key %s", key)
 		if key == "" {
 			return nil, errors.New(`Missing key for "encrypted_secret"`)
 		}

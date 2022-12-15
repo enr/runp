@@ -118,6 +118,10 @@ If the file does not exist or is empty/invalid, Runp starts using these defaults
 container_runner: docker
 ```
 
+**Preconditions**
+
+Any unit is ran if all its preconditions are satisfied.
+
 **App waiting for DB**
 
 A backend app running on host waiting for a DB running in a container to be available:
