@@ -3,8 +3,6 @@ package core
 import (
 	"strings"
 	"testing"
-
-	yaml "gopkg.in/yaml.v2"
 )
 
 // Mirrors ContainerProcess struct to help write assertions
@@ -83,7 +81,7 @@ command: |
 ---`
 
 	cp := &ContainerProcess{}
-	err := yaml.UnmarshalStrict([]byte(spec), &cp)
+	err := unmarshalStrict([]byte(spec), &cp)
 
 	if err != nil {
 		t.Errorf("Unexpected error %v", err)
@@ -117,7 +115,7 @@ await:
 ---`
 
 	cp := &ContainerProcess{}
-	err := yaml.UnmarshalStrict([]byte(spec), &cp)
+	err := unmarshalStrict([]byte(spec), &cp)
 
 	if err != nil {
 		t.Errorf("Unexpected error %v", err)

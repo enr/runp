@@ -18,7 +18,7 @@ func NewExecutor(rf *Runpfile) *RunpfileExecutor {
 	return &RunpfileExecutor{
 		rf:                  rf,
 		LoggerFactory:       createProcessLogger,
-		environmentSettings: defaultSettings(),
+		environmentSettings: loadEnvironmentSettings(),
 	}
 }
 

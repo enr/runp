@@ -108,6 +108,16 @@ runp encrypt --key test secret       # encrypt "secret" using the key "test" and
 runp ls -f /path/to/runpfile.yaml    # list units in Runpfile
 ----
 
+**Settings**
+
+Runp looks for a settings file in `~/.runp/settings.yaml`.
+
+If the file does not exist or is empty/invalid, Runp starts using these defaults:
+
+```yaml
+container_runner: docker
+```
+
 **App waiting for DB**
 
 A backend app running on host waiting for a DB running in a container to be available:
@@ -140,6 +150,16 @@ units:
 
 **Containers**
 
+You can set the container engine using the settings file (key: `container_runner`).
+
+Example:
+
+```yaml
+container_runner: /path/to/podman
+```
+
+WARNING: Only Docker and Podman (as they use the same command line flags) are supported.
+
 Containers can talk to each other thorough a Docker network (`runp-network`).
 
 The container name (the host name exposed to other containers) is set to `runp-${UNIT NAME}` or to the field `name`.
@@ -154,7 +174,7 @@ units:
   db:
     container:
       name: db
-      image: mysql:5.7
+      image: docker.io/mysql:5.7
       ports:
         - "3306:3306"
       env:
@@ -164,7 +184,7 @@ units:
         MYSQL_PASSWORD: wordpress
   wordpress:
     container:
-      image: wordpress:latest
+      image: docker.io/wordpress:latest
       ports:
         - "8000:80"
       env:
@@ -234,12 +254,12 @@ units:
     host:
       command: set
       env:
-        # in env block variables have the unix notation
+        # in env block variables have always the unix notation
         MYHOME: ${HOME}
   echo:
     description: echo the value of %OS% env var
     host:
-      # in command env vars have the specific OS notation
+      # when used in command, env vars have the specific OS notation
       command: echo %OS%
   infiniteloop:
     description: infinite loop
@@ -292,6 +312,7 @@ units:
     description: Windows unit
     preconditions:
       os:
+        # this unit is ran when os is windows
         inclusions:
           - windows
     host:
@@ -300,6 +321,7 @@ units:
     description: Nix unit
     preconditions:
       os:
+        # this unit will be ran when os is linux or darwin
         inclusions:
           - linux
           - darwin
@@ -311,7 +333,7 @@ units:
 
 A backend app running on host using LDAP on remote server available using SSH tunneling.
 
-SSH tunnel manage three auth methods:
+SSH tunnel can use three auth methods using keys:
 
 - `identity_file`: the path to the private key, ie `~/.ssh/id_rsa`
 - `secret`: the SSH server password in plain text
@@ -354,6 +376,8 @@ To create the encrypted secret:
 ----
 runp encrypt -k thekey SECRET
 ----
+
+The above command will encrypt the string `SECRET` using the password `thekey`.
 
 To run a Runpfile containing an `encrypted_secret` you have to pass the key to the 
 `up` command (the key must coincide with the one used to encrypt).
@@ -443,7 +467,9 @@ or use the option `--no-color`:
 
 **Runpfile Runp version**
 
-This unit requires runp version greater tha 0.5.0:
+A unit can require a constraint on the Runp version.
+
+This unit requires runp version greater the 0.5.0:
 
 ```yaml
 units:
@@ -457,6 +483,15 @@ units:
       command: env
       workdir: ${HOME}
 ```
+
+The available operators are:
+
+- `LessThan`
+- `LessThanOrEqual`
+- `Equal`
+- `GreaterThanOrEqual`
+- `GreaterThan`
+
 
 ## License
 
