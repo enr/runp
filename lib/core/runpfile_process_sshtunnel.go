@@ -77,9 +77,11 @@ func (p *SSHTunnelProcess) VerifyPreconditions() PreconditionVerifyResult {
 	if p.TestCommand != "" {
 		cmdout, err := p.executeCmd(p.TestCommand)
 		ui.Debugf("Test command %s :\n%s", p.TestCommand, cmdout.String())
-		return PreconditionVerifyResult{
-			Vote:    Stop,
-			Reasons: []string{fmt.Sprintf("Error executing test command: %v", err)},
+		if err != nil {
+			return PreconditionVerifyResult{
+				Vote:    Stop,
+				Reasons: []string{fmt.Sprintf("Error executing test command: %v", err)},
+			}
 		}
 	}
 	return PreconditionVerifyResult{
