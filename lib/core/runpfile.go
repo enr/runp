@@ -39,6 +39,7 @@ func (u *RunpUnit) Process() RunpProcess {
 	return u.process
 }
 
+// Kind describes the unit in `runp ls`.
 func (u *RunpUnit) Kind() string {
 	if u.Container != nil {
 		return fmt.Sprintf(`Container process %s`, u.Container.Image)

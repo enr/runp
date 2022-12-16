@@ -62,8 +62,8 @@ specs:
       output:
         stdout:
           contains_all:
-            - "db: database"
-            - wordpress
+            - Container process docker.io/mysql:5.7
+            - Container process docker.io/wordpress:php8.2-fpm-alpine
         stderr:
           is_empty: true
   vardir:
