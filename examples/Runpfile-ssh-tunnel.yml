@@ -5,9 +5,18 @@ units:
     description: chmod keys
     host:
       command: |
+        chmod -R 755 "{{vars runp_workdir}}/testdata/ssh/entrypoint.d" && \
         chmod 700 "{{vars runp_workdir}}/testdata/keys" && \
         chmod 600 "{{vars runp_workdir}}/testdata/keys/runp" && \
-        chmod 600 "{{vars runp_workdir}}/testdata/keys/runp.pub"
+        chmod 644 "{{vars runp_workdir}}/testdata/keys/runp.pub" && \
+        chmod 400 "{{vars runp_workdir}}/testdata/ssh/keys/ssh_host_rsa_key" && \
+        chmod 400 "{{vars runp_workdir}}/testdata/ssh/keys/ssh_host_dsa_key.pub" && \
+        chmod 400 "{{vars runp_workdir}}/testdata/ssh/keys/ssh_host_rsa_key" && \
+        chmod 400 "{{vars runp_workdir}}/testdata/ssh/keys/ssh_host_rsa_key.pub" && \
+        chmod 400 "{{vars runp_workdir}}/testdata/ssh/keys/ssh_host_ecdsa_key" && \
+        chmod 400 "{{vars runp_workdir}}/testdata/ssh/keys/ssh_host_ecdsa_key.pub" && \
+        chmod 400 "{{vars runp_workdir}}/testdata/ssh/keys/ssh_host_ed25519_key" && \
+        chmod 400 "{{vars runp_workdir}}/testdata/ssh/keys/ssh_host_ed25519_key.pub"
   tunnel:
     description: SSH tunnel to target using jump
     ssh_tunnel:
@@ -32,10 +41,11 @@ units:
     description: The jump server
     container:
       name: sshserver
-      image: docker.io/panubo/sshd:1.3.0
+      image: docker.io/panubo/sshd:1.4.0
       ports:
         - "2222:22"
       volumes:
+        - "{{vars runp_workdir}}/testdata/ssh/entrypoint.d:/etc/entrypoint.d"
         - "{{vars runp_workdir}}/testdata/keys/runp.pub:/etc/authorized_keys/runp:ro"
         - "{{vars runp_workdir}}/testdata/ssh/sshd_config:/etc/ssh/sshd_config"
         - "{{vars runp_workdir}}/testdata/ssh/keys/:/etc/ssh/keys"
@@ -48,7 +58,7 @@ units:
     description: The target server
     container:
       name: target
-      image: crccheck/hello-world
+      image: docker.io/crccheck/hello-world
       ports:
         - "8000:8000"
   curl:
