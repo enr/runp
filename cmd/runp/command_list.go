@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"strings"
 
 	"github.com/enr/runp/lib/core"
 	"github.com/urfave/cli/v2"
@@ -21,8 +21,18 @@ func doList(c *cli.Context) error {
 }
 
 func listLine(u *core.RunpUnit) string {
-	if u.Description == "" {
-		return fmt.Sprintf(`- %s`, u.Name)
+	var sb strings.Builder
+	sb.WriteString(`- `)
+	sb.WriteString(u.Name)
+	if u.Kind() != "" {
+		sb.WriteString(` (`)
+		sb.WriteString(u.Kind())
+		sb.WriteString(`)`)
 	}
-	return fmt.Sprintf(`- %s: %s`, u.Name, u.Description)
+	if u.Description != "" {
+		sb.WriteString(`: `)
+		sb.WriteString(u.Description)
+		sb.WriteString(` `)
+	}
+	return sb.String()
 }

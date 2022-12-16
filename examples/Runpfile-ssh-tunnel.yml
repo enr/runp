@@ -8,15 +8,7 @@ units:
         chmod -R 755 "{{vars runp_workdir}}/testdata/ssh/entrypoint.d" && \
         chmod 700 "{{vars runp_workdir}}/testdata/keys" && \
         chmod 600 "{{vars runp_workdir}}/testdata/keys/runp" && \
-        chmod 644 "{{vars runp_workdir}}/testdata/keys/runp.pub" && \
-        chmod 400 "{{vars runp_workdir}}/testdata/ssh/keys/ssh_host_rsa_key" && \
-        chmod 400 "{{vars runp_workdir}}/testdata/ssh/keys/ssh_host_dsa_key.pub" && \
-        chmod 400 "{{vars runp_workdir}}/testdata/ssh/keys/ssh_host_rsa_key" && \
-        chmod 400 "{{vars runp_workdir}}/testdata/ssh/keys/ssh_host_rsa_key.pub" && \
-        chmod 400 "{{vars runp_workdir}}/testdata/ssh/keys/ssh_host_ecdsa_key" && \
-        chmod 400 "{{vars runp_workdir}}/testdata/ssh/keys/ssh_host_ecdsa_key.pub" && \
-        chmod 400 "{{vars runp_workdir}}/testdata/ssh/keys/ssh_host_ed25519_key" && \
-        chmod 400 "{{vars runp_workdir}}/testdata/ssh/keys/ssh_host_ed25519_key.pub"
+        chmod 644 "{{vars runp_workdir}}/testdata/keys/runp.pub"
   tunnel:
     description: SSH tunnel to target using jump
     ssh_tunnel:
@@ -28,7 +20,6 @@ units:
         #secret: "xxx"
         # The ssh server password encrypted and in base 64
         #encrypted_secret: "O7RtX8dooQXihQRKIK6nC/8okI38LOwNBoSAMrhFwpw="
-      #test_command: whoami
       local:
         port: 8001
       jump:
@@ -38,7 +29,7 @@ units:
         host: target
         port: 8000
   jump:
-    description: The jump server
+    description: The jump SSH server
     container:
       name: sshserver
       image: docker.io/panubo/sshd:1.4.0

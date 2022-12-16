@@ -5,7 +5,7 @@ units:
     description: database
     container:
       name: db
-      image: mysql:5.7
+      image: docker.io/mysql:5.7
       ports:
         - "3306:3306"
       env:
@@ -15,7 +15,7 @@ units:
         MYSQL_PASSWORD: wordpress
   wordpress:
     container:
-      image: wordpress:latest
+      image: docker.io/wordpress:php8.2-fpm-alpine
       ports:
         - "8000:80"
       env:

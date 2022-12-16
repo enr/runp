@@ -3,10 +3,19 @@ description: This is Runpfile
 units:
   nix:
     description: infinite nix
+    preconditions:
+      os:
+        inclusions:
+          - linux
+          - darwin
     host:
       command: ./infinite.sh
   win:
     description: infinite win
+    preconditions:
+      os:
+        inclusions:
+          - windows
     host:
       command: infinite.cmd
       env:

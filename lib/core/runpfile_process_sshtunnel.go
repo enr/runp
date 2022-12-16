@@ -136,6 +136,12 @@ func (p *SSHTunnelProcess) StartCommand() (RunpCommand, error) {
 	if err != nil {
 		return nil, err
 	}
+	if p.Jump.Port == 0 {
+		return nil, errors.Errorf(`misconfiguration in Jump %s`, p.Jump.String())
+	}
+	if p.Target.Port == 0 {
+		return nil, errors.Errorf(`misconfiguration in Target %s`, p.Target.String())
+	}
 	p.cmd = &SSHTunnelCommandWrapper{
 		config:        config,
 		localAddress:  p.Local.String(),

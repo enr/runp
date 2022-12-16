@@ -136,8 +136,9 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit, wg *sync.WaitGroup) {
 	appContext.RegisterRunningProcess(process)
 	cmd, err := process.StartCommand()
 	if err != nil {
-		logger.WriteLinef("Error building command %v", err)
+		logger.WriteLinef("Error building command for unit %s: %v", unit.Name, err)
 		appContext.AddReport(err.Error())
+		appContext.RemoveRunningProcess(process)
 		wg.Done()
 		return
 	}
@@ -151,6 +152,7 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit, wg *sync.WaitGroup) {
 		if err != nil {
 			logger.WriteLinef("Error duration %v", err)
 			appContext.AddReport(err.Error())
+			appContext.RemoveRunningProcess(process)
 			wg.Done()
 			return
 		}
@@ -165,6 +167,7 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit, wg *sync.WaitGroup) {
 			ctx := fmt.Sprintf("command %s await %s %s", process.ID(), process.AwaitResource(), process.AwaitTimeout())
 			logger.WriteLinef("%+v", errors.Wrap(err, ctx))
 			appContext.AddReport(err.Error())
+			appContext.RemoveRunningProcess(process)
 			wg.Done()
 			return
 		}
@@ -177,11 +180,13 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit, wg *sync.WaitGroup) {
 	startable, err := process.IsStartable()
 	if err != nil {
 		logger.WriteLinef("Error in %s %+v", process.ID(), errors.Wrap(err, "is startable"))
+		appContext.RemoveRunningProcess(process)
 		wg.Done()
 		return
 	}
 	if !startable {
 		logger.WriteLinef("Process %s not startable", process.ID())
+		appContext.RemoveRunningProcess(process)
 		wg.Done()
 		return
 	}
@@ -198,13 +203,12 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit, wg *sync.WaitGroup) {
 		w.Close()
 		ctx := fmt.Sprintf("start process %s", unit.Name)
 		logger.WriteLinef("Error in %s %+v", cmd, errors.Wrap(err, ctx))
+		appContext.RemoveRunningProcess(process)
 		pwg.Done()
 		wg.Done()
 		return
 	}
 	logger.Debugf("Process %s successfully started", process.ID())
-
-	appContext.RegisterRunningProcess(process)
 
 	w.Close()
 	exit := make(chan error, 2)

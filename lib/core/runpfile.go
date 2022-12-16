@@ -1,5 +1,7 @@
 package core
 
+import "fmt"
+
 // Runpfile is the model containing the full configuration.
 type Runpfile struct {
 	Name        string
@@ -35,6 +37,20 @@ func (u *RunpUnit) Process() RunpProcess {
 		u.process = p
 	}
 	return u.process
+}
+
+func (u *RunpUnit) Kind() string {
+	if u.Container != nil {
+		return fmt.Sprintf(`Container process %s`, u.Container.Image)
+	}
+	if u.Host != nil {
+		return `Host process`
+	}
+	if u.SSHTunnel != nil {
+		st := u.SSHTunnel
+		return fmt.Sprintf(`SSH tunnel %s -> %s -> %s`, st.Local.String(), st.Jump.String(), st.Target.String())
+	}
+	return ``
 }
 
 func (u *RunpUnit) buildProcess() RunpProcess {
