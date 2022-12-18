@@ -29,7 +29,6 @@ running all needed processes in parallel (like Docker compose, Foreman et simili
 
 This speeds up the setup of a working environment compared to the usual approaches like custom scripts, documentation (written or spoken), or, more commonly, leaving it to the developer to figure out.
 
-
 Runp uses a `Runpfile`, a sort of a sofisticated `Procfile` that describes the project as a system composed of
 `units` each of which can run a different type of process such as:
 
@@ -71,7 +70,7 @@ units:
     description: Test mail server
     # this process is running in a container
     container:
-      image: mailhog/mailhog
+      image: docker.io/mailhog/mailhog
       ports:
         - "8025:8025"
         - "1025:1025"
@@ -96,7 +95,7 @@ units:
 
 **Run runp**
 
-Some command:
+Some commands:
 
 ----
 runp --help                          # generic help
@@ -122,6 +121,23 @@ container_runner: docker
 
 Any unit is ran if all its preconditions are satisfied.
 
+Available preconditions:
+
+- OS
+- Runp version
+
+**Runpfile composition**
+
+Runpfile can include other Runpfiles:
+
+```yaml
+name: Test Runpfile
+description: This is Runpfile
+include:
+  - Runpfile-env.yml
+  - Runpfile-vars.yml
+```
+
 **App waiting for DB**
 
 A backend app running on host waiting for a DB running in a container to be available:
@@ -143,7 +159,7 @@ units:
   db:
     description: Database
     container:
-      image: postgres:alpine
+      image: docker.io/postgres:alpine
       ports:
         - "5432:5432"
       env:
@@ -213,7 +229,7 @@ units:
   fowler:
     description: The Fowler collection
     container:
-      image: alpine:3.12
+      image: docker.io/alpine:3.12
       skip_rm: true
       mounts:
         - "type=volume,dst=/library/PoEAA"
@@ -223,7 +239,7 @@ units:
   knuth:
     description: The Knuth collection
     container:
-      image: alpine:3.12
+      image: docker.io/alpine:3.12
       skip_rm: true
       mounts:
         - "type=volume,dst=/library/TAoCP.vol1"
@@ -299,7 +315,7 @@ PSModulePath: ${PSModulePath}
 PUBLIC: ${PUBLIC}
 SESSIONNAME: ${SESSIONNAME}
 SystemDrive: ${SystemDrive}
-TEMP=: ${TEMP}
+TEMP: ${TEMP}
 TMP: ${TMP}
 USERNAME: ${USERNAME}
 USERPROFILE: ${USERPROFILE}
@@ -337,7 +353,7 @@ units:
 
 A backend app running on host using LDAP on remote server available using SSH tunneling.
 
-SSH tunnel can use three auth methods using keys:
+SSH tunnel can use three auth methods:
 
 - `identity_file`: the path to the private key, ie `~/.ssh/id_rsa`
 - `secret`: the SSH server password in plain text

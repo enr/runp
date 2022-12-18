@@ -125,7 +125,7 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 			ui.WriteLinef("Failed resolving working directory %s:%s %v", unit.Name, unit.Process().Dir(), fail)
 			return nil, fail
 		}
-		ui.Debugf("Resolved directory %s: from %s to %s", id, unit.Process().Dir(), wd)
+		ui.Debugf(`Resolved directory %s: from "%s" to "%s"`, id, unit.Process().Dir(), wd)
 		unit.Process().SetPreconditions(unit.Preconditions)
 		unit.Process().SetDir(wd)
 		unit.Process().SetID(unit.Name)
@@ -140,18 +140,23 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 			path:       rpp,
 			importedBy: runpfile.path,
 		}
+		if rf.Units == nil {
+			rf.Units = map[string]*RunpUnit{}
+		}
 		included, err := loadRunpfileFromPath(source, visited)
 		if err != nil {
 			return nil, err
 		}
 		for k, v := range included.Units {
 			if _, ok := rf.Units[k]; ok {
-				return nil, fmt.Errorf(`Duplicate Unit id "%s"`, k)
+				return nil, fmt.Errorf(`Duplicate unit id "%s"`, k)
 			}
 			rf.Units[k] = v
 		}
 	}
-	ui.WriteLinef("Runp Root %v", rf.Root)
+	if runpfile.importedBy == "" {
+		ui.WriteLinef("Runp Root %v", rf.Root)
+	}
 	return rf, nil
 }
 

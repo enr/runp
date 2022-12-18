@@ -1,7 +1,6 @@
 package core
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -48,7 +47,7 @@ func settingsFromBytes(f []byte, es *EnvironmentSettings) *EnvironmentSettings {
 		ui.WriteLinef(`Error parsing env settings file: %v`, err)
 		return es
 	}
-	fmt.Printf("%+v\n", es)
+	ui.Debugf("Starting using env settings %+v", es)
 	return es
 }
 
