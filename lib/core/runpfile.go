@@ -11,6 +11,7 @@ type Runpfile struct {
 	Root        string
 	Units       map[string]*RunpUnit
 	SecretKey   string `yaml:"-"`
+	Include     []string
 }
 
 // RunpUnit is...

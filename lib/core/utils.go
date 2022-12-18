@@ -81,17 +81,35 @@ func IsRunpfileValid(runpfile *Runpfile) (bool, []error) {
 	return (len(errs) == 0), errs
 }
 
+type runpfileSource struct {
+	path       string
+	importedBy string
+}
+
 // LoadRunpfileFromPath returns an Runpfile object reading file from path.
 func LoadRunpfileFromPath(runpfilePath string) (*Runpfile, error) {
-	data, err := ioutil.ReadFile(runpfilePath)
+	rps := runpfileSource{
+		path: runpfilePath,
+	}
+	visited := make(map[string]runpfileSource)
+	return loadRunpfileFromPath(rps, visited)
+}
+
+func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSource) (*Runpfile, error) {
+	if val, ok := visited[runpfile.path]; ok {
+		ui.WriteLinef(`Circular dependency for runpfile %s required from %s and %s`, runpfile.path, runpfile.importedBy, val.importedBy)
+		return &Runpfile{}, fmt.Errorf(`Circular dependency for runpfile %s required from %s and %s`, runpfile.path, runpfile.importedBy, val.importedBy)
+	}
+	visited[runpfile.path] = runpfile
+	data, err := ioutil.ReadFile(runpfile.path)
 	if err != nil {
 		return &Runpfile{}, err
 	}
-	rf, err := LoadRunpfileFromData(data)
+	rf, err := loadRunpfileFromData(data)
 	if err != nil {
 		return &Runpfile{}, err
 	}
-	rf.Root, _ = filepath.Abs(filepath.Dir(runpfilePath))
+	rf.Root, _ = filepath.Abs(filepath.Dir(runpfile.path))
 	for id, unit := range rf.Units {
 		unit.vars = rf.Vars
 		if unit.Name == "" {
@@ -109,6 +127,21 @@ func LoadRunpfileFromPath(runpfilePath string) (*Runpfile, error) {
 		unit.Process().SetPreconditions(unit.Preconditions)
 		unit.Process().SetDir(wd)
 		unit.Process().SetID(unit.Name)
+	}
+	for _, inc := range rf.Include {
+		rpp := filepath.ToSlash(filepath.Join(rf.Root, inc))
+		fmt.Printf(":::::::   %s  \n", rpp)
+		source := runpfileSource{
+			path:       rpp,
+			importedBy: runpfile.path,
+		}
+		included, err := loadRunpfileFromPath(source, visited)
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range included.Units {
+			rf.Units[k] = v
+		}
 	}
 	ui.WriteLinef("Runp Root %v", rf.Root)
 	return rf, nil
@@ -131,8 +164,7 @@ func envAsArray(in map[string]string) (out []string) {
 	return out
 }
 
-// LoadRunpfileFromData returns an Runpfile object reading []byte.
-func LoadRunpfileFromData(data []byte) (*Runpfile, error) {
+func loadRunpfileFromData(data []byte) (*Runpfile, error) {
 	rf := &Runpfile{}
 	err := unmarshalStrict(data, &rf)
 	return rf, err
