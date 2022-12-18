@@ -97,19 +97,21 @@ func LoadRunpfileFromPath(runpfilePath string) (*Runpfile, error) {
 
 func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSource) (*Runpfile, error) {
 	if val, ok := visited[runpfile.path]; ok {
-		ui.WriteLinef(`Circular dependency for runpfile %s required from %s and %s`, runpfile.path, runpfile.importedBy, val.importedBy)
-		return &Runpfile{}, fmt.Errorf(`Circular dependency for runpfile %s required from %s and %s`, runpfile.path, runpfile.importedBy, val.importedBy)
+		return nil, fmt.Errorf(`Circular dependency for runpfile %s required from %s and %s`, runpfile.path, runpfile.importedBy, val.importedBy)
 	}
 	visited[runpfile.path] = runpfile
 	data, err := ioutil.ReadFile(runpfile.path)
 	if err != nil {
-		return &Runpfile{}, err
+		return nil, err
 	}
 	rf, err := loadRunpfileFromData(data)
 	if err != nil {
-		return &Runpfile{}, err
+		return nil, err
 	}
-	rf.Root, _ = filepath.Abs(filepath.Dir(runpfile.path))
+	rf.Root, err = filepath.Abs(filepath.Dir(runpfile.path))
+	if err != nil {
+		return nil, err
+	}
 	for id, unit := range rf.Units {
 		unit.vars = rf.Vars
 		if unit.Name == "" {
@@ -130,7 +132,10 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 	}
 	for _, inc := range rf.Include {
 		rpp := filepath.ToSlash(filepath.Join(rf.Root, inc))
-		fmt.Printf(":::::::   %s  \n", rpp)
+		ui.Debugf("%s include: %s", runpfile.path, rpp)
+		if !files.Exists(rpp) {
+			return nil, fmt.Errorf(`Imported Runpfile "%s" not found`, rpp)
+		}
 		source := runpfileSource{
 			path:       rpp,
 			importedBy: runpfile.path,
@@ -140,6 +145,9 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 			return nil, err
 		}
 		for k, v := range included.Units {
+			if _, ok := rf.Units[k]; ok {
+				return nil, fmt.Errorf(`Duplicate Unit id "%s"`, k)
+			}
 			rf.Units[k] = v
 		}
 	}

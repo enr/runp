@@ -1,0 +1,10 @@
+name: Test Runpfile
+description: This is Runpfile
+units:
+  unit-in-01:
+    description: echo a user defined environment variable
+    host:
+      command: echo hi
+include:
+  - 02.yml
+  - 05-02.yml

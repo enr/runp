@@ -1,0 +1,7 @@
+name: Test Runpfile
+description: This is Runpfile
+units:
+  unit-in-06-and-07:
+    description: echo a user defined environment variable
+    host:
+      command: echo hi
