@@ -18,3 +18,12 @@ units:
           - darwin
     host:
       command: ls -al {{vars runp_root}}
+  etchosts:
+    description: Unit with /etc/hosts precondition
+    preconditions:
+      hosts:
+        contains:
+          127.0.1.1:
+            - hop
+    host:
+      command: echo file /etc/hosts contains mapping "127.0.1.1 hop"

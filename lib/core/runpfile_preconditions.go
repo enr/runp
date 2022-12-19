@@ -43,8 +43,9 @@ type PreconditionVerifyResult struct {
 
 // Preconditions ...
 type Preconditions struct {
-	Os   OsPrecondition
-	Runp RunpVersionPrecondition
+	Os    OsPrecondition
+	Runp  RunpVersionPrecondition
+	Hosts EtcHostsPrecondition
 }
 
 // Verify ...
@@ -52,6 +53,7 @@ func (p *Preconditions) Verify() PreconditionVerifyResult {
 	preconditions := []Precondition{
 		&p.Os,
 		&p.Runp,
+		&p.Hosts,
 	}
 	var vr PreconditionVerifyResult
 	res := PreconditionVerifyResult{Vote: Proceed, Reasons: []string{}}

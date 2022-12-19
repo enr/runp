@@ -123,8 +123,9 @@ Any unit is ran if all its preconditions are satisfied.
 
 Available preconditions:
 
-- OS
-- Runp version
+- OS: unit is ran if OS is the specified one.
+- Runp version: unit is ran if Runp version is in range.
+- Hosts: unit is ran if `/etc/hosts` contains the given mapping.
 
 **Runpfile composition**
 
