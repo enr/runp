@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="generator" content="Asciidoctor 2.0.17">
+<meta name="generator" content="Asciidoctor 2.0.18">
 <meta name="author" content="runp contributors">
 <title>Runp</title>
 <style>
@@ -331,7 +331,7 @@ pre.rouge {
 <h1>Runp</h1>
 <div class="details">
 <span id="author" class="author">runp contributors</span><br>
-<span id="revnumber">version 0.6.1</span>
+<span id="revnumber">version 0.7.0</span>
 </div>
 </div>
 <div id="content">
@@ -351,7 +351,7 @@ pre.rouge {
 <div class="paragraph">
 <p><a href="https://github.com/enr/runp/releases/latest">Download last artifacts</a> |
  <a href="https://enr.github.io/runp/pdf/runp_manual.pdf">This manual as PDF</a> |
- Build revision <code>f4a90e24f2f075530e82f4dde810b221e3530054</code></p>
+ Build revision <code>cfbfa9bf50d4fc6a7f389cb0737644aab342f167</code></p>
 </div>
 </div>
 </div>
@@ -440,7 +440,7 @@ running all needed processes in parallel (like Docker compose, Foreman et simili
     <span class="na">description</span><span class="pi">:</span> <span class="s">Test mail server</span>
     <span class="c1"># this process is running in a container</span>
     <span class="na">container</span><span class="pi">:</span>
-      <span class="na">image</span><span class="pi">:</span> <span class="s">mailhog/mailhog</span>
+      <span class="na">image</span><span class="pi">:</span> <span class="s">docker.io/mailhog/mailhog</span>
       <span class="na">ports</span><span class="pi">:</span>
         <span class="pi">-</span> <span class="s2">"</span><span class="s">8025:8025"</span>
         <span class="pi">-</span> <span class="s2">"</span><span class="s">1025:1025"</span>
@@ -470,7 +470,7 @@ running all needed processes in parallel (like Docker compose, Foreman et simili
 <p><strong>Run runp</strong></p>
 </div>
 <div class="paragraph">
-<p>Some command:</p>
+<p>Some commands:</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -498,6 +498,43 @@ runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
 </div>
 </div>
 <div class="paragraph">
+<p><strong>Preconditions</strong></p>
+</div>
+<div class="paragraph">
+<p>Any unit is ran if all its preconditions are satisfied.</p>
+</div>
+<div class="paragraph">
+<p>Available preconditions:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>OS: unit is ran if OS is the specified one.</p>
+</li>
+<li>
+<p>Runp version: unit is ran if Runp version is in range.</p>
+</li>
+<li>
+<p>Hosts: unit is ran if <code>/etc/hosts</code> contains the given mapping.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p><strong>Runpfile composition</strong></p>
+</div>
+<div class="paragraph">
+<p>Runpfile can include other Runpfiles:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">name</span><span class="pi">:</span> <span class="s">Test Runpfile</span>
+<span class="na">description</span><span class="pi">:</span> <span class="s">This is Runpfile</span>
+<span class="na">include</span><span class="pi">:</span>
+  <span class="pi">-</span> <span class="s">Runpfile-env.yml</span>
+  <span class="pi">-</span> <span class="s">Runpfile-vars.yml</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
 <p><strong>App waiting for DB</strong></p>
 </div>
 <div class="paragraph">
@@ -520,7 +557,7 @@ runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
   <span class="na">db</span><span class="pi">:</span>
     <span class="na">description</span><span class="pi">:</span> <span class="s">Database</span>
     <span class="na">container</span><span class="pi">:</span>
-      <span class="na">image</span><span class="pi">:</span> <span class="s">postgres:alpine</span>
+      <span class="na">image</span><span class="pi">:</span> <span class="s">docker.io/postgres:alpine</span>
       <span class="na">ports</span><span class="pi">:</span>
         <span class="pi">-</span> <span class="s2">"</span><span class="s">5432:5432"</span>
       <span class="na">env</span><span class="pi">:</span>
@@ -609,7 +646,7 @@ Only Docker and Podman (as they use the same command line flags) are supported.
   <span class="na">fowler</span><span class="pi">:</span>
     <span class="na">description</span><span class="pi">:</span> <span class="s">The Fowler collection</span>
     <span class="na">container</span><span class="pi">:</span>
-      <span class="na">image</span><span class="pi">:</span> <span class="s">alpine:3.12</span>
+      <span class="na">image</span><span class="pi">:</span> <span class="s">docker.io/alpine:3.12</span>
       <span class="na">skip_rm</span><span class="pi">:</span> <span class="no">true</span>
       <span class="na">mounts</span><span class="pi">:</span>
         <span class="pi">-</span> <span class="s2">"</span><span class="s">type=volume,dst=/library/PoEAA"</span>
@@ -619,7 +656,7 @@ Only Docker and Podman (as they use the same command line flags) are supported.
   <span class="na">knuth</span><span class="pi">:</span>
     <span class="na">description</span><span class="pi">:</span> <span class="s">The Knuth collection</span>
     <span class="na">container</span><span class="pi">:</span>
-      <span class="na">image</span><span class="pi">:</span> <span class="s">alpine:3.12</span>
+      <span class="na">image</span><span class="pi">:</span> <span class="s">docker.io/alpine:3.12</span>
       <span class="na">skip_rm</span><span class="pi">:</span> <span class="no">true</span>
       <span class="na">mounts</span><span class="pi">:</span>
         <span class="pi">-</span> <span class="s2">"</span><span class="s">type=volume,dst=/library/TAoCP.vol1"</span>
@@ -699,7 +736,7 @@ Only Docker and Podman (as they use the same command line flags) are supported.
 <span class="na">PUBLIC</span><span class="pi">:</span> <span class="s">${PUBLIC}</span>
 <span class="na">SESSIONNAME</span><span class="pi">:</span> <span class="s">${SESSIONNAME}</span>
 <span class="na">SystemDrive</span><span class="pi">:</span> <span class="s">${SystemDrive}</span>
-<span class="na">TEMP=</span><span class="pi">:</span> <span class="s">${TEMP}</span>
+<span class="na">TEMP</span><span class="pi">:</span> <span class="s">${TEMP}</span>
 <span class="na">TMP</span><span class="pi">:</span> <span class="s">${TMP}</span>
 <span class="na">USERNAME</span><span class="pi">:</span> <span class="s">${USERNAME}</span>
 <span class="na">USERPROFILE</span><span class="pi">:</span> <span class="s">${USERPROFILE}</span>
@@ -743,7 +780,7 @@ Only Docker and Podman (as they use the same command line flags) are supported.
 <p>A backend app running on host using LDAP on remote server available using SSH tunneling.</p>
 </div>
 <div class="paragraph">
-<p>SSH tunnel can use three auth methods using keys:</p>
+<p>SSH tunnel can use three auth methods:</p>
 </div>
 <div class="ulist">
 <ul>
@@ -976,8 +1013,8 @@ Only Docker and Podman (as they use the same command line flags) are supported.
 </div>
 <div id="footer">
 <div id="footer-text">
-Version 0.6.1<br>
-Last updated 2022-12-14 20:57:53 UTC
+Version 0.7.0<br>
+Last updated 2022-12-19 20:49:37 UTC
 </div>
 </div>
 </body>
