@@ -1,0 +1,11 @@
+name: Test Runpfile
+description: This is Runpfile
+vars:
+  test_var: this-is-test-var
+units:
+  test:
+    description: Test unit
+    host:
+      command: echo %TEST_VAR%
+      env:
+        TEST_VAR: "{{vars test_var}}"
