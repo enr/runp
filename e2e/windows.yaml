@@ -101,3 +101,39 @@ specs:
             - testdata\runpfiles\subdirs\bar
         stderr:
           is_empty: true
+  vars_in_env:
+    description: vars are used for env values
+    command:
+      working_dir: ..
+      exe: bin/runp
+      args:
+        - "up"
+        - "--file"
+        - "testdata/runpfiles/vars-in-env-win.yml"
+    expectations:
+      status:
+        equals_to: 0
+      output:
+        stdout:
+          contains_all:
+            - this-is-test-var
+        stderr:
+          is_empty: true
+  preconditions:
+    description: check precondition
+    command:
+      working_dir: ..
+      exe: bin/runp
+      args:
+        - "up"
+        - "--file"
+        - "testdata/runpfiles/preconditions-02.yml"
+    expectations:
+      status:
+        equals_to: 0
+      output:
+        stdout:
+          contains_all:
+            - this-is-from-windows-unit
+        stderr:
+          is_empty: true

@@ -131,33 +131,41 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 		unit.Process().SetID(unit.Name)
 	}
 	for _, inc := range rf.Include {
-		rpp := filepath.ToSlash(filepath.Join(rf.Root, inc))
-		ui.Debugf("%s include: %s", runpfile.path, rpp)
-		if !files.Exists(rpp) {
-			return nil, fmt.Errorf(`Imported Runpfile "%s" not found`, rpp)
-		}
-		source := runpfileSource{
-			path:       rpp,
-			importedBy: runpfile.path,
-		}
-		if rf.Units == nil {
-			rf.Units = map[string]*RunpUnit{}
-		}
-		included, err := loadRunpfileFromPath(source, visited)
+		err = merge(runpfile, rf, inc, visited)
 		if err != nil {
 			return nil, err
-		}
-		for k, v := range included.Units {
-			if _, ok := rf.Units[k]; ok {
-				return nil, fmt.Errorf(`Duplicate unit id "%s"`, k)
-			}
-			rf.Units[k] = v
 		}
 	}
 	if runpfile.importedBy == "" {
 		ui.WriteLinef("Runp Root %v", rf.Root)
 	}
 	return rf, nil
+}
+
+func merge(runpfile runpfileSource, rf *Runpfile, inc string, visited map[string]runpfileSource) error {
+	rpp := filepath.ToSlash(filepath.Join(rf.Root, inc))
+	ui.Debugf("%s include: %s", runpfile.path, rpp)
+	if !files.Exists(rpp) {
+		return fmt.Errorf(`Imported Runpfile "%s" not found`, rpp)
+	}
+	source := runpfileSource{
+		path:       rpp,
+		importedBy: runpfile.path,
+	}
+	if rf.Units == nil {
+		rf.Units = map[string]*RunpUnit{}
+	}
+	included, err := loadRunpfileFromPath(source, visited)
+	if err != nil {
+		return err
+	}
+	for k, v := range included.Units {
+		if _, ok := rf.Units[k]; ok {
+			return fmt.Errorf(`Duplicate unit id "%s"`, k)
+		}
+		rf.Units[k] = v
+	}
+	return nil
 }
 
 func sliceContains(s []string, e string) bool {

@@ -60,19 +60,30 @@ func (u *RunpUnit) buildProcess() RunpProcess {
 	if u.Container != nil {
 		container := u.Container
 		container.WorkingDir = cliPreprocessor.process(u.Container.WorkingDir)
+		container.Env = processEnv(container.Env, cliPreprocessor)
 		return container
 	}
 	if u.Host != nil {
 		host := u.Host
 		host.WorkingDir = cliPreprocessor.process(u.Host.WorkingDir)
+		host.Env = processEnv(host.Env, cliPreprocessor)
 		return host
 	}
 	if u.SSHTunnel != nil {
 		tunnel := u.SSHTunnel
 		tunnel.WorkingDir = cliPreprocessor.process(u.SSHTunnel.WorkingDir)
+		tunnel.Env = processEnv(tunnel.Env, cliPreprocessor)
 		return tunnel
 	}
 	return nil
+}
+
+func processEnv(env map[string]string, cliPreprocessor *cliPreprocessor) map[string]string {
+	envmap := map[string]string{}
+	for k, v := range env {
+		envmap[k] = cliPreprocessor.process(v)
+	}
+	return envmap
 }
 
 // SkipDirResolution avoid resolve dir for containers
