@@ -6,5 +6,5 @@ SDLC_GO_BASE=
 SDLC_DIST_DIR='dist'
 SDLC_E2E_DIR='e2e'
 
-APP_VERSION='0.8.0-dev' # APP_VERSION_AUTOLINE this line is automatically managed
+APP_VERSION='0.7.1' # APP_VERSION_AUTOLINE this line is automatically managed
 
