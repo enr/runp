@@ -164,7 +164,7 @@ func (p *HostProcess) resolveEnvironment() []string {
 
 // ShouldWait returns if the process has await set.
 func (p *HostProcess) ShouldWait() bool {
-	return (p.Await.Resource != "")
+	return (p.Await.Timeout != "")
 }
 
 // AwaitResource returns the await resource.

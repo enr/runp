@@ -127,6 +127,17 @@ func (e *RunpfileExecutor) Start() {
 	wg.Wait()
 }
 
+func await(duration time.Duration, resources []string) error {
+	ui.WriteLinef(`Wait %s for resources %v %v`, duration, len(resources), resources)
+	if len(resources) < 1 {
+		ui.WriteLinef(`No resources, sleep %s`, duration)
+		time.Sleep(duration)
+		return nil
+	}
+	ui.WriteLinef(`impatient.Await %s for resources %v %v`, duration, len(resources), resources)
+	return impatient.Await(context.Background(), resources, duration)
+}
+
 func (e *RunpfileExecutor) startUnit(unit *RunpUnit, wg *sync.WaitGroup) {
 	logger := e.LoggerFactory(unit.Name, e.longestName(), processLoggerConfiguration)
 	// unit.SetEnvironmentSettings(e.environmentSettings)
@@ -145,19 +156,20 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit, wg *sync.WaitGroup) {
 
 	if process.ShouldWait() {
 		start := time.Now()
-		resources := []string{
-			process.AwaitResource(),
+		resources := []string{}
+		if process.AwaitResource() != "" {
+			resources = append(resources, process.AwaitResource())
 		}
 		duration, err := time.ParseDuration(process.AwaitTimeout())
 		if err != nil {
-			logger.WriteLinef("Error duration %v", err)
+			logger.WriteLinef("Error in duration format '%s' %v", process.AwaitTimeout(), err)
 			appContext.AddReport(err.Error())
 			appContext.RemoveRunningProcess(process)
 			wg.Done()
 			return
 		}
 
-		err = impatient.Await(context.Background(), resources, duration)
+		err = await(duration, resources)
 		if err != nil {
 			if err == impatient.ErrTimeout {
 				logger.WriteLinef("Error timeout %v", err)

@@ -198,7 +198,7 @@ func (p *ContainerProcess) buildCmdImage() (*exec.Cmd, error) {
 
 // ShouldWait returns if the process has await set.
 func (p *ContainerProcess) ShouldWait() bool {
-	return (p.Await.Resource != "")
+	return (p.Await.Timeout != "")
 }
 
 // AwaitResource returns the await resource.

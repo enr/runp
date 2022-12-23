@@ -224,7 +224,7 @@ func (p *SSHTunnelProcess) String() string {
 
 // ShouldWait returns if the process has await set.
 func (p *SSHTunnelProcess) ShouldWait() bool {
-	return (p.Await.Resource != "")
+	return (p.Await.Timeout != "")
 }
 
 // AwaitResource returns the await resource.

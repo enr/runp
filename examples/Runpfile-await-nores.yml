@@ -1,0 +1,11 @@
+name: Test Runpfile
+description: This is Runpfile
+units:
+  app:
+    description: app
+    host:
+      command: echo hi
+      env:
+        PATH: $PATH
+      await:
+        timeout: 0h0m03s
