@@ -135,5 +135,7 @@ specs:
         stdout:
           contains_all:
             - this-is-from-windows-unit
+          contains_none:
+            - this-is-from-unix-unit
         stderr:
           is_empty: true

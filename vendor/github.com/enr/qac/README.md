@@ -5,7 +5,7 @@
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/enr/qac)](https://pkg.go.dev/github.com/enr/qac)
 [![Go Report Card](https://goreportcard.com/badge/github.com/enr/qac)](https://goreportcard.com/report/github.com/enr/qac)
 
-`qac` is a Go library to test end to end command line tools.
+`qac` is a Go library to test _end to end_ command line tools.
 
 A test plan is written in YAML format.
 
@@ -40,14 +40,66 @@ func TestExecution(t *testing.T) {
   reporter := qac.NewTestLogsReporter(t)
   reporter.Publish(report)
   // Fail test if any error is found
-  for _ei_, err := range report.AllErrors() {
+  for _, err := range report.AllErrors() {
     t.Errorf(`error %v`, err)
   }
 }
+```
+
+Programmatic usage:
+
+```go
+  // the commmand to test
+  command := qac.Command{
+    Exe: "echo",
+    Args: []string{
+      `foo`,
+    },
+  }
+
+  // expectations about its result
+  stdErrEmpty := true
+  expectations := qac.Expectations{
+    StatusAssertion: qac.StatusAssertion{
+      EqualsTo: "0",
+    },
+    OutputAssertions: qac.OutputAssertions{
+      Stdout: qac.OutputAssertion{
+        EqualsTo: `foo`,
+      },
+      Stderr: qac.OutputAssertion{
+        IsEmpty: &stdErrEmpty,
+      },
+    },
+  }
+
+  // build the full specs structure
+  spec := qac.Spec{
+    Command:      command,
+    Expectations: expectations,
+  }
+  specs := make(map[string]qac.Spec)
+  specs[`echo`] = spec
+
+  // add specs to test plan
+  plan := qac.TestPlan{
+    Specs: specs,
+  }
+
+  // run the plan
+  launcher := qac.NewLauncher()
+
+  // see results
+  report := launcher.Execute(plan)
+  for _, block := range report.Blocks() {
+    for _, entry := range block.Entries() {
+      fmt.Printf(" - %s %s %v \n", entry.Kind().String(), entry.Description(), entry.Errors())
+    }
+  }
 ```
 
 ## License
 
 Apache 2.0 - see LICENSE file.
 
-Copyright 2020 qac contributors
+Copyright 2020-TODAY qac contributors

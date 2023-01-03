@@ -62,15 +62,15 @@ func (a *OutputAssertion) verify(context planContext) AssertionResult {
 		}
 	}
 	if len(a.ContainsAny) > 0 {
-		// fail := true
-		// for _, t := range a.ContainsAny {
-		// 	if strings.Contains(out, t) {
-		// 		fail = false
-		// 		break
-		// 	}
-		// }
 		if a.failContainsAny(out) {
 			result.addErrorf("%s: actual output\n%s\ndoes not contain any of :\n%q", a.id, out, a.ContainsAny)
+		}
+	}
+	if len(a.ContainsNone) > 0 {
+		for _, t := range a.ContainsNone {
+			if strings.Contains(out, t) {
+				result.addErrorf("%s: actual output\n[%s]\ncontains:\n%s", a.id, out, t)
+			}
 		}
 	}
 

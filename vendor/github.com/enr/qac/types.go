@@ -120,10 +120,11 @@ type OutputAssertion struct {
 	// output is trimmed
 	StartsWith string `yaml:"starts_with"`
 	// output is trimmed
-	EndsWith    string   `yaml:"ends_with"`
-	IsEmpty     *bool    `yaml:"is_empty"`
-	ContainsAny []string `yaml:"contains_any"`
-	ContainsAll []string `yaml:"contains_all"`
+	EndsWith     string   `yaml:"ends_with"`
+	IsEmpty      *bool    `yaml:"is_empty"`
+	ContainsAny  []string `yaml:"contains_any"`
+	ContainsAll  []string `yaml:"contains_all"`
+	ContainsNone []string `yaml:"contains_none"`
 }
 
 // OutputAssertions is the aggregate of stdout and stderr assertions.

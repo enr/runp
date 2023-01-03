@@ -16,7 +16,7 @@ github.com/daviddengcn/go-colortext
 # github.com/enr/go-files v0.3.0
 ## explicit; go 1.15
 github.com/enr/go-files/files
-# github.com/enr/qac v0.2.0
+# github.com/enr/qac v0.3.0
 ## explicit; go 1.15
 github.com/enr/qac
 # github.com/enr/runcmd v0.5.0
