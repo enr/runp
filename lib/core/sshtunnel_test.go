@@ -37,7 +37,7 @@ func TestSSHTunnelHappyPath(t *testing.T) {
 	}
 
 	local := Endpoint{
-		Port: 3030,
+		Port: 3099,
 	}
 	jump := Endpoint{
 		Host: "localhost",
