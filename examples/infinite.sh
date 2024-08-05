@@ -1,8 +1,11 @@
 #!/bin/bash
+
+seconds=${1:-2}
+
 while :
 do
-  echo -n "infinite..."
+  echo -n "infinite ${seconds}: "
   date
   pwd
-  sleep 2
+  sleep "$seconds"
 done

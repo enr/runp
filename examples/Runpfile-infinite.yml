@@ -1,8 +1,8 @@
 name: Test Runpfile
 description: This is Runpfile
 units:
-  nix:
-    description: infinite nix
+  nix-2:
+    description: infinite nix sleeping 2 secs
     preconditions:
       os:
         inclusions:
@@ -10,6 +10,15 @@ units:
           - darwin
     host:
       command: ./infinite.sh
+  nix-5:
+    description: infinite nix sleeping 5 secs
+    preconditions:
+      os:
+        inclusions:
+          - linux
+          - darwin
+    host:
+      command: ./infinite.sh 5
   win:
     description: infinite win
     preconditions:

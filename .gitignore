@@ -4,4 +4,4 @@
 /build/
 /tmp/
 *.bak
-
+/.vscode/
