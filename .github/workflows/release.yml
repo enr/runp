@@ -12,14 +12,14 @@ jobs:
       matrix:
         platform: [ubuntu-latest]
     runs-on: ${{ matrix.platform }}
-    container: 'golang:1.19'
+    container: 'golang:1.22'
     steps:
     - name: Prepare container
       run: |
         apt-get update -y
         apt-get -y install zip
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
     - name: Create release
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
