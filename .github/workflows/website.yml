@@ -15,7 +15,7 @@ jobs:
         echo Preparing container
         apk --update add git
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: Create website
       env:
         GH_TOKEN: ${{ secrets.ACTION_ACCESS_TOKEN }}
