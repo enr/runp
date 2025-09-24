@@ -77,7 +77,7 @@ func loadRunpfile(f string) (*core.Runpfile, error) {
 			fmt.Fprintf(&b, "- %s\n", e.Error())
 		}
 		b.WriteString("Exit")
-		return &core.Runpfile{}, exitErrorf(2, b.String())
+		return &core.Runpfile{}, exitErrorf(2, "%s", b.String())
 	}
 	return runpfile, nil
 }
