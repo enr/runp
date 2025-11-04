@@ -18,7 +18,9 @@ jobs:
       uses: actions/checkout@v5
     - name: Create website
       env:
-        GH_TOKEN: ${{ secrets.ACTION_ACCESS_TOKEN }}
+        # GitHub Actions Variable
+        #GH_TOKEN: ${{ secrets.ACTION_ACCESS_TOKEN }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         echo Start release ${{ github.ref }}
         .sdlc/gh-pages
