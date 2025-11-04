@@ -25,4 +25,5 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         echo Start release ${{ github.ref }}
+        git config --global --add safe.directory $GITHUB_WORKSPACE
         .sdlc/gh-release
