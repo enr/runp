@@ -108,3 +108,100 @@ func TestLogDebug(t *testing.T) {
 		t.Errorf("Expected no error but got %v", err)
 	}
 }
+
+func TestDebug(t *testing.T) {
+	longest := 7
+	format := fmt.Sprintf(`%%%ds | `, longest)
+
+	// Test con debug abilitato
+	sut := &clogger{idx: ci, proc: `test`, longest: longest, format: format, debug: true, colors: false}
+	message := `debug message`
+
+	var written int
+	var err error
+	expected := fmt.Sprintf("   test | %s\n", message)
+	out := captureOutput(func() {
+		written, err = sut.Debug(message)
+	}, t)
+
+	if out != expected {
+		t.Errorf("Expected output '%s', got '%s'", expected, out)
+	}
+	if written != len(message) {
+		t.Errorf("Expected written '%d', got '%d'", len(message), written)
+	}
+	if err != nil {
+		t.Errorf("Expected no error but got %v", err)
+	}
+
+	// Test con debug disabilitato
+	sut2 := &clogger{idx: ci, proc: `test2`, longest: longest, format: format, debug: false, colors: false}
+	out2 := captureOutput(func() {
+		written, err = sut2.Debug(message)
+	}, t)
+
+	if out2 != `` {
+		t.Errorf("Expected no output when debug is false, got '%s'", out2)
+	}
+	if written != 0 {
+		t.Errorf("Expected written '0' when debug is false, got '%d'", written)
+	}
+	if err != nil {
+		t.Errorf("Expected no error but got %v", err)
+	}
+}
+
+func TestResetColor(t *testing.T) {
+	// ResetColor chiama una funzione esterna, ma possiamo verificare che non causi panic
+	// Non possiamo verificare direttamente l'output perché modifica i colori del terminale
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("ResetColor caused a panic: %v", r)
+		}
+	}()
+
+	ResetColor()
+	// Se arriviamo qui senza panic, il test è passato
+}
+
+func TestCreateProcessLogger(t *testing.T) {
+	// Test createProcessLogger
+	logger := createProcessLogger("testproc", 10, LoggerConfig{
+		Debug: true,
+		Color: false,
+	})
+
+	if logger == nil {
+		t.Error("createProcessLogger should return a non-nil logger")
+	}
+
+	// Verifica che il logger funzioni
+	message := "test message"
+	expected := fmt.Sprintf("  testproc | %s\n", message)
+	out := captureOutput(func() {
+		logger.WriteLine(message)
+	}, t)
+
+	if out != expected {
+		t.Errorf("Expected output '%s', got '%s'", expected, out)
+	}
+
+	// Test con proc vuoto
+	logger2 := createProcessLogger("", 5, LoggerConfig{
+		Debug: false,
+		Color: true,
+	})
+
+	if logger2 == nil {
+		t.Error("createProcessLogger should return a non-nil logger even with empty proc")
+	}
+
+	// Verifica che con debug false non scriva nulla
+	out2 := captureOutput(func() {
+		logger2.Debug("should not appear")
+	}, t)
+
+	if out2 != "" {
+		t.Errorf("Expected no output when debug is false, got '%s'", out2)
+	}
+}
