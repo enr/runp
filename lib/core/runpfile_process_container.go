@@ -171,11 +171,13 @@ func (p *ContainerProcess) buildCmdLine() string {
 		sb.WriteString(ports)
 		sb.WriteString(" ")
 	}
+	// Process env with current vars
 	for name, val := range p.Env {
 		sb.WriteString(`-e "`)
 		sb.WriteString(name)
 		sb.WriteString("=")
-		sb.WriteString(os.ExpandEnv(val))
+		processedVal := cliPreprocessor.process(val)
+		sb.WriteString(os.ExpandEnv(processedVal))
 		sb.WriteString(`" `)
 	}
 	sb.WriteString(img)

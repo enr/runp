@@ -8,3 +8,9 @@ units:
     description: echo a user defined var
     host:
       command: echo __{{vars foo}}__
+  vars-in-env:
+    description: echo a Runp var in the environment
+    host:
+      env:
+        VARS_IN_ENV: "{{vars runp_root}}"
+      command: "echo VARS_IN_ENV $VARS_IN_ENV"

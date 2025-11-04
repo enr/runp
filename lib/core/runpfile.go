@@ -60,19 +60,22 @@ func (u *RunpUnit) buildProcess() RunpProcess {
 	if u.Container != nil {
 		container := u.Container
 		container.WorkingDir = cliPreprocessor.process(u.Container.WorkingDir)
-		container.Env = processEnv(container.Env, cliPreprocessor)
+		// Don't process Env here - it will be processed at runtime in resolveEnvironment()
+		// container.Env = processEnv(container.Env, cliPreprocessor)
 		return container
 	}
 	if u.Host != nil {
 		host := u.Host
 		host.WorkingDir = cliPreprocessor.process(u.Host.WorkingDir)
-		host.Env = processEnv(host.Env, cliPreprocessor)
+		// Don't process Env here - it will be processed at runtime in resolveEnvironment()
+		// host.Env = processEnv(host.Env, cliPreprocessor)
 		return host
 	}
 	if u.SSHTunnel != nil {
 		tunnel := u.SSHTunnel
 		tunnel.WorkingDir = cliPreprocessor.process(u.SSHTunnel.WorkingDir)
-		tunnel.Env = processEnv(tunnel.Env, cliPreprocessor)
+		// Don't process Env here - it will be processed at runtime in resolveEnvironment()
+		// tunnel.Env = processEnv(tunnel.Env, cliPreprocessor)
 		return tunnel
 	}
 	return nil

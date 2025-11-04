@@ -56,6 +56,8 @@ func (e *RunpfileExecutor) Start() {
 		unit.vars = e.rf.Vars
 		unit.secretKey = e.rf.SecretKey
 		unit.environmentSettings = e.environmentSettings
+		// Reset process to force rebuild with updated vars
+		unit.process = nil
 		if unit.Host != nil {
 			host = unit.Host
 			host.vars = unit.vars

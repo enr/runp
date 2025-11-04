@@ -158,7 +158,13 @@ func (p *HostProcess) resolveShell() (string, []string, error) {
 
 func (p *HostProcess) resolveEnvironment() []string {
 	environment := []string{}
-	environment = append(environment, envAsArray(p.Env)...)
+	// Process env with current vars
+	cliPreprocessor := newCliPreprocessor(p.vars)
+	processedEnv := map[string]string{}
+	for k, v := range p.Env {
+		processedEnv[k] = cliPreprocessor.process(v)
+	}
+	environment = append(environment, envAsArray(processedEnv)...)
 	return environment
 }
 

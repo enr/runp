@@ -242,6 +242,21 @@ func (p *SSHTunnelProcess) IsStartable() (bool, error) {
 	return true, nil
 }
 
+// resolveEnvironment processes environment variables with current vars.
+// Note: Currently SSHTunnelProcess doesn't use environment variables,
+// but this method is provided for consistency and future use.
+func (p *SSHTunnelProcess) resolveEnvironment() []string {
+	environment := []string{}
+	// Process env with current vars
+	cliPreprocessor := newCliPreprocessor(p.vars)
+	processedEnv := map[string]string{}
+	for k, v := range p.Env {
+		processedEnv[k] = cliPreprocessor.process(v)
+	}
+	environment = append(environment, envAsArray(processedEnv)...)
+	return environment
+}
+
 func publicKeyFile(file string) ssh.AuthMethod {
 	buffer, err := ioutil.ReadFile(file)
 	if err != nil {
