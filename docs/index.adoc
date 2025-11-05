@@ -13,6 +13,7 @@ image::https://github.com/{ci-ns}/workflows/CI%20Windows/badge.svg[CI Windows]
 
 https://github.com/{ci-ns}/releases/latest[Download last artifacts] |
  https://{repo-owner}.github.io/{repo-name}/pdf/{repo-name}_manual.pdf[This manual as PDF] |
+ https://github.com/{repo-owner}/{repo-name}[Source code] |
  Build revision `{ci-build-id}`
 endif::[]
 
@@ -24,7 +25,7 @@ Like `docker-compose` but not just for containers.
 Today, every non-trivial software project is compound of a number of parts (applications, libraries, services)
 running together in a lot of environments: virtual machines, Docker containers, physical boxes, cloud...
 
-Runp allows you to specify what and how you want to run and helps you to start the system as a whole, 
+Runp allows you to specify what and how you want to run and helps you to start the system as a whole,
 running all needed processes in parallel (like Docker compose, Foreman et simili).
 
 This speeds up the setup of a working environment compared to the usual approaches like custom scripts, documentation (written or spoken), or, more commonly, leaving it to the developer to figure out.
@@ -400,7 +401,7 @@ runp encrypt -k thekey SECRET
 
 The above command will encrypt the string `SECRET` using the password `thekey`.
 
-To run a Runpfile containing an `encrypted_secret` you have to pass the key to the 
+To run a Runpfile containing an `encrypted_secret` you have to pass the key to the
 `up` command (the key must coincide with the one used to encrypt).
 
 You can pass the key on command line using the options `--key` or `--key-env`
@@ -517,4 +518,3 @@ The available operators are:
 ## License
 
 http://www.apache.org/licenses/LICENSE-2.0[Apache License 2.0] - Copyright (C) 2020-TODAY {project-authors}.
-

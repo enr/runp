@@ -79,7 +79,7 @@ func (p *RunpVersionPrecondition) Verify() PreconditionVerifyResult {
 
 	return PreconditionVerifyResult{
 		Vote:    Stop,
-		Reasons: []string{fmt.Sprintf(`version "%s" is not %s current %v`, currentVersion, p.Operator, targetVersion)},
+		Reasons: []string{fmt.Sprintf(`version "%s" is not %s than %v`, currentVersion, p.Operator, targetVersion)},
 	}
 }
 
