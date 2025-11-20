@@ -5,7 +5,7 @@ import (
 )
 
 func TestRunpUnitKind(t *testing.T) {
-	// Test per Container process
+	// Test for Container process.
 	t.Run("Container process", func(t *testing.T) {
 		unit := &RunpUnit{
 			Container: &ContainerProcess{
@@ -20,7 +20,7 @@ func TestRunpUnitKind(t *testing.T) {
 		}
 	})
 
-	// Test per Host process
+	// Test for Host process.
 	t.Run("Host process", func(t *testing.T) {
 		unit := &RunpUnit{
 			Host: &HostProcess{
@@ -35,7 +35,7 @@ func TestRunpUnitKind(t *testing.T) {
 		}
 	})
 
-	// Test per SSHTunnel process
+	// Test for SSHTunnel process.
 	t.Run("SSH tunnel process", func(t *testing.T) {
 		unit := &RunpUnit{
 			SSHTunnel: &SSHTunnelProcess{
@@ -52,7 +52,7 @@ func TestRunpUnitKind(t *testing.T) {
 		}
 	})
 
-	// Test per SSHTunnel process con host vuoto (usa localhost di default)
+	// Test for SSHTunnel process with an empty host (should default to localhost).
 	t.Run("SSH tunnel process with empty host", func(t *testing.T) {
 		unit := &RunpUnit{
 			SSHTunnel: &SSHTunnelProcess{
@@ -69,7 +69,7 @@ func TestRunpUnitKind(t *testing.T) {
 		}
 	})
 
-	// Test per unit senza processi (dovrebbe restituire stringa vuota)
+	// Test for a unit without processes (should return an empty string).
 	t.Run("Empty unit", func(t *testing.T) {
 		unit := &RunpUnit{}
 

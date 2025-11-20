@@ -143,7 +143,7 @@ func TestDebug(t *testing.T) {
 	longest := 7
 	format := fmt.Sprintf(`%%%ds | `, longest)
 
-	// Test con debug abilitato
+	// Test with debug enabled.
 	sut := &clogger{idx: ci, proc: `test`, longest: longest, format: format, debug: true, colors: false}
 	message := `debug message`
 
@@ -164,7 +164,7 @@ func TestDebug(t *testing.T) {
 		t.Errorf("Expected no error but got %v", err)
 	}
 
-	// Test con debug disabilitato
+	// Test with debug disabled.
 	sut2 := &clogger{idx: ci, proc: `test2`, longest: longest, format: format, debug: false, colors: false}
 	out2 := captureOutput(func() {
 		written, err = sut2.Debug(message)
@@ -182,8 +182,8 @@ func TestDebug(t *testing.T) {
 }
 
 func TestResetColor(t *testing.T) {
-	// ResetColor chiama una funzione esterna, ma possiamo verificare che non causi panic
-	// Non possiamo verificare direttamente l'output perché modifica i colori del terminale
+	// ResetColor calls an external function, but we can verify that it doesn't cause a panic.
+	// We can't directly check the output because it modifies terminal colors.
 	defer func() {
 		if r := recover(); r != nil {
 			t.Errorf("ResetColor caused a panic: %v", r)
@@ -191,11 +191,11 @@ func TestResetColor(t *testing.T) {
 	}()
 
 	ResetColor()
-	// Se arriviamo qui senza panic, il test è passato
+	// If we get here without a panic, the test has passed.
 }
 
 func TestCreateProcessLogger(t *testing.T) {
-	// Test createProcessLogger
+	// Test createProcessLogger.
 	logger := createProcessLogger("testproc", 10, LoggerConfig{
 		Debug: true,
 		Color: false,
@@ -205,7 +205,7 @@ func TestCreateProcessLogger(t *testing.T) {
 		t.Error("createProcessLogger should return a non-nil logger")
 	}
 
-	// Verifica che il logger funzioni
+	// Verify that the logger works.
 	message := "test message"
 	expected := fmt.Sprintf("  testproc | %s\n", message)
 	out := captureOutput(func() {
@@ -216,7 +216,7 @@ func TestCreateProcessLogger(t *testing.T) {
 		t.Errorf("Expected output '%s', got '%s'", expected, out)
 	}
 
-	// Test con proc vuoto
+	// Test with an empty proc.
 	logger2 := createProcessLogger("", 5, LoggerConfig{
 		Debug: false,
 		Color: true,
@@ -226,7 +226,7 @@ func TestCreateProcessLogger(t *testing.T) {
 		t.Error("createProcessLogger should return a non-nil logger even with empty proc")
 	}
 
-	// Verifica che con debug false non scriva nulla
+	// Verify that nothing is written when debug is false.
 	out2 := captureOutput(func() {
 		logger2.Debug("should not appear")
 	}, t)

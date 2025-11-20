@@ -6,14 +6,14 @@ import (
 	"testing"
 )
 
-// Helper function per creare un HostProcess da una spec YAML
+// Helper function to create a HostProcess from a YAML spec.
 func createHostProcessFromSpec(spec string) (*HostProcess, error) {
 	p := &HostProcess{}
 	err := unmarshalStrict([]byte(spec), &p)
 	return p, err
 }
 
-// Helper function per configurare l'UI per i test
+// Helper function to configure the UI for tests.
 func setupTestUI(t *testing.T) {
 	ConfigureUI(testLogger, LoggerConfig{
 		Debug: true,
@@ -21,7 +21,7 @@ func setupTestUI(t *testing.T) {
 	})
 }
 
-// Helper function per confrontare due map di stringhe
+// Helper function to compare two string maps.
 func assertMapEquals(actual, expected map[string]string, fieldName string, t *testing.T) {
 	if len(actual) != len(expected) {
 		t.Errorf(`%s length, expected %d, got %d`, fieldName, len(expected), len(actual))
@@ -34,7 +34,7 @@ func assertMapEquals(actual, expected map[string]string, fieldName string, t *te
 	}
 }
 
-// Helper functions per verificare singoli campi di HostProcess
+// Helper functions to verify individual HostProcess fields.
 
 func assertHostProcessID(actual *HostProcess, expected expectedHostProcess, t *testing.T) {
 	if expected.id != "" && actual.ID() != expected.id {
@@ -116,7 +116,7 @@ type expectedHostProcess struct {
 	awaitResource string
 }
 
-// Helper function per confrontare un HostProcess con i valori attesi
+// Helper function to compare a HostProcess with expected values.
 func assertHostProcess(actual *HostProcess, expected expectedHostProcess, t *testing.T) {
 	assertHostProcessID(actual, expected, t)
 	assertHostProcessCommandLine(actual, expected, t)
@@ -155,7 +155,7 @@ shell:
 	assertHostProcess(p, expected, t)
 }
 
-// Test per resolveShell con shell personalizzato
+// Tests resolveShell with a custom shell.
 func TestHostProcessResolveShellCustom(t *testing.T) {
 	setupTestUI(t)
 
@@ -190,7 +190,7 @@ func TestHostProcessResolveShellCustom(t *testing.T) {
 	}
 }
 
-// Test per resolveShell senza shell specificato (usa default)
+// Tests resolveShell without a specified shell (uses default).
 func TestHostProcessResolveShellDefault(t *testing.T) {
 	setupTestUI(t)
 
@@ -215,7 +215,7 @@ func TestHostProcessResolveShellDefault(t *testing.T) {
 		t.Error("Expected args to be non-empty")
 	}
 
-	// Verifica che il command sia nell'ultimo arg
+	// Verify that the command is in the last argument.
 	found := false
 	for _, arg := range args {
 		if strings.Contains(arg, "echo default") {
@@ -228,7 +228,7 @@ func TestHostProcessResolveShellDefault(t *testing.T) {
 	}
 }
 
-// Test per resolveShell con command line vuoto
+// Tests resolveShell with an empty command line.
 func TestHostProcessResolveShellEmptyCommand(t *testing.T) {
 	setupTestUI(t)
 
@@ -249,14 +249,14 @@ func TestHostProcessResolveShellEmptyCommand(t *testing.T) {
 		t.Errorf("Expected shell path '/bin/sh', got '%s'", exe)
 	}
 
-	// L'ultimo arg dovrebbe essere vuoto
+	// The last argument should be empty.
 	lastArg := args[len(args)-1]
 	if lastArg != "" {
 		t.Errorf("Expected last arg to be empty, got '%s'", lastArg)
 	}
 }
 
-// Test per resolveEnvironment senza Env
+// Tests resolveEnvironment without an environment.
 func TestHostProcessResolveEnvironmentEmpty(t *testing.T) {
 	setupTestUI(t)
 
@@ -274,7 +274,7 @@ func TestHostProcessResolveEnvironmentEmpty(t *testing.T) {
 	}
 }
 
-// Test per resolveEnvironment con Env semplice
+// Tests resolveEnvironment with a simple environment.
 func TestHostProcessResolveEnvironmentSimple(t *testing.T) {
 	setupTestUI(t)
 
@@ -307,7 +307,7 @@ func TestHostProcessResolveEnvironmentSimple(t *testing.T) {
 	}
 }
 
-// Test per resolveEnvironment con variabili template
+// Tests resolveEnvironment with template variables.
 func TestHostProcessResolveEnvironmentWithVars(t *testing.T) {
 	setupTestUI(t)
 
@@ -342,7 +342,7 @@ func TestHostProcessResolveEnvironmentWithVars(t *testing.T) {
 	}
 }
 
-// Test per resolveEnvironment con variabile non definita
+// Tests resolveEnvironment with an undefined variable.
 func TestHostProcessResolveEnvironmentUndefinedVar(t *testing.T) {
 	setupTestUI(t)
 
@@ -366,17 +366,17 @@ func TestHostProcessResolveEnvironmentUndefinedVar(t *testing.T) {
 		}
 	}
 
-	// La variabile non definita dovrebbe rimanere come template o essere vuota
-	// dipende dall'implementazione di cliPreprocessor
+	// An undefined variable should either remain as a template or be empty,
+	// depending on the cliPreprocessor implementation.
 	if val, exists := envMap["TEST_VAR"]; exists {
-		// Verifichiamo che non sia vuota (il preprocessor potrebbe gestirla in modo diverso)
+		// Check that it's not empty (the preprocessor might handle it differently).
 		if val == "" {
 			t.Log("Note: undefined variable resulted in empty value")
 		}
 	}
 }
 
-// Test per StartCommand con executable non trovato
+// Tests StartCommand with an executable that is not found.
 func TestHostProcessStartCommandExecutableNotFound(t *testing.T) {
 	setupTestUI(t)
 
@@ -392,12 +392,12 @@ func TestHostProcessStartCommandExecutableNotFound(t *testing.T) {
 	}
 }
 
-// Test per StartCommand con executable nel workingDir
+// Tests StartCommand with an executable in the working directory.
 func TestHostProcessStartCommandExecutableInWorkingDir(t *testing.T) {
 	setupTestUI(t)
 
-	// Usiamo un comando che esiste nel sistema come eseguibile,
-	// presente in $PATH con stesso nome per tutti i sistemi operativi
+	// Use a command that exists on the system as the executable,
+	// present in $PATH with the same name across all operating systems.
 	p := &HostProcess{
 		Executable: "hostname",
 		Args:       []string{},
@@ -429,7 +429,7 @@ func TestHostProcessStartCommandExecutableInWorkingDir(t *testing.T) {
 	}
 }
 
-// Test per StartCommand con command line (non executable)
+// Tests StartCommand with a command line (not an executable).
 func TestHostProcessStartCommandWithCommandLine(t *testing.T) {
 	setupTestUI(t)
 
@@ -462,7 +462,7 @@ func TestHostProcessStartCommandWithCommandLine(t *testing.T) {
 	}
 }
 
-// Test per StopCommand
+// Tests StopCommand.
 func TestHostProcessStopCommand(t *testing.T) {
 	setupTestUI(t)
 
@@ -478,40 +478,40 @@ func TestHostProcessStopCommand(t *testing.T) {
 		t.Fatal("Expected stop command to be non-nil")
 	}
 
-	// Verifica che StopCommand ritorna sempre un comando valido
-	// Anche se il processo non è stato avviato
-	// Nota: Pid() può panic se cmd è nil, quindi verifichiamo solo che non sia nil
+	// Verify that StopCommand always returns a valid command,
+	// even if the process has not been started.
+	// Note: Pid() can panic if cmd is nil, so we only check that it's not nil.
 	if stopCmd == nil {
 		t.Error("Expected StopCommand to return a non-nil command")
 	}
 }
 
-// Test per SetPreconditions e VerifyPreconditions
+// Tests SetPreconditions and VerifyPreconditions.
 func TestHostProcessPreconditions(t *testing.T) {
 	setupTestUI(t)
 
 	p := &HostProcess{}
 	p.SetID("test-process")
 
-	// Inizialmente non ci sono preconditions
+	// Initially, there are no preconditions.
 	result := p.VerifyPreconditions()
-	// Il voto iniziale può essere Unknown o Proceed (dipende dall'implementazione)
+	// The initial vote can be Unknown or Proceed (depending on the implementation).
 	if result.Vote != Unknown && result.Vote != Proceed {
 		t.Errorf("Expected initial precondition vote to be Unknown or Proceed, got %v", result.Vote)
 	}
 
-	// Imposta preconditions vuote
+	// Set empty preconditions.
 	preconditions := Preconditions{}
 	p.SetPreconditions(preconditions)
 
 	result = p.VerifyPreconditions()
-	// Preconditions vuote dovrebbero passare o essere Unknown
+	// Empty preconditions should pass or be Unknown.
 	if result.Vote == Stop {
 		t.Errorf("Expected precondition vote to not be Stop for empty preconditions, got %v", result.Vote)
 	}
 }
 
-// Test per StartCommand quando sia executable che command line sono vuoti
+// Tests StartCommand when both executable and command line are empty.
 func TestHostProcessStartCommandBothEmpty(t *testing.T) {
 	setupTestUI(t)
 
@@ -521,8 +521,8 @@ func TestHostProcessStartCommandBothEmpty(t *testing.T) {
 	}
 	p.SetID("test-process")
 
-	// Dovrebbe usare commandline path (buildCmdCommandline)
-	// che userà resolveShell con command line vuoto
+	// It should use the command line path (buildCmdCommandline),
+	// which will use resolveShell with an empty command line.
 	cmdWrapper, err := p.StartCommand()
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -533,7 +533,7 @@ func TestHostProcessStartCommandBothEmpty(t *testing.T) {
 	}
 }
 
-// Test per resolveEnvironment con Env vuoto map
+// Tests resolveEnvironment with an empty Env map.
 func TestHostProcessResolveEnvironmentEmptyMap(t *testing.T) {
 	setupTestUI(t)
 
@@ -551,7 +551,7 @@ func TestHostProcessResolveEnvironmentEmptyMap(t *testing.T) {
 	}
 }
 
-// Test per resolveShell con shell args vuoti
+// Tests resolveShell with empty shell args.
 func TestHostProcessResolveShellEmptyArgs(t *testing.T) {
 	setupTestUI(t)
 
@@ -559,7 +559,7 @@ func TestHostProcessResolveShellEmptyArgs(t *testing.T) {
 		CommandLine: "test command",
 		Shell: Shell{
 			Path: "/bin/sh",
-			Args: []string{}, // Args vuoti
+			Args: []string{}, // Empty args
 		},
 	}
 
@@ -572,7 +572,7 @@ func TestHostProcessResolveShellEmptyArgs(t *testing.T) {
 		t.Errorf("Expected shell path '/bin/sh', got '%s'", exe)
 	}
 
-	// Dovrebbe avere almeno il command line come arg
+	// Should have at least the command line as an arg.
 	if len(args) == 0 {
 		t.Error("Expected at least one arg (command line)")
 	}

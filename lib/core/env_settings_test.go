@@ -40,7 +40,7 @@ func TestEnvironmentSettingsPath(t *testing.T) {
 		t.Error("environmentSettingsPath should return a non-empty path")
 	}
 
-	// Verifica che il path contenga .runp/settings.yaml
+	// Verify that the path contains .runp/settings.yaml
 	if !strings.Contains(path, ".runp") {
 		t.Errorf("Expected path to contain '.runp', got '%s'", path)
 	}
