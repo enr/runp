@@ -160,7 +160,7 @@ func TestHostProcessEnvWithVars(t *testing.T) {
 	setupTestUI(t)
 
 	spec := `
-command: "echo VARS_IN_ENV $VARS_IN_ENV"
+command: "echo VARS_IN_ENV %VARS_IN_ENV%"
 env:
   VARS_IN_ENV: "{{vars runp_root}}"
 ---`
@@ -454,10 +454,11 @@ func TestHostProcessStartCommandExecutableNotFound(t *testing.T) {
 func TestHostProcessStartCommandExecutableInWorkingDir(t *testing.T) {
 	setupTestUI(t)
 
-	// Usiamo un comando che esiste nel sistema
+	// Usiamo un comando che esiste nel sistema come eseguibile,
+	// presente in $PATH con stesso nome per tutti i sistemi operativi
 	p := &HostProcess{
-		Executable: "echo", // echo dovrebbe esistere nel PATH
-		Args:       []string{"test"},
+		Executable: "hostname",
+		Args:       []string{},
 		WorkingDir: "/tmp",
 	}
 	p.SetID("test-process")
@@ -481,8 +482,8 @@ func TestHostProcessStartCommandExecutableInWorkingDir(t *testing.T) {
 	}
 
 	output := strings.TrimSpace(stdout.String())
-	if output != "test" {
-		t.Errorf("Expected output 'test', got '%s'", output)
+	if output == "" {
+		t.Errorf("Expected output not empty")
 	}
 }
 
@@ -491,7 +492,7 @@ func TestHostProcessStartCommandWithCommandLine(t *testing.T) {
 	setupTestUI(t)
 
 	p := &HostProcess{
-		CommandLine: "echo 'test command'",
+		CommandLine: "echo test command",
 	}
 	p.SetID("test-process")
 

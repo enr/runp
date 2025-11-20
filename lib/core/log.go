@@ -68,7 +68,7 @@ func (l *clogger) WriteLine(line string) (int, error) {
 	}
 	fmt.Print(line)
 	if line[len(line)-1] != '\n' {
-		fmt.Println()
+		fmt.Print("\r\n")
 	}
 	mutex.Unlock()
 	return len(line), nil
@@ -103,7 +103,7 @@ func (l *clogger) Write(p []byte) (int, error) {
 		}
 	}
 	if len(p) > 0 && p[len(p)-1] != '\n' {
-		fmt.Println()
+		fmt.Print("\r\n")
 	}
 	return len(p), nil
 }
@@ -119,7 +119,8 @@ func CreateMainLogger(proc string, longest int, format string, debug bool, color
 	if proc != "" {
 		n = proc
 	}
-	l := &clogger{idx: ci, proc: n, longest: longest, format: format, debug: debug, colors: colorize}
+	f := "\r" + format
+	l := &clogger{idx: ci, proc: n, longest: longest, format: f, debug: debug, colors: colorize}
 	ci++
 	if ci >= len(labelColors) {
 		ci = 0

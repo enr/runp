@@ -6,6 +6,7 @@ import (
 	mr "math/rand"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -31,6 +32,35 @@ func captureOutput(f func(), t *testing.T) string {
 	return string(out)
 }
 
+// remove "\r", "\r\n" and "\n" from the string if at start or end
+func noCR(s string) string {
+	s = strings.TrimLeft(s, "\r\n")
+	s = strings.TrimLeft(s, "\r")
+	s = strings.TrimLeft(s, "\n")
+	s = strings.TrimRight(s, "\r\n")
+	s = strings.TrimRight(s, "\n")
+	s = strings.TrimRight(s, "\r")
+	return s
+}
+
+func TestCRLF(t *testing.T) {
+	message := `hello world`
+	longest := 7
+	format := fmt.Sprintf(`%%%ds | `, longest)
+	sut := CreateMainLogger(`name`, longest, format, true, false)
+
+	expected := fmt.Sprintf("\r   name | %s\r\n", message)
+
+	out := captureOutput(func() {
+		sut.WriteLine(message)
+	}, t)
+	if out != expected {
+		t.Logf("Expected : %q", expected)
+		t.Logf("Got      : %q", out)
+		t.Errorf("Error CRLF WriteLine")
+	}
+}
+
 func TestWriteLinef(t *testing.T) {
 
 	message := `hello world`
@@ -46,7 +76,7 @@ func TestWriteLinef(t *testing.T) {
 	out := captureOutput(func() {
 		written, err = sut.WriteLinef(`hello %s`, world)
 	}, t)
-	if out != expected {
+	if noCR(out) != noCR(expected) {
 		t.Errorf("Expected output '%s', got '%s'", expected, out)
 	}
 	if written != len(message) {
@@ -74,7 +104,7 @@ func TestWrite(t *testing.T) {
 	out := captureOutput(func() {
 		written, err = sut.Write([]byte(message))
 	}, t)
-	if out != expected {
+	if noCR(out) != noCR(expected) {
 		t.Errorf("Expected output '%s', got '%s'", expected, out)
 	}
 	if written != len(message) {
@@ -124,7 +154,7 @@ func TestDebug(t *testing.T) {
 		written, err = sut.Debug(message)
 	}, t)
 
-	if out != expected {
+	if noCR(out) != noCR(expected) {
 		t.Errorf("Expected output '%s', got '%s'", expected, out)
 	}
 	if written != len(message) {
@@ -182,7 +212,7 @@ func TestCreateProcessLogger(t *testing.T) {
 		logger.WriteLine(message)
 	}, t)
 
-	if out != expected {
+	if noCR(out) != noCR(expected) {
 		t.Errorf("Expected output '%s', got '%s'", expected, out)
 	}
 
