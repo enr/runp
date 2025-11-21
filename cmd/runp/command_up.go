@@ -30,7 +30,7 @@ func doUp(c *cli.Context) error {
 	}
 	wd, err := os.Getwd()
 	if err != nil {
-		ui.WriteLinef(`Error resolving current working directory: %v`, err)
+		ui.WriteLinef(`Failed to resolve current working directory: %v`, err)
 	}
 	vars[`runp_root`] = runpfile.Root
 	vars[`runp_workdir`] = wd
@@ -57,7 +57,7 @@ func doUp(c *cli.Context) error {
 	executor := core.NewExecutor(runpfile)
 	executor.Start()
 	if err != nil {
-		return exitErrorf(3, "Error executing Runpfile %s. Exit", c.String("f"))
+		return exitErrorf(3, "Failed to execute Runpfile %s", c.String("f"))
 	}
 	return nil
 }

@@ -114,7 +114,7 @@ func (e *RunpfileExecutor) Start() {
 	}
 
 	if len(skipped) > 0 {
-		ui.WriteLinef("Some unit skipped preconditions not satisfied: %v", skipped)
+		ui.WriteLinef("Units skipped due to unsatisfied preconditions: %v", skipped)
 	}
 
 	for _, unit := range e.rf.Units {
@@ -130,13 +130,13 @@ func (e *RunpfileExecutor) Start() {
 }
 
 func await(duration time.Duration, resources []string) error {
-	ui.WriteLinef(`Wait %s for resources %v %v`, duration, len(resources), resources)
+	ui.WriteLinef(`Awaiting resources for %s: %v resources %v`, duration, len(resources), resources)
 	if len(resources) < 1 {
-		ui.WriteLinef(`No resources, sleep %s`, duration)
+		ui.WriteLinef(`No resources specified, sleeping for %s`, duration)
 		time.Sleep(duration)
 		return nil
 	}
-	ui.WriteLinef(`impatient.Await %s for resources %v %v`, duration, len(resources), resources)
+	ui.WriteLinef(`Awaiting %v resources for %s: %v`, len(resources), duration, resources)
 	return impatient.Await(context.Background(), resources, duration)
 }
 
@@ -149,7 +149,7 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit, wg *sync.WaitGroup) {
 	appContext.RegisterRunningProcess(process)
 	cmd, err := process.StartCommand()
 	if err != nil {
-		logger.WriteLinef("Error building command for unit %s: %v", unit.Name, err)
+		logger.WriteLinef("Failed to build command for unit %s: %v", unit.Name, err)
 		appContext.AddReport(err.Error())
 		appContext.RemoveRunningProcess(process)
 		wg.Done()
@@ -164,7 +164,7 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit, wg *sync.WaitGroup) {
 		}
 		duration, err := time.ParseDuration(process.AwaitTimeout())
 		if err != nil {
-			logger.WriteLinef("Error in duration format '%s' %v", process.AwaitTimeout(), err)
+			logger.WriteLinef("Invalid duration format '%s': %v", process.AwaitTimeout(), err)
 			appContext.AddReport(err.Error())
 			appContext.RemoveRunningProcess(process)
 			wg.Done()
@@ -174,9 +174,9 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit, wg *sync.WaitGroup) {
 		err = await(duration, resources)
 		if err != nil {
 			if err == impatient.ErrTimeout {
-				logger.WriteLinef("Error timeout %v", err)
+				logger.WriteLinef("Timeout error while awaiting resources: %v", err)
 			} else {
-				logger.WriteLinef("Error generic in await %v", err)
+				logger.WriteLinef("Error occurred while awaiting resources: %v", err)
 			}
 			ctx := fmt.Sprintf("command %s await %s %s", process.ID(), process.AwaitResource(), process.AwaitTimeout())
 			logger.WriteLinef("%+v", errors.Wrap(err, ctx))
@@ -193,13 +193,13 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit, wg *sync.WaitGroup) {
 
 	startable, err := process.IsStartable()
 	if err != nil {
-		logger.WriteLinef("Error in %s %+v", process.ID(), errors.Wrap(err, "is startable"))
+		logger.WriteLinef("Failed to verify startability for %s: %+v", process.ID(), errors.Wrap(err, "is startable"))
 		appContext.RemoveRunningProcess(process)
 		wg.Done()
 		return
 	}
 	if !startable {
-		logger.WriteLinef("Process %s not startable", process.ID())
+		logger.WriteLinef("Process %s cannot be started", process.ID())
 		appContext.RemoveRunningProcess(process)
 		wg.Done()
 		return
@@ -216,7 +216,7 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit, wg *sync.WaitGroup) {
 	if err != nil {
 		w.Close()
 		ctx := fmt.Sprintf("start process %s", unit.Name)
-		logger.WriteLinef("Error in %s %+v", cmd, errors.Wrap(err, ctx))
+		logger.WriteLinef("Failed to start process %s: %+v", unit.Name, errors.Wrap(err, ctx))
 		appContext.RemoveRunningProcess(process)
 		pwg.Done()
 		wg.Done()
@@ -236,19 +236,19 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit, wg *sync.WaitGroup) {
 		if e != nil {
 			switch e.(type) {
 			case *os.SyscallError:
-				logger.WriteLinef("SyscallError %s", e.Error())
+				logger.WriteLinef("System call error: %s", e.Error())
 			default:
-				logger.WriteLinef("Unexpected error %T", e)
+				logger.WriteLinef("Unexpected error type encountered: %T", e)
 			}
 			ctx := fmt.Sprintf("run process %s", process.ID())
-			logger.WriteLinef("Error in %s %+v", cmd, errors.Wrap(e, ctx))
+			logger.WriteLinef("Error occurred while running process %s: %+v", process.ID(), errors.Wrap(e, ctx))
 			var b bytes.Buffer
-			fmt.Fprintf(&b, "Error %T in %s: %s", e, cmd, e.Error())
+			fmt.Fprintf(&b, "Error type %T occurred in process %s: %s", e, process.ID(), e.Error())
 			logger.Write(b.Bytes())
 			//}
 			appContext.AddReport(e.Error())
 		} else {
-			logger.WriteLinef(`%s exited without error`, process.ID())
+			logger.WriteLinef(`Process %s completed successfully`, process.ID())
 		}
 		appContext.RemoveRunningProcess(process)
 		pwg.Done()
@@ -259,7 +259,7 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit, wg *sync.WaitGroup) {
 		logger.Write(scanner.Bytes())
 	}
 	if err = scanner.Err(); err != nil {
-		logger.WriteLinef("Error in %s reading output: %s", process.ID(), err)
+		logger.WriteLinef("Failed to read output from process %s: %s", process.ID(), err)
 	}
 	// wait for all goroutines
 	pwg.Wait()

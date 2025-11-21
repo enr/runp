@@ -9,7 +9,7 @@ import (
 
 func doEncrypt(c *cli.Context) error {
 	if c.Args().Len() != 1 {
-		return exitErrorf(3, "Error missing secret. Exit")
+		return exitErrorf(3, "Secret parameter is required")
 	}
 
 	kev := c.String(`key-env`)
@@ -32,7 +32,7 @@ func doEncrypt(c *cli.Context) error {
 	plain := c.Args().First()
 	secret, err := core.EncryptToBase64([]byte(plain), key)
 	if err != nil {
-		return exitErrorf(3, "Error encrypt %v. Exit", err)
+		return exitErrorf(3, "Encryption failed: %v", err)
 	}
 	ui.WriteLinef("Secret: %s", secret)
 	return nil

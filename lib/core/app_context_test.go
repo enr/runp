@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// stubProcess è uno stub semplice per RunpProcess per i test
+// stubProcess is a simple stub implementation of RunpProcess for testing purposes
 type stubProcess struct {
 	id string
 }
@@ -29,10 +29,10 @@ func (s *stubProcess) IsStartable() (bool, error)         { return true, nil }
 func TestGetRunningProcesses(t *testing.T) {
 	ctx := GetApplicationContext()
 
-	// Pulisci lo stato precedente
+	// Clear previous state
 	ctx.runningProcesses = make(map[string]RunpProcess)
 
-	// Verifica che inizialmente sia vuoto
+	// Verify initial state is empty
 	processes := ctx.GetRunningProcesses()
 	if processes == nil {
 		t.Error("GetRunningProcesses should return a non-nil map")
@@ -41,11 +41,11 @@ func TestGetRunningProcesses(t *testing.T) {
 		t.Errorf("Expected empty map, got %d processes", len(processes))
 	}
 
-	// Aggiungi un processo
+	// Register a process
 	proc1 := &stubProcess{id: "proc1"}
 	ctx.RegisterRunningProcess(proc1)
 
-	// Verifica che sia presente
+	// Verify process is registered
 	processes = ctx.GetRunningProcesses()
 	if len(processes) != 1 {
 		t.Errorf("Expected 1 process, got %d", len(processes))
@@ -54,7 +54,7 @@ func TestGetRunningProcesses(t *testing.T) {
 		t.Error("Expected proc1 to be in the map")
 	}
 
-	// Aggiungi un altro processo
+	// Register another process
 	proc2 := &stubProcess{id: "proc2"}
 	ctx.RegisterRunningProcess(proc2)
 
@@ -67,10 +67,10 @@ func TestGetRunningProcesses(t *testing.T) {
 func TestGetReport(t *testing.T) {
 	ctx := GetApplicationContext()
 
-	// Pulisci lo stato precedente
+	// Clear previous state
 	ctx.report = []string{}
 
-	// Verifica che inizialmente sia vuoto
+	// Verify initial state is empty
 	report := ctx.GetReport()
 	if report == nil {
 		t.Error("GetReport should return a non-nil slice")
@@ -79,10 +79,10 @@ func TestGetReport(t *testing.T) {
 		t.Errorf("Expected empty report, got %d items", len(report))
 	}
 
-	// Aggiungi un report
+	// Add a report entry
 	ctx.AddReport("message1")
 
-	// Verifica che sia presente
+	// Verify report entry is present
 	report = ctx.GetReport()
 	if len(report) != 1 {
 		t.Errorf("Expected 1 report, got %d", len(report))
@@ -95,10 +95,10 @@ func TestGetReport(t *testing.T) {
 func TestAddReport(t *testing.T) {
 	ctx := GetApplicationContext()
 
-	// Pulisci lo stato precedente
+	// Clear previous state
 	ctx.report = []string{}
 
-	// Aggiungi più report
+	// Add multiple report entries
 	ctx.AddReport("first message")
 	ctx.AddReport("second message")
 	ctx.AddReport("third message")

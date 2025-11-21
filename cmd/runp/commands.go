@@ -52,7 +52,7 @@ var commandList = cli.Command{
 }
 
 func exitError(exitCode int, message string) error {
-	ui.WriteLinef(`Something gone wrong:`)
+	ui.WriteLinef(`An error occurred:`)
 	return cli.NewExitError(message, exitCode)
 }
 
@@ -60,29 +60,28 @@ func exitError(exitCode int, message string) error {
 func loadRunpfile(f string) (*core.Runpfile, error) {
 	runpfilePath, err := core.ResolveRunpfilePath(f)
 	if err != nil {
-		return &core.Runpfile{}, exitErrorf(2, "Runpfile %s not found. Exit", runpfilePath)
+		return &core.Runpfile{}, exitErrorf(2, "Runpfile %s not found", runpfilePath)
 	}
 	ui.Debugf("Using Runpfile %s", runpfilePath)
 	runpfile, err := core.LoadRunpfileFromPath(runpfilePath)
 	if err != nil {
-		return &core.Runpfile{}, exitErrorf(2, "Error loading %s: %s. Exit", runpfilePath, err.Error())
+		return &core.Runpfile{}, exitErrorf(2, "Failed to load Runpfile %s: %s", runpfilePath, err.Error())
 	}
 	valid, errs := core.IsRunpfileValid(runpfile)
 	if !valid {
 		var b strings.Builder
 		b.WriteString("Invalid Runpfile ")
 		b.WriteString(runpfilePath)
-		b.WriteString(": \n")
+		b.WriteString(":\n")
 		for _, e := range errs {
 			fmt.Fprintf(&b, "- %s\n", e.Error())
 		}
-		b.WriteString("Exit")
 		return &core.Runpfile{}, exitErrorf(2, "%s", b.String())
 	}
 	return runpfile, nil
 }
 
 func exitErrorf(exitCode int, template string, args ...interface{}) error {
-	ui.WriteLinef(`Something gone wrong:`)
+	ui.WriteLinef(`An error occurred:`)
 	return cli.NewExitError(fmt.Sprintf(template, args...), exitCode)
 }

@@ -23,29 +23,29 @@ Build date: %s
 func listenForShutdown(ch <-chan os.Signal) {
 	<-ch
 	runningProcesses := appContext.GetRunningProcesses()
-	ui.Debug("Managing shutdown...")
+	ui.Debug("Initiating graceful shutdown sequence...")
 	if len(runningProcesses) == 0 {
-		ui.Debug("No running process to close.")
+		ui.Debug("No active processes to terminate.")
 		os.Exit(0)
 	}
-	ui.Debugf("Still alive processes:")
+	ui.Debugf("Active processes detected:")
 	for _, process := range runningProcesses {
 		ui.Debugf("- %s", process.ID())
 	}
 
 	for _, process := range runningProcesses {
-		ui.WriteLinef("Stop running process %s", process.ID())
+		ui.WriteLinef("Terminating process %s", process.ID())
 		cmd, err := process.StopCommand()
 		if err != nil {
-			ui.WriteLinef("Error loading stopper command for process %s with error: %v\n", process.ID(), err)
+			ui.WriteLinef("Failed to load stop command for process %s: %v\n", process.ID(), err)
 			continue
 		}
 		duration := process.StopTimeout()
 		if err := cmd.Start(); err != nil {
-			ui.WriteLinef("Error calling stop command for process %s: %v\n", process.ID(), err)
+			ui.WriteLinef("Failed to execute stop command for process %s: %v\n", process.ID(), err)
 		}
 		f := func() {
-			ui.Debugf("Force process %s kill after 5 seconds", process.ID())
+			ui.Debugf("Forcing termination of process %s after timeout", process.ID())
 			cmd.Stop()
 		}
 
@@ -54,41 +54,41 @@ func listenForShutdown(ch <-chan os.Signal) {
 		defer timer.Stop()
 		err = cmd.Wait()
 		if err != nil {
-			ui.WriteLinef("Stopped process %s with error: %v\n", process.ID(), err)
+			ui.WriteLinef("Process %s stopped with error: %v\n", process.ID(), err)
 		} else {
-			ui.Debugf("Stopped %s with no error\n", process.ID())
+			ui.Debugf("Process %s stopped successfully\n", process.ID())
 		}
 	}
 
-    // Sequenze ANSI universali (funzionano su Windows 10+ e Linux)
-    // Blocco 1: Reset colori e attributi
-    resetColors := "\033[0m"
-    // Blocco 2: Mostra il cursore
-    showCursor := "\033[?25h"
-    // Blocco 3: Esci dall'alternate screen buffer
-    exitAltBuffer := "\033[?1049l"
-    // Blocco 4: Posiziona il cursore molto in basso
-    moveFarDown := "\033[1000B"
-    // Blocco 5: Sposta molto a sinistra
-    moveFarLeft := "\033[1000D"
-    // Blocco 6: Pulisci tutto lo schermo
-    // clearScreen := "\033[2J"
-    // Blocco 7: Vai in alto a sinistra (1;1)
-    // homeCursor := "\033[1;1H"
-    // Blocco 8: Reset finale colori e aggiungi righe vuote per "pulire"
-    resetColorsFinal := "\033[0m\n\n\n"
+	// Universal ANSI sequences (compatible with Windows 10+ and Linux)
+	// Block 1: Reset colors and attributes
+	resetColors := "\033[0m"
+	// Block 2: Show cursor
+	showCursor := "\033[?25h"
+	// Block 3: Exit alternate screen buffer
+	exitAltBuffer := "\033[?1049l"
+	// Block 4: Position cursor at the bottom
+	moveFarDown := "\033[1000B"
+	// Block 5: Move cursor far to the left
+	moveFarLeft := "\033[1000D"
+	// Block 6: Clear entire screen
+	// clearScreen := "\033[2J"
+	// Block 7: Move cursor to top-left position (1;1)
+	// homeCursor := "\033[1;1H"
+	// Block 8: Final color reset and add empty lines for screen cleanup
+	resetColorsFinal := "\033[0m\n\n\n"
 
-    // Componi la sequenza di reset completa
-    resetSequence := resetColors +
-        showCursor +
-        exitAltBuffer +
-        moveFarDown +
-        moveFarLeft +
-        // clearScreen +
-        // homeCursor +
-        resetColorsFinal
+	// Compose complete reset sequence
+	resetSequence := resetColors +
+		showCursor +
+		exitAltBuffer +
+		moveFarDown +
+		moveFarLeft +
+		// clearScreen +
+		// homeCursor +
+		resetColorsFinal
 
-    fmt.Print(resetSequence)
+	fmt.Print(resetSequence)
 	os.Exit(0)
 }
 

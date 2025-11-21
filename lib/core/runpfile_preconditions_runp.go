@@ -37,7 +37,7 @@ func (p *RunpVersionPrecondition) Verify() PreconditionVerifyResult {
 	if err != nil {
 		return PreconditionVerifyResult{
 			Vote:    Stop,
-			Reasons: []string{fmt.Sprintf(`error getting current version %v`, err)},
+			Reasons: []string{fmt.Sprintf(`Failed to retrieve current version: %v`, err)},
 		}
 	}
 	targetVersion, err := version.NewVersion(p.Version)
@@ -45,7 +45,7 @@ func (p *RunpVersionPrecondition) Verify() PreconditionVerifyResult {
 	if err != nil {
 		return PreconditionVerifyResult{
 			Vote:    Stop,
-			Reasons: []string{fmt.Sprintf(`error parsing version %v`, err)},
+			Reasons: []string{fmt.Sprintf(`Failed to parse version: %v`, err)},
 		}
 	}
 

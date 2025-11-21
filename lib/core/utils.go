@@ -20,7 +20,7 @@ import (
 )
 
 // ErrFmtCreateProcess format used for error in process creation.
-const ErrFmtCreateProcess = "Unable to create Process for %s. Check configuration: missing Host, SSHTunnel or Container key?"
+const ErrFmtCreateProcess = "Unable to create process for unit %s. Check configuration: exactly one of Host, SSHTunnel, or Container must be defined"
 
 var (
 	ui                         Logger
@@ -54,11 +54,11 @@ func normalizePath(dirpath string) (string, error) {
 	return strings.TrimSuffix(filepath.ToSlash(p), "/"), nil
 }
 
-// IsRunpfileValid returns a boolean rapresenting if any Runpfile value is valid and a list of errors.
+// IsRunpfileValid returns a boolean indicating whether the Runpfile is valid and a list of validation errors.
 func IsRunpfileValid(runpfile *Runpfile) (bool, []error) {
 	errs := []error{}
 	if len(runpfile.Units) == 0 {
-		errs = append(errs, errors.New("No unit in Runpfile"))
+		errs = append(errs, errors.New("No units defined in Runpfile"))
 	}
 	for id, unit := range runpfile.Units {
 		modes := []string{}
@@ -72,10 +72,10 @@ func IsRunpfileValid(runpfile *Runpfile) (bool, []error) {
 			modes = append(modes, "ssh_tunnel")
 		}
 		if len(modes) > 1 {
-			errs = append(errs, errors.New("Host, Container and SSHTunnel in "+id))
+			errs = append(errs, errors.New("Unit "+id+" cannot have multiple process types (Host, Container, and SSHTunnel are mutually exclusive)"))
 		}
 		if len(modes) < 1 {
-			errs = append(errs, errors.New("Host, SSHTunnel or Container missing in "+id))
+			errs = append(errs, errors.New("Unit "+id+" must define exactly one process type (Host, SSHTunnel, or Container)"))
 		}
 	}
 	return (len(errs) == 0), errs
@@ -97,7 +97,7 @@ func LoadRunpfileFromPath(runpfilePath string) (*Runpfile, error) {
 
 func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSource) (*Runpfile, error) {
 	if val, ok := visited[runpfile.path]; ok {
-		return nil, fmt.Errorf(`Circular dependency for runpfile %s required from %s and %s`, runpfile.path, runpfile.importedBy, val.importedBy)
+		return nil, fmt.Errorf(`Circular dependency detected: Runpfile %s is required from both %s and %s`, runpfile.path, runpfile.importedBy, val.importedBy)
 	}
 	visited[runpfile.path] = runpfile
 	data, err := ioutil.ReadFile(runpfile.path)
@@ -122,7 +122,7 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 		}
 		wd, fail := resolveWorkingDir(rf, unit)
 		if fail != nil {
-			ui.WriteLinef("Failed resolving working directory %s:%s %v", unit.Name, unit.Process().Dir(), fail)
+			ui.WriteLinef("Failed to resolve working directory for unit %s (path: %s): %v", unit.Name, unit.Process().Dir(), fail)
 			return nil, fail
 		}
 		ui.Debugf(`Resolved directory %s: from "%s" to "%s"`, id, unit.Process().Dir(), wd)
@@ -137,7 +137,7 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 		}
 	}
 	if runpfile.importedBy == "" {
-		ui.WriteLinef("Runp Root %v", rf.Root)
+		ui.WriteLinef("Runp root directory: %v", rf.Root)
 	}
 	return rf, nil
 }
@@ -161,7 +161,7 @@ func merge(runpfile runpfileSource, rf *Runpfile, inc string, visited map[string
 	}
 	for k, v := range included.Units {
 		if _, ok := rf.Units[k]; ok {
-			return fmt.Errorf(`Duplicate unit id "%s"`, k)
+			return fmt.Errorf(`Duplicate unit identifier "%s"`, k)
 		}
 		rf.Units[k] = v
 	}

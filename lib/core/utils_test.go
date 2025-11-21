@@ -24,7 +24,7 @@ var executions = []testCase{
 		path:    "../../testdata/runpfiles/validation-error-01.yml",
 		success: false,
 		validationErrors: []string{
-			"No unit in Runpfile",
+			"No units defined in Runpfile",
 		},
 	},
 	{
