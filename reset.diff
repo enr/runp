@@ -1,0 +1,79 @@
+diff --git a/cmd/runp/main.go b/cmd/runp/main.go
+index 87005c3..1483e05 100644
+--- a/cmd/runp/main.go
++++ b/cmd/runp/main.go
+@@ -59,6 +59,36 @@ func listenForShutdown(ch <-chan os.Signal) {
+ 			ui.Debugf("Stopped %s with no error\n", process.ID())
+ 		}
+ 	}
++
++    // Sequenze ANSI universali (funzionano su Windows 10+ e Linux)
++    // Blocco 1: Reset colori e attributi
++    resetColors := "\033[0m"
++    // Blocco 2: Mostra il cursore
++    showCursor := "\033[?25h"
++    // Blocco 3: Esci dall'alternate screen buffer
++    exitAltBuffer := "\033[?1049l"
++    // Blocco 4: Posiziona il cursore molto in basso
++    moveFarDown := "\033[1000B"
++    // Blocco 5: Sposta molto a sinistra
++    moveFarLeft := "\033[1000D"
++    // Blocco 6: Pulisci tutto lo schermo
++    // clearScreen := "\033[2J"
++    // Blocco 7: Vai in alto a sinistra (1;1)
++    // homeCursor := "\033[1;1H"
++    // Blocco 8: Reset finale colori e aggiungi righe vuote per "pulire"
++    resetColorsFinal := "\033[0m\n\n\n"
++
++    // Componi la sequenza di reset completa
++    resetSequence := resetColors +
++        showCursor +
++        exitAltBuffer +
++        moveFarDown +
++        moveFarLeft +
++        // clearScreen +
++        // homeCursor +
++        resetColorsFinal
++
++    fmt.Print(resetSequence)
+ 	os.Exit(0)
+ }
+ 
+diff --git a/examples/Runpfile-infinite.yml b/examples/Runpfile-infinite.yml
+index f7d1c3d..7d4dd6b 100644
+--- a/examples/Runpfile-infinite.yml
++++ b/examples/Runpfile-infinite.yml
+@@ -29,3 +29,19 @@ units:
+       command: infinite.cmd
+       env:
+         PATH: ${PATH}
++  random-1:
++    description: random messages
++    host:
++      executable: node
++      args:
++        - infinite.js
++      env:
++        PATH: ${PATH}
++  broken:
++    description: broken messages
++    host:
++      executable: node
++      args:
++        - broken.js
++      env:
++        PATH: ${PATH}
+diff --git a/lib/core/log.go b/lib/core/log.go
+index f3fb9ab..6ac2ba7 100644
+--- a/lib/core/log.go
++++ b/lib/core/log.go
+@@ -86,6 +86,9 @@ func (l *clogger) Write(p []byte) (int, error) {
+ 			s := string(line)
+ 
+ 			mutex.Lock()
++			if l.colors {
++				ct.ResetColor()
++			}
+ 			if l.colors {
+ 				ct.ChangeColor(labelColors[l.idx].foreground, false, labelColors[l.idx].background, false)
+ 			}

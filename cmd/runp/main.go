@@ -59,6 +59,36 @@ func listenForShutdown(ch <-chan os.Signal) {
 			ui.Debugf("Stopped %s with no error\n", process.ID())
 		}
 	}
+
+    // Sequenze ANSI universali (funzionano su Windows 10+ e Linux)
+    // Blocco 1: Reset colori e attributi
+    resetColors := "\033[0m"
+    // Blocco 2: Mostra il cursore
+    showCursor := "\033[?25h"
+    // Blocco 3: Esci dall'alternate screen buffer
+    exitAltBuffer := "\033[?1049l"
+    // Blocco 4: Posiziona il cursore molto in basso
+    moveFarDown := "\033[1000B"
+    // Blocco 5: Sposta molto a sinistra
+    moveFarLeft := "\033[1000D"
+    // Blocco 6: Pulisci tutto lo schermo
+    // clearScreen := "\033[2J"
+    // Blocco 7: Vai in alto a sinistra (1;1)
+    // homeCursor := "\033[1;1H"
+    // Blocco 8: Reset finale colori e aggiungi righe vuote per "pulire"
+    resetColorsFinal := "\033[0m\n\n\n"
+
+    // Componi la sequenza di reset completa
+    resetSequence := resetColors +
+        showCursor +
+        exitAltBuffer +
+        moveFarDown +
+        moveFarLeft +
+        // clearScreen +
+        // homeCursor +
+        resetColorsFinal
+
+    fmt.Print(resetSequence)
 	os.Exit(0)
 }
 

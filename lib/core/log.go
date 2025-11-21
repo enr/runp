@@ -87,6 +87,9 @@ func (l *clogger) Write(p []byte) (int, error) {
 
 			mutex.Lock()
 			if l.colors {
+				ct.ResetColor()
+			}
+			if l.colors {
 				ct.ChangeColor(labelColors[l.idx].foreground, false, labelColors[l.idx].background, false)
 			}
 			fmt.Printf(l.format, l.proc)

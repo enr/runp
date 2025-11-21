@@ -29,3 +29,19 @@ units:
       command: infinite.cmd
       env:
         PATH: ${PATH}
+  random-1:
+    description: random messages
+    host:
+      executable: node
+      args:
+        - infinite-color.js
+      env:
+        PATH: ${PATH}
+  broken:
+    description: broken messages
+    host:
+      executable: node
+      args:
+        - infinite-broken-output.js
+      env:
+        PATH: ${PATH}
