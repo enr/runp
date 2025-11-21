@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 
 /**
- * Script Node.js che stampa messaggi random con colori random
- * ogni 0.5-2 secondi, fino a SIGINT
+ * Node.js script that prints random messages with random colors
+ * every 0.5-2 seconds, until SIGINT
  */
 
-// Funzione per generare un numero random tra min e max
+// Function to generate a random number between min and max
 function randomBetween(min, max) {
   return Math.random() * (max - min) + min;
 }
 
-// Funzione per generare una stringa random di lunghezza specificata
+// Function to generate a random string of specified length
 function generateRandomString(length) {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?';
   let result = '';
@@ -20,7 +20,7 @@ function generateRandomString(length) {
   return result;
 }
 
-// Codici ANSI per i colori del testo
+// ANSI color codes for text
 const colors = {
   reset: '\x1b[0m',
   red: '\x1b[31m',
@@ -38,43 +38,43 @@ const colors = {
   brightCyan: '\x1b[96m'
 };
 
-// Array delle chiavi dei colori disponibili
+// Array of available color keys
 const colorKeys = Object.keys(colors).filter(key => key !== 'reset');
 
-// Funzione per ottenere un colore random
+// Function to get a random color
 function getRandomColor() {
   return colors[colorKeys[Math.floor(Math.random() * colorKeys.length)]];
 }
 
-// Funzione per stampare un messaggio con colore random
+// Function to print a message with random color
 function printRandomMessage() {
-  const length = Math.floor(randomBetween(10, 50)); // Lunghezza tra 10 e 50 caratteri
+  const length = Math.floor(randomBetween(10, 50)); // Length between 10 and 50 characters
   const message = generateRandomString(length);
   const color = getRandomColor();
   
   console.log(`${color}${message}${colors.reset}`);
 }
 
-// Gestione SIGINT (Ctrl+C)
+// SIGINT handler (Ctrl+C)
 process.on('SIGINT', () => {
-  console.log('\n' + colors.yellow + 'Script interrotto dall\'utente. Arrivederci!' + colors.reset);
+  console.log('\n' + colors.yellow + 'Script terminated by user. Exiting...' + colors.reset);
   process.exit(0);
 });
 
-// Funzione principale che esegue il loop
+// Main function that executes the loop
 async function main() {
-  console.log(colors.cyan + 'Script avviato. Premi Ctrl+C per interrompere.' + colors.reset);
-  console.log(colors.cyan + 'Stampo messaggi random ogni 0.5-2 secondi...' + colors.reset + '\n');
+  console.log(colors.cyan + 'Script started. Press Ctrl+C to terminate.' + colors.reset);
+  console.log(colors.cyan + 'Printing random messages every 0.5-2 seconds...' + colors.reset + '\n');
   
   while (true) {
-      const delay = randomBetween(500, 2000); // Delay tra 500ms e 2000ms
+      const delay = randomBetween(500, 2000); // Delay between 500ms and 2000ms
       printRandomMessage();
       await new Promise(resolve => setTimeout(resolve, delay));
   }
 }
 
-// Avvia lo script
+// Start the script
 main().catch(error => {
-  console.error(colors.red + 'Errore:' + colors.reset, error);
+  console.error(colors.red + 'Error:' + colors.reset, error);
   process.exit(1);
 });
