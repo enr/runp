@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"time"
 
 	"github.com/enr/runp/lib/core"
 	"github.com/urfave/cli/v2"
@@ -40,18 +39,12 @@ func listenForShutdown(ch <-chan os.Signal) {
 			ui.WriteLinef("Failed to load stop command for process %s: %v\n", process.ID(), err)
 			continue
 		}
-		duration := process.StopTimeout()
+		// Start() calls Stop() which implements graceful shutdown internally
 		if err := cmd.Start(); err != nil {
 			ui.WriteLinef("Failed to execute stop command for process %s: %v\n", process.ID(), err)
+			continue
 		}
-		f := func() {
-			ui.Debugf("Forcing termination of process %s after timeout", process.ID())
-			cmd.Stop()
-		}
-
-		timer := time.AfterFunc(duration, f)
-
-		defer timer.Stop()
+		// Wait for the stop command to complete (Stop() already handles timeout internally)
 		err = cmd.Wait()
 		if err != nil {
 			ui.WriteLinef("Process %s stopped with error: %v\n", process.ID(), err)
@@ -95,7 +88,7 @@ func listenForShutdown(ch <-chan os.Signal) {
 func main() {
 	// manage stop signals
 	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, os.Interrupt, os.Kill)
+	signal.Notify(ch, os.Interrupt)
 	go listenForShutdown(ch)
 
 	app := cli.NewApp()

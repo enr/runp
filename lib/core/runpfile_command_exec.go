@@ -5,6 +5,7 @@ import (
 	"io"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 // ExecCommandWrapper is wrapper for *exec.Cmd
@@ -40,7 +41,12 @@ func (c *ExecCommandWrapper) Run() error {
 
 // Stop ...
 func (c *ExecCommandWrapper) Stop() error {
-	return c.cmd.Process.Kill()
+	return c.stopWithGracefulShutdown(5 * time.Second)
+}
+
+// stopWithGracefulShutdown implements graceful shutdown (platform-specific implementation)
+func (c *ExecCommandWrapper) stopWithGracefulShutdown(timeout time.Duration) error {
+	return stopWithGracefulShutdown(c.cmd, timeout)
 }
 
 // Wait waits for the command to exit.
@@ -54,8 +60,9 @@ func (c *ExecCommandWrapper) String() string {
 
 // ExecCommandStopper is the component calling the actual command stopping the process.
 type ExecCommandStopper struct {
-	id  string
-	cmd *exec.Cmd
+	id      string
+	cmd     *exec.Cmd
+	timeout time.Duration
 }
 
 // Pid ...
@@ -85,15 +92,20 @@ func (c *ExecCommandStopper) Run() error {
 
 // Stop ...
 func (c *ExecCommandStopper) Stop() error {
+	return c.stopWithGracefulShutdown(c.timeout)
+}
+
+// stopWithGracefulShutdown implements graceful shutdown (platform-specific implementation)
+func (c *ExecCommandStopper) stopWithGracefulShutdown(timeout time.Duration) error {
 	p := c.cmd.Process
 	if p == nil {
 		ui.WriteLinef("Process %s not found, was actually started?", c.id)
 		return nil
 	}
-	if c.cmd.ProcessState == nil || c.cmd.ProcessState.Exited() {
+	if c.cmd.ProcessState != nil && c.cmd.ProcessState.Exited() {
 		return nil
 	}
-	return p.Kill()
+	return stopWithGracefulShutdownWithID(c.cmd, timeout, c.id)
 }
 
 // Wait waits for the command to exit.

@@ -90,8 +90,9 @@ func (p *HostProcess) StartCommand() (RunpCommand, error) {
 // StopCommand returns the command stopping the process.
 func (p *HostProcess) StopCommand() (RunpCommand, error) {
 	return &ExecCommandStopper{
-		id:  p.id,
-		cmd: p.cmd,
+		id:      p.id,
+		cmd:     p.cmd,
+		timeout: p.StopTimeout(),
 	}, nil
 }
 
