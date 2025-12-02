@@ -143,90 +143,126 @@ func await(duration time.Duration, resources []string) error {
 }
 
 func (e *RunpfileExecutor) startUnit(unit *RunpUnit, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	logger := e.LoggerFactory(unit.Name, e.longestName(), processLoggerConfiguration)
-	// unit.SetEnvironmentSettings(e.environmentSettings)
 	process := unit.Process()
 	logger.WriteLinef("Starting %s using working dir %s", unit.Name, process.Dir())
+
 	appContext := GetApplicationContext()
 	appContext.RegisterRunningProcess(process)
+
+	cmd, err := e.setupProcessCommand(unit, process, logger, appContext)
+	if err != nil {
+		return
+	}
+
+	if err := e.handleAwaitResources(process, logger, appContext); err != nil {
+		return
+	}
+
+	logger.WriteLinef("%s command %v", process.ID(), cmd)
+
+	if err := e.verifyProcessStartability(process, logger, appContext); err != nil {
+		return
+	}
+
+	r, w, _ := os.Pipe()
+	cmd.Stdout(w)
+	cmd.Stderr(w)
+
+	var pwg sync.WaitGroup
+	pwg.Add(1)
+
+	if err := e.startProcessCommand(cmd, unit, process, logger, appContext, w, &pwg); err != nil {
+		return
+	}
+
+	w.Close()
+	e.monitorProcessExit(cmd, process, logger, appContext, &pwg)
+	e.readProcessOutput(r, process, logger)
+	pwg.Wait()
+}
+
+func (e *RunpfileExecutor) setupProcessCommand(unit *RunpUnit, process RunpProcess, logger Logger, appContext *ApplicationContext) (RunpCommand, error) {
 	cmd, err := process.StartCommand()
 	if err != nil {
 		logger.WriteLinef("Failed to build command for unit %s: %v", unit.Name, err)
 		appContext.AddReport(err.Error())
 		appContext.RemoveRunningProcess(process)
-		wg.Done()
-		return
+		return nil, err
+	}
+	return cmd, nil
+}
+
+func (e *RunpfileExecutor) handleAwaitResources(process RunpProcess, logger Logger, appContext *ApplicationContext) error {
+	if !process.ShouldWait() {
+		return nil
 	}
 
-	if process.ShouldWait() {
-		start := time.Now()
-		resources := []string{}
-		if process.AwaitResource() != "" {
-			resources = append(resources, process.AwaitResource())
-		}
-		duration, err := time.ParseDuration(process.AwaitTimeout())
-		if err != nil {
-			logger.WriteLinef("Invalid duration format '%s': %v", process.AwaitTimeout(), err)
-			appContext.AddReport(err.Error())
-			appContext.RemoveRunningProcess(process)
-			wg.Done()
-			return
-		}
-
-		err = await(duration, resources)
-		if err != nil {
-			if err == impatient.ErrTimeout {
-				logger.WriteLinef("Timeout error while awaiting resources: %v", err)
-			} else {
-				logger.WriteLinef("Error occurred while awaiting resources: %v", err)
-			}
-			ctx := fmt.Sprintf("command %s await %s %s", process.ID(), process.AwaitResource(), process.AwaitTimeout())
-			logger.WriteLinef("%+v", errors.Wrap(err, ctx))
-			appContext.AddReport(err.Error())
-			appContext.RemoveRunningProcess(process)
-			wg.Done()
-			return
-		}
-		t1 := time.Now()
-		diff := t1.Sub(start)
-		logger.WriteLinef("Starting %s at %v (waited %v for %s)", process.ID(), time.Now(), diff, process.AwaitResource())
+	start := time.Now()
+	resources := []string{}
+	if process.AwaitResource() != "" {
+		resources = append(resources, process.AwaitResource())
 	}
-	logger.WriteLinef("%s command %v", process.ID(), cmd)
 
+	duration, err := time.ParseDuration(process.AwaitTimeout())
+	if err != nil {
+		logger.WriteLinef("Invalid duration format '%s': %v", process.AwaitTimeout(), err)
+		appContext.AddReport(err.Error())
+		appContext.RemoveRunningProcess(process)
+		return err
+	}
+
+	err = await(duration, resources)
+	if err != nil {
+		if err == impatient.ErrTimeout {
+			logger.WriteLinef("Timeout error while awaiting resources: %v", err)
+		} else {
+			logger.WriteLinef("Error occurred while awaiting resources: %v", err)
+		}
+		ctx := fmt.Sprintf("command %s await %s %s", process.ID(), process.AwaitResource(), process.AwaitTimeout())
+		logger.WriteLinef("%+v", errors.Wrap(err, ctx))
+		appContext.AddReport(err.Error())
+		appContext.RemoveRunningProcess(process)
+		return err
+	}
+
+	diff := time.Since(start)
+	logger.WriteLinef("Starting %s at %v (waited %v for %s)", process.ID(), time.Now(), diff, process.AwaitResource())
+	return nil
+}
+
+func (e *RunpfileExecutor) verifyProcessStartability(process RunpProcess, logger Logger, appContext *ApplicationContext) error {
 	startable, err := process.IsStartable()
 	if err != nil {
 		logger.WriteLinef("Failed to verify startability for %s: %+v", process.ID(), errors.Wrap(err, "is startable"))
 		appContext.RemoveRunningProcess(process)
-		wg.Done()
-		return
+		return err
 	}
 	if !startable {
 		logger.WriteLinef("Process %s cannot be started", process.ID())
 		appContext.RemoveRunningProcess(process)
-		wg.Done()
-		return
+		return fmt.Errorf("process %s cannot be started", process.ID())
 	}
-	r, w, _ := os.Pipe()
-	cmd.Stdout(w)
-	cmd.Stderr(w)
+	return nil
+}
 
-	// start process and manage errors such as "command not found"
-	var pwg sync.WaitGroup
-	pwg.Add(1)
-	err = cmd.Start()
-
+func (e *RunpfileExecutor) startProcessCommand(cmd RunpCommand, unit *RunpUnit, process RunpProcess, logger Logger, appContext *ApplicationContext, w *os.File, pwg *sync.WaitGroup) error {
+	err := cmd.Start()
 	if err != nil {
 		w.Close()
 		ctx := fmt.Sprintf("start process %s", unit.Name)
 		logger.WriteLinef("Failed to start process %s: %+v", unit.Name, errors.Wrap(err, ctx))
 		appContext.RemoveRunningProcess(process)
 		pwg.Done()
-		wg.Done()
-		return
+		return err
 	}
 	logger.Debugf("Process %s successfully started", process.ID())
+	return nil
+}
 
-	w.Close()
+func (e *RunpfileExecutor) monitorProcessExit(cmd RunpCommand, process RunpProcess, logger Logger, appContext *ApplicationContext, pwg *sync.WaitGroup) {
 	exit := make(chan error, 2)
 	go func() {
 		exit <- cmd.Wait()
@@ -234,62 +270,65 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit, wg *sync.WaitGroup) {
 	}()
 
 	go func() {
-		e := <-exit
-		if e != nil {
-			// Check if it's an ExitError from signal termination (normal graceful shutdown)
-			if exitErr, ok := e.(*exec.ExitError); ok {
-				// Check if the process was terminated by a signal (SIGTERM, SIGINT, etc.)
-				// This is expected during graceful shutdown and shouldn't be treated as an error
-				errMsg := e.Error()
-				// Check if error message indicates signal termination
-				if errMsg == "signal: terminated" || errMsg == "signal: interrupt" ||
-					errMsg == "signal: killed" {
-					// Process was terminated by signal (graceful shutdown)
-					logger.Debugf("Process %s terminated by signal (graceful shutdown): %s", process.ID(), errMsg)
-					appContext.RemoveRunningProcess(process)
-					pwg.Done()
-					return
-				}
-				// Also check exit code: 128+signal number indicates signal termination on Unix
-				exitCode := exitErr.ExitCode()
-				if exitCode == 128+int(syscall.SIGTERM) || exitCode == 128+int(syscall.SIGINT) ||
-					exitCode == 128+int(syscall.SIGKILL) {
-					// Process was terminated by signal (graceful shutdown)
-					logger.Debugf("Process %s terminated by signal (graceful shutdown), exit code: %d", process.ID(), exitCode)
-					appContext.RemoveRunningProcess(process)
-					pwg.Done()
-					return
-				}
-			}
+		defer pwg.Done()
+		defer appContext.RemoveRunningProcess(process)
 
-			switch e.(type) {
-			case *os.SyscallError:
-				logger.WriteLinef("System call error: %s", e.Error())
-			default:
-				logger.WriteLinef("Unexpected error type encountered: %T", e)
+		err := <-exit
+		if err != nil {
+			if e.isGracefulShutdown(err, process, logger) {
+				return
 			}
-			ctx := fmt.Sprintf("run process %s", process.ID())
-			logger.WriteLinef("Error occurred while running process %s: %+v", process.ID(), errors.Wrap(e, ctx))
-			var b bytes.Buffer
-			fmt.Fprintf(&b, "Error type %T occurred in process %s: %s", e, process.ID(), e.Error())
-			logger.Write(b.Bytes())
-			//}
-			appContext.AddReport(e.Error())
+			e.handleProcessError(err, process, logger, appContext)
 		} else {
 			logger.WriteLinef(`Process %s completed successfully`, process.ID())
 		}
-		appContext.RemoveRunningProcess(process)
-		pwg.Done()
 	}()
+}
 
+func (e *RunpfileExecutor) isGracefulShutdown(err error, process RunpProcess, logger Logger) bool {
+	exitErr, ok := err.(*exec.ExitError)
+	if !ok {
+		return false
+	}
+
+	errMsg := err.Error()
+	if errMsg == "signal: terminated" || errMsg == "signal: interrupt" || errMsg == "signal: killed" {
+		logger.Debugf("Process %s terminated by signal (graceful shutdown): %s", process.ID(), errMsg)
+		return true
+	}
+
+	exitCode := exitErr.ExitCode()
+	if exitCode == 128+int(syscall.SIGTERM) || exitCode == 128+int(syscall.SIGINT) || exitCode == 128+int(syscall.SIGKILL) {
+		logger.Debugf("Process %s terminated by signal (graceful shutdown), exit code: %d", process.ID(), exitCode)
+		return true
+	}
+
+	return false
+}
+
+func (e *RunpfileExecutor) handleProcessError(err error, process RunpProcess, logger Logger, appContext *ApplicationContext) {
+	switch err.(type) {
+	case *os.SyscallError:
+		logger.WriteLinef("System call error: %s", err.Error())
+	default:
+		logger.WriteLinef("Unexpected error type encountered: %T", err)
+	}
+
+	ctx := fmt.Sprintf("run process %s", process.ID())
+	logger.WriteLinef("Error occurred while running process %s: %+v", process.ID(), errors.Wrap(err, ctx))
+
+	var b bytes.Buffer
+	fmt.Fprintf(&b, "Error type %T occurred in process %s: %s", err, process.ID(), err.Error())
+	logger.Write(b.Bytes())
+	appContext.AddReport(err.Error())
+}
+
+func (e *RunpfileExecutor) readProcessOutput(r *os.File, process RunpProcess, logger Logger) {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		logger.Write(scanner.Bytes())
 	}
-	if err = scanner.Err(); err != nil {
+	if err := scanner.Err(); err != nil {
 		logger.WriteLinef("Failed to read output from process %s: %s", process.ID(), err)
 	}
-	// wait for all goroutines
-	pwg.Wait()
-	wg.Done()
 }

@@ -31,24 +31,17 @@ func stopWithGracefulShutdownWithID(cmd *exec.Cmd, timeout time.Duration, id str
 	pid := p.Pid
 	pgid, err := syscall.Getpgid(pid)
 	if err == nil {
-		// Send SIGTERM to the entire process group first
-		// This ensures all processes in the group (bash and children) receive the signal
-		// This is crucial for scripts executed directly with shebang, where bash
-		// executes the script and needs to receive the signal to trigger trap functions
-		pgErr := syscall.Kill(-pgid, syscall.SIGTERM)
-		if pgErr != nil {
-			ui.Debugf("Failed to send SIGTERM to process group %d (PID %d): %v", pgid, pid, pgErr)
-			// Fallback: try sending directly to the process
+		// Send SIGTERM to the entire process group
+		err = syscall.Kill(-pgid, syscall.SIGTERM)
+		if err != nil {
+			// Fallback: try sending to the process directly
 			err = p.Signal(syscall.SIGTERM)
 			if err != nil {
 				// Process might have already exited
 				return nil
 			}
-		} else {
-			ui.Debugf("Sent SIGTERM to process group %d (PID %d)", pgid, pid)
 		}
 	} else {
-		ui.Debugf("Failed to get process group for PID %d: %v, sending signal directly", pid, err)
 		// Fallback: send to process directly if we can't get PGID
 		err = p.Signal(syscall.SIGTERM)
 		if err != nil {
