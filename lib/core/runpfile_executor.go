@@ -6,7 +6,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/bww/impatient"
@@ -234,6 +236,32 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit, wg *sync.WaitGroup) {
 	go func() {
 		e := <-exit
 		if e != nil {
+			// Check if it's an ExitError from signal termination (normal graceful shutdown)
+			if exitErr, ok := e.(*exec.ExitError); ok {
+				// Check if the process was terminated by a signal (SIGTERM, SIGINT, etc.)
+				// This is expected during graceful shutdown and shouldn't be treated as an error
+				errMsg := e.Error()
+				// Check if error message indicates signal termination
+				if errMsg == "signal: terminated" || errMsg == "signal: interrupt" ||
+					errMsg == "signal: killed" {
+					// Process was terminated by signal (graceful shutdown)
+					logger.Debugf("Process %s terminated by signal (graceful shutdown): %s", process.ID(), errMsg)
+					appContext.RemoveRunningProcess(process)
+					pwg.Done()
+					return
+				}
+				// Also check exit code: 128+signal number indicates signal termination on Unix
+				exitCode := exitErr.ExitCode()
+				if exitCode == 128+int(syscall.SIGTERM) || exitCode == 128+int(syscall.SIGINT) ||
+					exitCode == 128+int(syscall.SIGKILL) {
+					// Process was terminated by signal (graceful shutdown)
+					logger.Debugf("Process %s terminated by signal (graceful shutdown), exit code: %d", process.ID(), exitCode)
+					appContext.RemoveRunningProcess(process)
+					pwg.Done()
+					return
+				}
+			}
+
 			switch e.(type) {
 			case *os.SyscallError:
 				logger.WriteLinef("System call error: %s", e.Error())

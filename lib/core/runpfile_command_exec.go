@@ -109,11 +109,24 @@ func (c *ExecCommandStopper) stopWithGracefulShutdown(timeout time.Duration) err
 }
 
 // Wait waits for the command to exit.
+// Note: This should not be called if Wait() has already been called on the underlying cmd
+// by the executor. We check ProcessState to avoid calling Wait() twice.
 func (c *ExecCommandStopper) Wait() error {
-	if c.cmd.ProcessState == nil || c.cmd.ProcessState.Exited() {
+	// If ProcessState is already set, Wait() has been called elsewhere (by the executor)
+	// In this case, we just return the exit status if available
+	if c.cmd.ProcessState != nil {
+		if c.cmd.ProcessState.Exited() {
+			// Process has already exited and Wait() was called
+			// Return nil to indicate we've handled it (the executor will handle the actual error)
+			return nil
+		}
+		// ProcessState exists but process hasn't exited yet - this shouldn't happen
 		return nil
 	}
-	return c.cmd.Wait()
+	// ProcessState is nil, so Wait() hasn't been called yet
+	// But we shouldn't call it here because the executor is already waiting
+	// Just return nil and let the executor handle it
+	return nil
 }
 
 func (c *ExecCommandStopper) String() string {

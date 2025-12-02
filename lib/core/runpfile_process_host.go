@@ -81,6 +81,8 @@ func (p *HostProcess) StartCommand() (RunpCommand, error) {
 		return nil, err
 	}
 	cmd.Dir = p.WorkingDir
+	// Configure process attributes for proper signal handling
+	configureProcessAttributes(cmd)
 	p.cmd = cmd
 	return &ExecCommandWrapper{
 		cmd: cmd,

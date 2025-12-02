@@ -34,25 +34,28 @@ func stopWithGracefulShutdownWithID(cmd *exec.Cmd, timeout time.Duration, id str
 		return nil
 	}
 
-	// Wait for the process to exit
-	done := make(chan error, 1)
-	go func() {
-		done <- cmd.Wait()
-	}()
+	// Poll process state instead of calling Wait() to avoid conflicts
+	// The executor's main goroutine will handle Wait() when the process exits
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+	deadline := time.Now().Add(timeout)
 
-	select {
-	case <-time.After(timeout):
-		// On Windows, Kill() should terminate immediately, but log if it doesn't
-		if id != "" {
-			ui.Debugf("Process %s did not terminate within %v on Windows", id, timeout)
+	for time.Now().Before(deadline) {
+		<-ticker.C
+		// Check if process has exited by polling ProcessState
+		if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
+			// Process exited
+			return nil
 		}
-		// Try killing again if still running
-		if cmd.ProcessState == nil || !cmd.ProcessState.Exited() {
-			return p.Kill()
-		}
-		return nil
-	case err := <-done:
-		// Process exited
-		return err
 	}
+
+	// On Windows, Kill() should terminate immediately, but log if it doesn't
+	if id != "" {
+		ui.Debugf("Process %s did not terminate within %v on Windows", id, timeout)
+	}
+	// Try killing again if still running
+	if cmd.ProcessState == nil || !cmd.ProcessState.Exited() {
+		return p.Kill()
+	}
+	return nil
 }
