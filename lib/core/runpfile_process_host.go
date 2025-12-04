@@ -80,7 +80,7 @@ func (p *HostProcess) StartCommand() (RunpCommand, error) {
 	if err != nil {
 		return nil, err
 	}
-	cmd.Dir = p.WorkingDir
+	cmd.Dir = p.resolveWorkingDir()
 	// Configure process attributes for proper signal handling
 	configureProcessAttributes(cmd)
 	p.cmd = cmd
@@ -119,7 +119,8 @@ func (p *HostProcess) buildCmdExecutable() (*exec.Cmd, error) {
 	p1, err := exec.LookPath(exe)
 	if err != nil {
 		ui.Debugf("Executable '%s' not found", exe)
-		m := filepath.FromSlash(path.Join(p.WorkingDir, exe))
+		resolvedWorkingDir := p.resolveWorkingDir()
+		m := filepath.FromSlash(path.Join(resolvedWorkingDir, exe))
 		p2, err := exec.LookPath(m)
 		if err != nil {
 			ui.WriteLinef("Executable for process '%s' not found. Tried '%s' and '%s' \n", p.ID(), exe, m)
@@ -169,6 +170,14 @@ func (p *HostProcess) resolveEnvironment() []string {
 	}
 	environment = append(environment, envAsArray(processedEnv)...)
 	return environment
+}
+
+func (p *HostProcess) resolveWorkingDir() string {
+	if p.WorkingDir == "" {
+		return ""
+	}
+	cliPreprocessor := newCliPreprocessor(p.vars)
+	return cliPreprocessor.process(p.WorkingDir)
 }
 
 // ShouldWait returns if the process has await set.

@@ -155,6 +155,31 @@ shell:
 	assertHostProcess(p, expected, t)
 }
 
+// Test variables in "workdir" field.
+func TestHostProcessWorkdirWithVars(t *testing.T) {
+	setupTestUI(t)
+
+	spec := `
+command: "echo hi"
+workdir: "{{vars test_dir}}"
+---`
+
+	p := &HostProcess{}
+	err := unmarshalStrict([]byte(spec), &p)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+	// Set vars for variable substitution
+	p.vars = map[string]string{
+		"test_dir": "/tmp/test-dir",
+	}
+	// check working dir variable substitution
+	resolvedWorkingDir := p.resolveWorkingDir()
+	if resolvedWorkingDir != "/tmp/test-dir" {
+		t.Errorf("Expected working dir '/tmp/test-dir', got '%s'", resolvedWorkingDir)
+	}
+}
+
 // Tests resolveShell with a custom shell.
 func TestHostProcessResolveShellCustom(t *testing.T) {
 	setupTestUI(t)
