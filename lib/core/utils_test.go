@@ -106,3 +106,36 @@ func compareErrors(rp string, actualErrors []error, expectedErrorMessages []stri
 		}
 	}
 }
+
+func TestCmd(t *testing.T) {
+	ConfigureUI(testLogger, LoggerConfig{
+		Debug: true,
+		Color: false,
+	})
+
+	t.Run("simple command", func(t *testing.T) {
+		command, err := cmd("echo test")
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+		if command == nil {
+			t.Fatal("Expected non-nil command")
+		}
+		if command.Path == "" {
+			t.Error("Expected command.Path to be set")
+		}
+		if len(command.Args) == 0 {
+			t.Error("Expected command.Args to be non-empty")
+		}
+	})
+
+	t.Run("command with arguments", func(t *testing.T) {
+		command, err := cmd("ls -la /tmp")
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+		if command == nil {
+			t.Fatal("Expected non-nil command")
+		}
+	})
+}

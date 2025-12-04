@@ -606,3 +606,78 @@ func TestHostProcessResolveShellEmptyArgs(t *testing.T) {
 		t.Errorf("Expected last arg to be 'test command', got '%s'", args[len(args)-1])
 	}
 }
+
+func TestHostProcess_String(t *testing.T) {
+	ConfigureUI(testLogger, LoggerConfig{
+		Debug: true,
+		Color: false,
+	})
+
+	hp := &HostProcess{
+		id: "test-id",
+	}
+	hp.SetID("test-id")
+
+	result := hp.String()
+	if result == "" {
+		t.Error("Expected String() to return non-empty string")
+	}
+	if !strings.Contains(result, "test-id") {
+		t.Errorf("Expected String() to contain 'test-id', got '%s'", result)
+	}
+}
+
+func TestHostProcess_ShouldWait(t *testing.T) {
+	ConfigureUI(testLogger, LoggerConfig{
+		Debug: true,
+		Color: false,
+	})
+
+	t.Run("with timeout", func(t *testing.T) {
+		hp := &HostProcess{
+			Await: AwaitCondition{Timeout: "5s"},
+		}
+		if !hp.ShouldWait() {
+			t.Error("Expected ShouldWait() to return true")
+		}
+	})
+
+	t.Run("without timeout", func(t *testing.T) {
+		hp := &HostProcess{
+			Await: AwaitCondition{Timeout: ""},
+		}
+		if hp.ShouldWait() {
+			t.Error("Expected ShouldWait() to return false")
+		}
+	})
+}
+
+func TestHostProcess_AwaitResource(t *testing.T) {
+	ConfigureUI(testLogger, LoggerConfig{
+		Debug: true,
+		Color: false,
+	})
+
+	hp := &HostProcess{
+		Await: AwaitCondition{Resource: "http://localhost:8080"},
+	}
+	result := hp.AwaitResource()
+	if result != "http://localhost:8080" {
+		t.Errorf("Expected 'http://localhost:8080', got '%s'", result)
+	}
+}
+
+func TestHostProcess_AwaitTimeout(t *testing.T) {
+	ConfigureUI(testLogger, LoggerConfig{
+		Debug: true,
+		Color: false,
+	})
+
+	hp := &HostProcess{
+		Await: AwaitCondition{Timeout: "10s"},
+	}
+	result := hp.AwaitTimeout()
+	if result != "10s" {
+		t.Errorf("Expected '10s', got '%s'", result)
+	}
+}

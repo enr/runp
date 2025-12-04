@@ -23,3 +23,25 @@ func TestPreconditions(t *testing.T) {
 		t.Errorf("Expected units #%d but got #%d\n", 1, len(units))
 	}
 }
+
+func TestPreconditionVoteString(t *testing.T) {
+	tests := []struct {
+		name     string
+		vote     PreconditionVote
+		expected string
+	}{
+		{"Unknown", Unknown, "UNKNOWN"},
+		{"Stop", Stop, "STOP"},
+		{"Proceed", Proceed, "PROCEED"},
+		{"Invalid", PreconditionVote(99), "99"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.vote.String()
+			if result != tt.expected {
+				t.Errorf("Expected '%s', got '%s'", tt.expected, result)
+			}
+		})
+	}
+}

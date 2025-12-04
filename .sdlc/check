@@ -77,7 +77,7 @@ for dir in $(find "$LIB_DIR" -mindepth 1 -maxdepth 1 -type d); do
   echo "--- gocyclo"
   diff <(gocyclo -over 15 $(find . -type f -name "*.go" ! -name "*_test.go")) <(printf "")
   cd "$dir"
-  echo "--- go test -cover ./..."
+  echo "--- go test -mod $buildmode -cover ./..."
   go test -mod "$buildmode" -cover ./...
 done
 
@@ -101,7 +101,7 @@ for dir in $(find "$CMDS_DIR" -mindepth 1 -maxdepth 1 -type d); do
   # we need binaries for some e2e test
   go build -mod vendor -o "${BIN_DIR}/${app_name}" "${REPO_HOST}/${REPO_OWNER}/${REPO_NAME}/cmd/${app_name}"
   cd "$dir"
-  echo "--- go test -cover ./..."
+  echo "--- go test -mod vendor -cover ./..."
   go test -mod vendor -cover ./...
 done
 

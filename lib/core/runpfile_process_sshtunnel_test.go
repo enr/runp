@@ -278,3 +278,39 @@ func TestSSHTunnelProcess_SetPreconditions(t *testing.T) {
 		t.Errorf("Expected Vote to be Proceed or Stop, got %v", result.Vote)
 	}
 }
+
+func TestSSHTunnelProcess_executeCmd(t *testing.T) {
+	ConfigureUI(testLogger, LoggerConfig{
+		Debug: true,
+		Color: false,
+	})
+
+	t.Run("error on missing config", func(t *testing.T) {
+		p := &SSHTunnelProcess{
+			Jump: Endpoint{Host: "invalid-host", Port: 22},
+			vars: map[string]string{},
+		}
+		// This will fail because resolveSSHCommandConfiguration will fail
+		// (no auth method configured)
+		_, err := p.executeCmd("echo test")
+		if err == nil {
+			t.Error("Expected error when no auth method is configured")
+		}
+	})
+
+	t.Run("error on invalid host", func(t *testing.T) {
+		p := &SSHTunnelProcess{
+			Jump: Endpoint{Host: "invalid-host-that-does-not-exist", Port: 22},
+			vars: map[string]string{},
+			Auth: Auth{
+				Secret: "test-secret",
+			},
+			User: "testuser",
+		}
+		// This will fail because SSH connection will fail
+		_, err := p.executeCmd("echo test")
+		if err == nil {
+			t.Error("Expected error when connecting to invalid host")
+		}
+	})
+}

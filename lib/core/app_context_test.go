@@ -128,3 +128,49 @@ func TestAddReport(t *testing.T) {
 		t.Errorf("Expected empty string, got '%s'", report[3])
 	}
 }
+
+func TestSetShuttingDown(t *testing.T) {
+	ctx := GetApplicationContext()
+
+	// Reset state
+	ctx.shuttingDown = false
+
+	// Verify initial state
+	if ctx.IsShuttingDown() {
+		t.Error("Expected IsShuttingDown to return false initially")
+	}
+
+	// Set shutting down
+	ctx.SetShuttingDown()
+
+	// Verify state changed
+	if !ctx.IsShuttingDown() {
+		t.Error("Expected IsShuttingDown to return true after SetShuttingDown")
+	}
+
+	// Set again (should remain true)
+	ctx.SetShuttingDown()
+	if !ctx.IsShuttingDown() {
+		t.Error("Expected IsShuttingDown to remain true after second SetShuttingDown")
+	}
+}
+
+func TestIsShuttingDown(t *testing.T) {
+	ctx := GetApplicationContext()
+
+	// Reset state
+	ctx.shuttingDown = false
+
+	// Test initial state
+	if ctx.IsShuttingDown() {
+		t.Error("Expected IsShuttingDown to return false initially")
+	}
+
+	// Set shutting down
+	ctx.shuttingDown = true
+
+	// Test after setting
+	if !ctx.IsShuttingDown() {
+		t.Error("Expected IsShuttingDown to return true after setting")
+	}
+}

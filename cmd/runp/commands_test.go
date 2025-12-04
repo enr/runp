@@ -285,3 +285,143 @@ func TestDoList(t *testing.T) {
 		}
 	})
 }
+
+func TestDoEncrypt(t *testing.T) {
+	s := &stubLogger{}
+	ui = s
+	core.ConfigureUI(s, core.LoggerConfig{})
+
+	t.Run("success with key", func(t *testing.T) {
+		s.lines = []string{}
+		app := cli.NewApp()
+		set := flag.NewFlagSet("test", 0)
+		set.String("key", "testkey123", "doc")
+		set.Parse([]string{"secret-value"})
+		c := cli.NewContext(app, set, nil)
+
+		err := doEncrypt(c)
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		output := s.getLines()
+		if !strings.Contains(output, "Encrypted secret:") {
+			t.Errorf("Expected output to contain 'Encrypted secret:', got '%s'", output)
+		}
+	})
+
+	t.Run("success with key-env", func(t *testing.T) {
+		s.lines = []string{}
+		os.Setenv("TEST_ENCRYPT_KEY", "testkey123")
+		defer os.Unsetenv("TEST_ENCRYPT_KEY")
+
+		app := cli.NewApp()
+		set := flag.NewFlagSet("test", 0)
+		set.String("key-env", "TEST_ENCRYPT_KEY", "doc")
+		set.Parse([]string{"secret-value"})
+		c := cli.NewContext(app, set, nil)
+
+		err := doEncrypt(c)
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		output := s.getLines()
+		if !strings.Contains(output, "Encrypted secret:") {
+			t.Errorf("Expected output to contain 'Encrypted secret:', got '%s'", output)
+		}
+	})
+
+	t.Run("success without key (random key)", func(t *testing.T) {
+		s.lines = []string{}
+		app := cli.NewApp()
+		set := flag.NewFlagSet("test", 0)
+		set.Parse([]string{"secret-value"})
+		c := cli.NewContext(app, set, nil)
+
+		err := doEncrypt(c)
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		output := s.getLines()
+		if !strings.Contains(output, "No encryption key provided, generating random key") {
+			t.Errorf("Expected output to contain 'No encryption key provided', got '%s'", output)
+		}
+		if !strings.Contains(output, "Encrypted secret:") {
+			t.Errorf("Expected output to contain 'Encrypted secret:', got '%s'", output)
+		}
+	})
+
+	t.Run("missing secret parameter", func(t *testing.T) {
+		s.lines = []string{}
+		app := cli.NewApp()
+		set := flag.NewFlagSet("test", 0)
+		c := cli.NewContext(app, set, nil)
+
+		err := doEncrypt(c)
+		if err == nil {
+			t.Fatal("Expected an error, got nil")
+		}
+		exitErr, ok := err.(cli.ExitCoder)
+		if !ok {
+			t.Fatalf("Expected an error implementing cli.ExitCoder, got %T", err)
+		}
+		if exitErr.ExitCode() != 3 {
+			t.Errorf("Expected exit code 3, got %d", exitErr.ExitCode())
+		}
+		if !strings.Contains(exitErr.Error(), "Secret value parameter is required") {
+			t.Errorf("Expected error message to contain 'Secret value parameter is required', got '%s'", exitErr.Error())
+		}
+	})
+
+	t.Run("mutually exclusive key options", func(t *testing.T) {
+		s.lines = []string{}
+		app := cli.NewApp()
+		set := flag.NewFlagSet("test", 0)
+		set.String("key", "testkey", "doc")
+		set.String("key-env", "TEST_KEY", "doc")
+		set.Parse([]string{"secret-value"})
+		c := cli.NewContext(app, set, nil)
+
+		err := doEncrypt(c)
+		if err == nil {
+			t.Fatal("Expected an error, got nil")
+		}
+		exitErr, ok := err.(cli.ExitCoder)
+		if !ok {
+			t.Fatalf("Expected an error implementing cli.ExitCoder, got %T", err)
+		}
+		if exitErr.ExitCode() != 3 {
+			t.Errorf("Expected exit code 3, got %d", exitErr.ExitCode())
+		}
+		if !strings.Contains(exitErr.Error(), "mutually exclusive") {
+			t.Errorf("Expected error message to contain 'mutually exclusive', got '%s'", exitErr.Error())
+		}
+	})
+
+	t.Run("empty key-env variable", func(t *testing.T) {
+		s.lines = []string{}
+		os.Unsetenv("EMPTY_KEY")
+		app := cli.NewApp()
+		set := flag.NewFlagSet("test", 0)
+		set.String("key-env", "EMPTY_KEY", "doc")
+		set.Parse([]string{"secret-value"})
+		c := cli.NewContext(app, set, nil)
+
+		err := doEncrypt(c)
+		if err == nil {
+			t.Fatal("Expected an error, got nil")
+		}
+		exitErr, ok := err.(cli.ExitCoder)
+		if !ok {
+			t.Fatalf("Expected an error implementing cli.ExitCoder, got %T", err)
+		}
+		if exitErr.ExitCode() != 3 {
+			t.Errorf("Expected exit code 3, got %d", exitErr.ExitCode())
+		}
+		if !strings.Contains(exitErr.Error(), "is empty") {
+			t.Errorf("Expected error message to contain 'is empty', got '%s'", exitErr.Error())
+		}
+	})
+}
