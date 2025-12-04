@@ -20,7 +20,8 @@ buildmode='readonly'
 }
 
 COVERAGE_FILE="coverage.out"
-COVERAGE_HTML="coverage.html"
+COVERAGE_HTML="reports/coverage.html"
+mkdir -p reports
 
 # Create or clear the main coverage file
 echo "mode: set" > "${COVERAGE_FILE}"
@@ -72,5 +73,5 @@ echo "Generating HTML coverage report..."
 go tool cover -html="${COVERAGE_FILE}" -o "${COVERAGE_HTML}"
 
 echo ""
-echo "HTML coverage report generated at: ${PRJ_HOME}/${COVERAGE_HTML}"
+echo "HTML coverage report generated at: ${COVERAGE_HTML}"
 echo "You can open it in your browser."
