@@ -37,20 +37,20 @@ func listenForShutdown(ch <-chan os.Signal) {
 		ui.WriteLinef("Terminating process: %s", process.ID())
 		cmd, err := process.StopCommand()
 		if err != nil {
-			ui.WriteLinef("Failed to load stop command for process %s: %v", process.ID(), err)
+			ui.WriteLinef("Failed to load stop command for process %s: %v\n", process.ID(), err)
 			continue
 		}
 		// Start() calls Stop() which implements graceful shutdown internally
 		if err := cmd.Start(); err != nil {
-			ui.WriteLinef("Failed to execute stop command for process %s: %v", process.ID(), err)
+			ui.WriteLinef("Failed to execute stop command for process %s: %v\n", process.ID(), err)
 			continue
 		}
 		// Wait for the stop command to complete (Stop() already handles timeout internally)
 		err = cmd.Wait()
 		if err != nil {
-			ui.WriteLinef("Process %s stopped with error: %v", process.ID(), err)
+			ui.WriteLinef("Process %s stopped with error: %v\n", process.ID(), err)
 		} else {
-			ui.Debugf("Process %s stopped successfully", process.ID())
+			ui.Debugf("Process %s stopped successfully\n", process.ID())
 		}
 	}
 

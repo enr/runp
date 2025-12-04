@@ -132,6 +132,7 @@ func (e *RunpfileExecutor) Start() {
 }
 
 func await(duration time.Duration, resources []string) error {
+	ui.WriteLinef(`Awaiting resources for %s: %v resources %v`, duration, len(resources), resources)
 	if len(resources) < 1 {
 		ui.WriteLinef("No resources specified, waiting for duration: %s", duration)
 		time.Sleep(duration)
