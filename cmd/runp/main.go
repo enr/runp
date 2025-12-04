@@ -21,6 +21,7 @@ Build date: %s
 
 func listenForShutdown(ch <-chan os.Signal) {
 	<-ch
+	appContext.SetShuttingDown()
 	runningProcesses := appContext.GetRunningProcesses()
 	ui.Debug("Initiating graceful shutdown sequence...")
 	if len(runningProcesses) == 0 {

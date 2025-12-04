@@ -5,12 +5,12 @@ units:
     description: pwd equivalent
     host:
       command: echo %cd%
-      workdir: /opt/maven/bin
+      workdir: "{{vars runp_root}}"
   goenv:
     description: pwd equivalent
     host:
       executable: /opt/go/bin/go.exe
-      workdir: /opt/maven/bin
+      workdir: "{{vars runp_root}}"
       args:
         - env
       env:
@@ -20,7 +20,7 @@ units:
     description: ls equivalent
     host:
       command: dir
-      workdir: /opt/maven/bin
+      workdir: "{{vars runp_root}}"
   mvn:
     description: mvn version
     host:

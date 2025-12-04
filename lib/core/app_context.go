@@ -9,6 +9,7 @@ type ApplicationContext struct {
 	sync.Mutex
 	runningProcesses map[string]RunpProcess
 	report           []string
+	shuttingDown     bool
 }
 
 // RegisterRunningProcess add process to the list of running ones.
@@ -40,6 +41,20 @@ func (c *ApplicationContext) AddReport(message string) {
 	c.Lock()
 	defer c.Unlock()
 	c.report = append(c.report, message)
+}
+
+// SetShuttingDown sets the shutting down flag to true.
+func (c *ApplicationContext) SetShuttingDown() {
+	c.Lock()
+	defer c.Unlock()
+	c.shuttingDown = true
+}
+
+// IsShuttingDown returns true if the application is shutting down.
+func (c *ApplicationContext) IsShuttingDown() bool {
+	c.Lock()
+	defer c.Unlock()
+	return c.shuttingDown
 }
 
 var (

@@ -292,14 +292,27 @@ func (e *RunpfileExecutor) isGracefulShutdown(err error, process RunpProcess, lo
 	}
 
 	errMsg := err.Error()
+	// Controlla i messaggi di errore comuni per shutdown graceful
 	if errMsg == "signal: terminated" || errMsg == "signal: interrupt" || errMsg == "signal: killed" {
 		logger.Debugf("Process %s terminated by signal (graceful shutdown): %s", process.ID(), errMsg)
 		return true
 	}
 
 	exitCode := exitErr.ExitCode()
+	// Controlla i codici di uscita comuni per shutdown graceful su Unix
 	if exitCode == 128+int(syscall.SIGTERM) || exitCode == 128+int(syscall.SIGINT) || exitCode == 128+int(syscall.SIGKILL) {
 		logger.Debugf("Process %s terminated by signal (graceful shutdown), exit code: %d", process.ID(), exitCode)
+		return true
+	}
+
+	// Su Windows, quando un processo viene killato con Kill(), può generare exit code 1
+	// ma non possiamo assumere che tutti gli exit code 1 siano graceful shutdown.
+	// Verifichiamo se l'applicazione è in fase di shutdown.
+	// Se è in fase di shutdown, consideriamo tutti gli *exec.ExitError come graceful shutdown.
+	appContext := GetApplicationContext()
+	if appContext.IsShuttingDown() {
+		// L'applicazione è in fase di shutdown, quindi questo è probabilmente uno shutdown graceful
+		logger.Debugf("Process %s terminated during application shutdown (graceful shutdown), exit code: %d", process.ID(), exitCode)
 		return true
 	}
 
@@ -307,6 +320,13 @@ func (e *RunpfileExecutor) isGracefulShutdown(err error, process RunpProcess, lo
 }
 
 func (e *RunpfileExecutor) handleProcessError(err error, process RunpProcess, logger Logger, appContext *ApplicationContext) {
+	// Verifica se è uno shutdown graceful prima di loggare l'errore
+	if e.isGracefulShutdown(err, process, logger) {
+		// Shutdown graceful: non loggare come errore, solo a livello debug se necessario
+		logger.Debugf("Process %s terminated gracefully, skipping error reporting", process.ID())
+		return
+	}
+
 	switch err.(type) {
 	case *os.SyscallError:
 		logger.WriteLinef("System call error: %s", err.Error())
