@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+
+set -e
+
+TOOL_SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$TOOL_SOURCE" ] ; do TOOL_SOURCE="$(readlink "$TOOL_SOURCE")"; done
+SDLC_DIR="$( cd -P "$( dirname "$TOOL_SOURCE" )" && pwd )"
+PRJ_HOME="$( cd -P "$( dirname "$SDLC_DIR" )" && pwd )"
+
+cd "${PRJ_HOME}"
+
+echo "Generating test coverage report..."
+
+source "${SDLC_DIR}/config"
+
+buildmode='readonly'
+[[ -n "$SDLC_GO_VENDOR" ]] && {
+  export GOPROXY='off'
+  buildmode='vendor'
+}
+
+COVERAGE_FILE="coverage.out"
+COVERAGE_HTML="coverage.html"
+
+# Create or clear the main coverage file
+echo "mode: set" > "${COVERAGE_FILE}"
+
+# Find all packages to test, excluding vendor directory
+PACKAGES=$(go list ./... | grep -v '/vendor/')
+
+# Iterate over all packages
+for pkg in $PACKAGES; do
+    # Create a temporary coverage profile for the package
+    PKG_COVER_PROFILE=$(mktemp)
+    # Run go test for the package and generate a coverage profile
+    go test -mod="$buildmode" -covermode=atomic -coverprofile="${PKG_COVER_PROFILE}" "$pkg" > /dev/null 2>&1
+    # Append the package's coverage profile to the main coverage file, skipping the mode line
+    if [ -s "${PKG_COVER_PROFILE}" ]; then
+        tail -n +2 "${PKG_COVER_PROFILE}" >> "${COVERAGE_FILE}"
+    fi
+    # Remove the temporary profile
+    rm "${PKG_COVER_PROFILE}"
+done
+
+# Check for a --sort flag
+SORT_FLAG=false
+if [ "$1" == "--sort" ]; then
+  SORT_FLAG=true
+fi
+
+echo ""
+echo "--- Test Coverage per function ---"
+
+if [ "$SORT_FLAG" = true ]; then
+  echo "(Sorted by coverage percentage, descending)"
+  # Prepend the percentage as a sort key, sort, then remove the key, preserving tabs.
+  go tool cover -func="${COVERAGE_FILE}" | \
+    awk -F'\t' '{
+        percentage = $NF
+        sub(/%/, "", percentage)
+        print percentage "\t" $0
+    }' | \
+    sort -t$'\t' -k1,1nr | \
+    cut -d$'\t' -f2-
+else
+    go tool cover -func="${COVERAGE_FILE}"
+fi
+
+# Generate HTML report
+echo ""
+echo "Generating HTML coverage report..."
+go tool cover -html="${COVERAGE_FILE}" -o "${COVERAGE_HTML}"
+
+echo ""
+echo "HTML coverage report generated at: ${PRJ_HOME}/${COVERAGE_HTML}"
+echo "You can open it in your browser."
