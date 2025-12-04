@@ -65,13 +65,13 @@ func (p *ContainerProcess) StartCommand() (RunpCommand, error) {
 func (p *ContainerProcess) StopCommand() (RunpCommand, error) {
 	containerRunner, err := exec.LookPath(p.environmentSettings.ContainerRunnerExe)
 	if err != nil {
-		ui.WriteLinef("Unable to find container runner %s executable: %v", p.environmentSettings.ContainerRunnerExe, err)
+		ui.WriteLinef("Container runner executable not found: %s (%v)", p.environmentSettings.ContainerRunnerExe, err)
 		return nil, err
 	}
 	cl := fmt.Sprintf(`%s stop %s`, containerRunner, p.buildContainerName())
 	cmd, err := cmd(cl)
 	if err != nil {
-		ui.WriteLinef("Error building command line '%s': %v", cl, err)
+		ui.WriteLinef("Failed to build stop command: %s (%v)", cl, err)
 		return nil, err
 	}
 	return &ExecCommandWrapper{
@@ -114,7 +114,7 @@ func (p *ContainerProcess) buildCmdLine() string {
 
 	containerRunner, err := exec.LookPath(p.environmentSettings.ContainerRunnerExe)
 	if err != nil {
-		ui.WriteLinef("Unable to find container runner %s executable: %v", p.environmentSettings.ContainerRunnerExe, err)
+		ui.WriteLinef("Container runner executable not found: %s (%v)", p.environmentSettings.ContainerRunnerExe, err)
 		return ""
 	}
 	cliPreprocessor := newCliPreprocessor(p.vars)
@@ -237,9 +237,9 @@ func (p *ContainerProcess) IsStartable() (bool, error) {
 		return false, err
 	}
 	so := string(out)
-	ui.Debugf("IsStartable command output:\n%s", so)
+	ui.Debugf("Container startability check output: %s", so)
 	if so != "" {
-		ui.WriteLinef("Container %s not startable as it is already running: %s", cn, so)
+		ui.WriteLinef("Container %s cannot be started: container is already running (output: %s)", cn, so)
 		return false, nil
 	}
 	return true, nil
@@ -262,27 +262,27 @@ func (p *ContainerProcess) VerifyPreconditions() PreconditionVerifyResult {
 	if err != nil {
 		return PreconditionVerifyResult{
 			Vote:    Stop,
-			Reasons: []string{fmt.Sprintf("Unable to find container runner %s executable: %v", p.environmentSettings.ContainerRunnerExe, err)},
+			Reasons: []string{fmt.Sprintf("Container runner executable not found: %s (%v)", p.environmentSettings.ContainerRunnerExe, err)},
 		}
 	}
 	cmdLine := fmt.Sprintf("%s network ls -q --filter name=runp-network --format '{{ .Name }}'", containerRunner)
-	ui.Debugf("Preconditions command:\n%s", cmdLine)
+	ui.Debugf("Checking network precondition: %s", cmdLine)
 	command, err := cmd(cmdLine)
 	if err != nil {
 		return PreconditionVerifyResult{
 			Vote:    Stop,
-			Reasons: []string{fmt.Sprintf("Error in command %s: %v", cmdLine, err)},
+			Reasons: []string{fmt.Sprintf("Failed to execute network check command: %s (%v)", cmdLine, err)},
 		}
 	}
 	out, err := command.Output()
 	if err != nil {
 		return PreconditionVerifyResult{
 			Vote:    Stop,
-			Reasons: []string{fmt.Sprintf("Error in command output %s: %v", cmdLine, err)},
+			Reasons: []string{fmt.Sprintf("Failed to read network check command output: %s (%v)", cmdLine, err)},
 		}
 	}
 	so := strings.TrimSpace(string(out))
-	ui.Debugf("Preconditions command output:\n<%s>", so)
+	ui.Debugf("Network check output: %s", so)
 	if so == "runp-network" {
 		return PreconditionVerifyResult{
 			Vote:    Proceed,
@@ -290,19 +290,19 @@ func (p *ContainerProcess) VerifyPreconditions() PreconditionVerifyResult {
 		}
 	}
 	cmdLine = fmt.Sprintf("%s network create runp-network", containerRunner)
-	ui.Debugf("Running preconditions command:\n%s", cmdLine)
+	ui.Debugf("Creating network: %s", cmdLine)
 	command, err = cmd(cmdLine)
 	if err != nil {
 		return PreconditionVerifyResult{
 			Vote:    Stop,
-			Reasons: []string{fmt.Sprintf("Error creating network %s: %v", cmdLine, err)},
+			Reasons: []string{fmt.Sprintf("Failed to create network: %s (%v)", cmdLine, err)},
 		}
 	}
 	_, err = command.Output()
 	if err != nil {
 		return PreconditionVerifyResult{
 			Vote:    Stop,
-			Reasons: []string{fmt.Sprintf("Error in command output %s: %v", cmdLine, err)},
+			Reasons: []string{fmt.Sprintf("Failed to read network creation command output: %s (%v)", cmdLine, err)},
 		}
 	}
 	return PreconditionVerifyResult{

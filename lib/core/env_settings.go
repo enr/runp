@@ -21,22 +21,21 @@ func loadEnvironmentSettings() *EnvironmentSettings {
 	}
 	esPath, err := environmentSettingsPath()
 	if err != nil {
-		ui.WriteLinef(`Error resolving settings path: %v`, err)
+		ui.WriteLinef("Failed to resolve environment settings path: %v", err)
 		return es
 	}
 	if !files.Exists(esPath) {
-		ui.WriteLinef(`Env settings file not found: %s`, esPath)
-		ui.Debugf(`Using default env settings`)
+		ui.Debugf("Environment settings file not found: %s, using defaults", esPath)
 		return es
 	}
 	if !files.IsRegular(esPath) {
-		ui.WriteLinef(`Invalid env settings file: %s`, esPath)
+		ui.WriteLinef("Invalid environment settings file: %s", esPath)
 		return es
 	}
-	ui.Debugf(`Loading env settings from file %s`, esPath)
+	ui.Debugf("Loading environment settings from file: %s", esPath)
 	f, err := os.ReadFile(esPath)
 	if err != nil {
-		ui.WriteLinef(`Error loading env settings %s: %v`, esPath, err)
+		ui.WriteLinef("Failed to load environment settings file %s: %v", esPath, err)
 		return es
 	}
 	return settingsFromBytes(f, es)
@@ -44,10 +43,10 @@ func loadEnvironmentSettings() *EnvironmentSettings {
 
 func settingsFromBytes(f []byte, es *EnvironmentSettings) *EnvironmentSettings {
 	if err := yaml.Unmarshal(f, &es); err != nil {
-		ui.WriteLinef(`Error parsing env settings file: %v`, err)
+		ui.WriteLinef("Failed to parse environment settings file: %v", err)
 		return es
 	}
-	ui.Debugf("Starting using env settings %+v", es)
+	ui.Debugf("Using environment settings: %+v", es)
 	return es
 }
 

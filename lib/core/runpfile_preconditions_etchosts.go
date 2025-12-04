@@ -40,7 +40,7 @@ func (p *EtcHostsPrecondition) Verify() PreconditionVerifyResult {
 		if !exist {
 			return PreconditionVerifyResult{
 				Vote:    Stop,
-				Reasons: []string{fmt.Sprintf(`No mapping found for "%s"`, k)},
+				Reasons: []string{fmt.Sprintf("No hosts file mapping found for address: %s", k)},
 			}
 		}
 		for _, v := range values {
@@ -49,7 +49,7 @@ func (p *EtcHostsPrecondition) Verify() PreconditionVerifyResult {
 			}
 			return PreconditionVerifyResult{
 				Vote:    Stop,
-				Reasons: []string{fmt.Sprintf(`Hosts mapping "%s" %v does not contain "%s"`, k, mapped, v)},
+				Reasons: []string{fmt.Sprintf("Hosts file mapping for %s (%v) does not contain required hostname: %s", k, mapped, v)},
 			}
 		}
 	}

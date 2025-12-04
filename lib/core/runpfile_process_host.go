@@ -116,21 +116,21 @@ func (p *HostProcess) String() string {
 func (p *HostProcess) buildCmdExecutable() (*exec.Cmd, error) {
 	exe := p.Executable
 	// var cmd *exec.Cmd
-	p1, err := exec.LookPath(exe)
-	if err != nil {
-		ui.Debugf("Executable '%s' not found", exe)
-		resolvedWorkingDir := p.resolveWorkingDir()
-		m := filepath.FromSlash(path.Join(resolvedWorkingDir, exe))
-		p2, err := exec.LookPath(m)
+		p1, err := exec.LookPath(exe)
 		if err != nil {
-			ui.WriteLinef("Executable for process '%s' not found. Tried '%s' and '%s' \n", p.ID(), exe, m)
-			return nil, err
+			ui.Debugf("Executable '%s' not found in PATH", exe)
+			resolvedWorkingDir := p.resolveWorkingDir()
+			m := filepath.FromSlash(path.Join(resolvedWorkingDir, exe))
+			p2, err := exec.LookPath(m)
+			if err != nil {
+				ui.WriteLinef("Executable for process %s not found. Attempted paths: %s, %s", p.ID(), exe, m)
+				return nil, err
+			}
+			exe = p2
+		} else {
+			exe = p1
 		}
-		exe = p2
-	} else {
-		exe = p1
-	}
-	ui.Debugf("'exe' executable is in '%s'", exe)
+		ui.Debugf("Resolved executable path: %s", exe)
 	cliPreprocessor := newCliPreprocessor(p.vars)
 	cmd := exec.Command(exe, cliPreprocessor.processArgs(p.Args)...)
 	cmd.Env = p.resolveEnvironment()
@@ -143,8 +143,8 @@ func (p *HostProcess) buildCmdCommandline() (*exec.Cmd, error) {
 	if err != nil {
 		return nil, err
 	}
-	ui.Debugf(`Process %s will be started using vars %v`, p.ID(), p.vars)
-	ui.Debugf(`Process %s will be started using shell "%s" %q`, p.ID(), exe, args)
+	ui.Debugf("Process %s will be started with variables: %v", p.ID(), p.vars)
+	ui.Debugf("Process %s will be started using shell: %s %q", p.ID(), exe, args)
 	cliPreprocessor := newCliPreprocessor(p.vars)
 	cmd := exec.Command(exe, cliPreprocessor.processArgs(args)...)
 	cmd.Env = p.resolveEnvironment()

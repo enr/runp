@@ -58,7 +58,7 @@ func (c *SSHTunnelCommandWrapper) Stop() error {
 	c.pf("Stopping SSH tunnel")
 	var err error
 	var errors multiError
-	c.pf(`Closing SSH connection to target %v`, c.jumpToTargetConnection)
+	c.pf("Closing SSH connection to target: %v", c.jumpToTargetConnection)
 	if c.jumpToTargetConnection != nil {
 		err := c.jumpToTargetConnection.Close()
 		if err != nil {
@@ -67,7 +67,7 @@ func (c *SSHTunnelCommandWrapper) Stop() error {
 		}
 
 	}
-	c.pf(`Closing SSH connection to jump server %v`, c.localToJumpConnection)
+	c.pf("Closing SSH connection to jump server: %v", c.localToJumpConnection)
 	if c.localToJumpConnection != nil {
 		err = c.localToJumpConnection.Close()
 		if err != nil {
@@ -75,7 +75,7 @@ func (c *SSHTunnelCommandWrapper) Stop() error {
 			errors = append(errors, err)
 		}
 	}
-	c.pf(`Closing local connection %v`, c.localConnection)
+	c.pf("Closing local connection: %v", c.localConnection)
 	if c.localConnection != nil {
 		err = c.localConnection.Close()
 		if err != nil {
@@ -93,19 +93,21 @@ func (c *SSHTunnelCommandWrapper) Stop() error {
 func (c *SSHTunnelCommandWrapper) Wait() error {
 	localListener, err := net.Listen("tcp", c.localAddress)
 	if err != nil {
-		c.pf("Error starting local listener %s %v", c.localAddress, err)
+		c.pf("Failed to start local listener on %s: %v", c.localAddress, err)
 		return err
 	}
 
 	for {
 		c.localConnection, err = localListener.Accept()
 		if err != nil {
-			c.pf("Error in local listener accept %v", err)
+			c.pf("Failed to accept connection on local listener: %v", err)
 			return err
 		}
 		go func() {
 			err = c.forward()
-			ui.WriteLinef(`Error in forward: %+v`, err)
+			if err != nil {
+				ui.WriteLinef("Error forwarding SSH tunnel connection: %+v", err)
+			}
 		}()
 	}
 }
@@ -125,13 +127,13 @@ func (c *SSHTunnelCommandWrapper) forward() error {
 	var err error
 	c.localToJumpConnection, err = ssh.Dial("tcp", c.jumpAddress, c.config)
 	if err != nil {
-		c.pf("Error connecting to jump server %s: %v", c.jumpAddress, err)
+		c.pf("Failed to connect to jump server %s: %v", c.jumpAddress, err)
 		return err
 	}
 
 	c.jumpToTargetConnection, err = c.localToJumpConnection.Dial("tcp", c.targetAddress)
 	if err != nil {
-		c.pf("Error connecting to target from jump server: %v", err)
+		c.pf("Failed to connect to target from jump server: %v", err)
 		return err
 	}
 
@@ -143,19 +145,19 @@ func (c *SSHTunnelCommandWrapper) forward() error {
 		}
 		_, err = io.Copy(c.jumpToTargetConnection, c.localConnection)
 		if err != nil {
-			c.pf("\nError connecting local to jump server:\n%v\n", err)
+			c.pf("Error copying data from local to target: %v", err)
 		}
 	}()
 
 	// Copy jumpToTargetConnection.Reader to localConnection.Writer
 	go func() {
 		if c.localConnection == nil || c.jumpToTargetConnection == nil {
-			c.pf("Missing connection: local=%v jump=%v", c.localConnection, c.jumpToTargetConnection)
+			c.pf("Missing connection: local=%v target=%v", c.localConnection, c.jumpToTargetConnection)
 			return
 		}
 		_, err = io.Copy(c.localConnection, c.jumpToTargetConnection)
 		if err != nil {
-			c.pf("\nError connecting jump server to local:\n%v\n", err)
+			c.pf("Error copying data from target to local: %v", err)
 		}
 	}()
 	return nil

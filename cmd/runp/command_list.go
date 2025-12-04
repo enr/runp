@@ -12,7 +12,7 @@ func doList(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	ui.WriteLine("Units:")
+	ui.WriteLine("Units defined in Runpfile:")
 	for _, u := range runpfile.Units {
 		ui.WriteLinef(listLine(u))
 	}

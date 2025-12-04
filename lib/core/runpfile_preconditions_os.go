@@ -30,7 +30,7 @@ func (p *OsPrecondition) Verify() PreconditionVerifyResult {
 	}
 	return PreconditionVerifyResult{
 		Vote:    Stop,
-		Reasons: []string{fmt.Sprintf(`current os "%s" not in %v`, current, p.Inclusions)},
+		Reasons: []string{fmt.Sprintf("Current operating system %s is not in allowed list: %v", current, p.Inclusions)},
 	}
 }
 

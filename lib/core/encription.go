@@ -74,7 +74,7 @@ func Decrypt(data []byte, passphrase string) ([]byte, error) {
 func DecryptBase64(encoded string, passphrase string) ([]byte, error) {
 	decoded, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil {
-		ui.WriteLinef("decode error: %v", err)
+		ui.WriteLinef("Failed to decode base64 encrypted secret: %v", err)
 		return []byte{}, err
 	}
 	return Decrypt(decoded, passphrase)

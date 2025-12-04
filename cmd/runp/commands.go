@@ -21,30 +21,30 @@ var commands = []*cli.Command{
 var commandUp = cli.Command{
 	Name:        "up",
 	Usage:       "up [--var K=V] [--key KEY] [--key-env KEYENV] [--file RUNPFILE]",
-	Description: `Run processes in Runpfile`,
+	Description: `Start all processes defined in the Runpfile`,
 	Action:      doUp,
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile`},
-		&cli.StringSliceFlag{Name: "var", Aliases: []string{"V"}, Usage: `Runtime user defined variables in format "k=v"`},
-		&cli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: `The key used to decrypt secrets`},
-		&cli.StringFlag{Name: "key-env", Usage: `The environment variable containing the key used to decrypt secrets`},
+		&cli.StringSliceFlag{Name: "var", Aliases: []string{"V"}, Usage: `Runtime variables in format "key=value"`},
+		&cli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: `Encryption key used to decrypt secrets`},
+		&cli.StringFlag{Name: "key-env", Usage: `Environment variable name containing the encryption key for secrets`},
 	},
 }
 var commandEncrypt = cli.Command{
 	Name:        "encrypt",
 	Usage:       "encrypt [--key KEY] [--key-env KEYENV] SECRET",
-	Description: `Encrypt a secret in the format readable from runp`,
+	Description: `Encrypt a secret value for use in Runpfile`,
 	Action:      doEncrypt,
 	Flags: []cli.Flag{
-		&cli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: `The key used to encrypt a secret`},
-		&cli.StringFlag{Name: "key-env", Usage: `The environment variable containing the key used to encrypt a secret`},
+		&cli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: `Encryption key used to encrypt the secret`},
+		&cli.StringFlag{Name: "key-env", Usage: `Environment variable name containing the encryption key`},
 	},
 }
 var commandList = cli.Command{
 	Name:        "list",
 	Aliases:     []string{"ls"},
 	Usage:       "list",
-	Description: `List units in Runpfile`,
+	Description: `List all units defined in the Runpfile`,
 	Action:      doList,
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile`},
@@ -52,7 +52,7 @@ var commandList = cli.Command{
 }
 
 func exitError(exitCode int, message string) error {
-	ui.WriteLinef(`An error occurred:`)
+	ui.WriteLinef("Error occurred")
 	return cli.NewExitError(message, exitCode)
 }
 
@@ -82,6 +82,6 @@ func loadRunpfile(f string) (*core.Runpfile, error) {
 }
 
 func exitErrorf(exitCode int, template string, args ...interface{}) error {
-	ui.WriteLinef(`An error occurred:`)
+	ui.WriteLinef("Error occurred")
 	return cli.NewExitError(fmt.Sprintf(template, args...), exitCode)
 }

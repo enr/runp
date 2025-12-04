@@ -76,11 +76,11 @@ func (p *SSHTunnelProcess) VerifyPreconditions() PreconditionVerifyResult {
 
 	if p.TestCommand != "" {
 		cmdout, err := p.executeCmd(p.TestCommand)
-		ui.Debugf("Test command %s :\n%s", p.TestCommand, cmdout.String())
+		ui.Debugf("Test command output for %s:\n%s", p.TestCommand, cmdout.String())
 		if err != nil {
 			return PreconditionVerifyResult{
 				Vote:    Stop,
-				Reasons: []string{fmt.Sprintf("Error executing test command: %v", err)},
+				Reasons: []string{fmt.Sprintf("Failed to execute test command: %v", err)},
 			}
 		}
 	}
@@ -137,10 +137,10 @@ func (p *SSHTunnelProcess) StartCommand() (RunpCommand, error) {
 		return nil, err
 	}
 	if p.Jump.Port == 0 {
-		return nil, errors.Errorf(`misconfiguration in Jump %s`, p.Jump.String())
+		return nil, errors.Errorf("Jump endpoint misconfiguration: port not specified (%s)", p.Jump.String())
 	}
 	if p.Target.Port == 0 {
-		return nil, errors.Errorf(`misconfiguration in Target %s`, p.Target.String())
+		return nil, errors.Errorf("Target endpoint misconfiguration: port not specified (%s)", p.Target.String())
 	}
 	p.cmd = &SSHTunnelCommandWrapper{
 		config:        config,
@@ -161,9 +161,9 @@ func (p *SSHTunnelProcess) resolveSSHCommandConfiguration() (*ssh.ClientConfig, 
 			return nil, err
 		}
 		if !files.IsRegular(identityFile) {
-			return nil, errors.New("Invalid identity file " + identityFile)
+			return nil, errors.New("Invalid identity file: " + identityFile)
 		}
-		ui.Debugf("Connecting using identity file %s", identityFile)
+		ui.Debugf("Connecting using SSH identity file: %s", identityFile)
 		authMethods = append(authMethods, publicKeyFile(identityFile))
 	}
 	if p.Auth.Secret != "" {
@@ -173,20 +173,20 @@ func (p *SSHTunnelProcess) resolveSSHCommandConfiguration() (*ssh.ClientConfig, 
 	}
 	if p.Auth.EncryptedSecret != "" {
 		key := p.secretKey
-		ui.WriteLinef("Using key %s", key)
+		ui.Debugf("Using encryption key for encrypted secret")
 		if key == "" {
-			return nil, errors.New(`Missing key for "encrypted_secret"`)
+			return nil, errors.New("Encryption key required for encrypted_secret but not provided")
 		}
 		secretB64 := p.Auth.EncryptedSecret
 		secret, err := DecryptBase64(secretB64, key)
 		if err != nil {
 			return nil, err
 		}
-		ui.Debugf("Connecting using encrypted secret %s", secretB64)
+		ui.Debugf("Connecting using encrypted secret")
 		authMethods = append(authMethods, ssh.Password(string(secret)))
 	}
 	if len(authMethods) == 0 {
-		return nil, errors.New("No Auth method set")
+		return nil, errors.New("No authentication method configured")
 	}
 	sshUser := cliPreprocessor.process(p.User)
 	config := &ssh.ClientConfig{
@@ -200,7 +200,7 @@ func (p *SSHTunnelProcess) resolveSSHCommandConfiguration() (*ssh.ClientConfig, 
 // StopCommand returns the command stopping the process.
 func (p *SSHTunnelProcess) StopCommand() (RunpCommand, error) {
 	if p.cmd == nil {
-		return nil, errors.New("No Command set")
+		return nil, errors.New("SSH tunnel command not initialized")
 	}
 	return &SSHTunnelCommandStopper{
 		cmd: p.cmd,
@@ -260,13 +260,13 @@ func (p *SSHTunnelProcess) resolveEnvironment() []string {
 func publicKeyFile(file string) ssh.AuthMethod {
 	buffer, err := ioutil.ReadFile(file)
 	if err != nil {
-		ui.WriteLinef("Cannot read SSH public key file %s", file)
+		ui.WriteLinef("Failed to read SSH private key file: %s", file)
 		return nil
 	}
 
 	key, err := ssh.ParsePrivateKey(buffer)
 	if err != nil {
-		ui.WriteLinef("Cannot parse SSH public key file %s", file)
+		ui.WriteLinef("Failed to parse SSH private key file: %s", file)
 		return nil
 	}
 	return ssh.PublicKeys(key)

@@ -37,7 +37,7 @@ func (p *RunpVersionPrecondition) Verify() PreconditionVerifyResult {
 	if err != nil {
 		return PreconditionVerifyResult{
 			Vote:    Stop,
-			Reasons: []string{fmt.Sprintf(`Failed to retrieve current version: %v`, err)},
+			Reasons: []string{fmt.Sprintf("Failed to retrieve current Runp version: %v", err)},
 		}
 	}
 	targetVersion, err := version.NewVersion(p.Version)
@@ -45,41 +45,41 @@ func (p *RunpVersionPrecondition) Verify() PreconditionVerifyResult {
 	if err != nil {
 		return PreconditionVerifyResult{
 			Vote:    Stop,
-			Reasons: []string{fmt.Sprintf(`Failed to parse version: %v`, err)},
+			Reasons: []string{fmt.Sprintf("Failed to parse target version: %v", err)},
 		}
 	}
 
 	switch p.Operator {
 	case LessThan:
 		if currentVersion.LessThan(targetVersion) {
-			ui.Debugf(`Runp version precondition satisfied: %s %s %s`, currentVersion, p.Operator, targetVersion)
+			ui.Debugf("Runp version precondition satisfied: %s %s %s", currentVersion, p.Operator, targetVersion)
 			return PreconditionVerifyResult{Vote: Proceed}
 		}
 	case LessThanOrEqual:
 		if currentVersion.LessThanOrEqual(targetVersion) {
-			ui.Debugf(`Runp version precondition satisfied: %s %s %s`, currentVersion, p.Operator, targetVersion)
+			ui.Debugf("Runp version precondition satisfied: %s %s %s", currentVersion, p.Operator, targetVersion)
 			return PreconditionVerifyResult{Vote: Proceed}
 		}
 	case Equal:
 		if currentVersion.Equal(targetVersion) {
-			ui.Debugf(`Runp version precondition satisfied: %s %s %s`, currentVersion, p.Operator, targetVersion)
+			ui.Debugf("Runp version precondition satisfied: %s %s %s", currentVersion, p.Operator, targetVersion)
 			return PreconditionVerifyResult{Vote: Proceed}
 		}
 	case GreaterThanOrEqual:
 		if currentVersion.GreaterThanOrEqual(targetVersion) {
-			ui.Debugf(`Runp version precondition satisfied: %s %s %s`, currentVersion, p.Operator, targetVersion)
+			ui.Debugf("Runp version precondition satisfied: %s %s %s", currentVersion, p.Operator, targetVersion)
 			return PreconditionVerifyResult{Vote: Proceed}
 		}
 	case GreaterThan:
 		if currentVersion.GreaterThan(targetVersion) {
-			ui.Debugf(`Runp version precondition satisfied: %v %v %v`, currentVersion, p.Operator, targetVersion)
+			ui.Debugf("Runp version precondition satisfied: %s %s %s", currentVersion, p.Operator, targetVersion)
 			return PreconditionVerifyResult{Vote: Proceed}
 		}
 	}
 
 	return PreconditionVerifyResult{
 		Vote:    Stop,
-		Reasons: []string{fmt.Sprintf(`version "%s" is not %s than %v`, currentVersion, p.Operator, targetVersion)},
+		Reasons: []string{fmt.Sprintf("Version requirement not met: current version %s is not %s than %s", currentVersion, p.Operator, targetVersion)},
 	}
 }
 

@@ -5,13 +5,13 @@
 [![Documentation](https://img.shields.io/badge/Website-Documentation-orange)](https://enr.github.io/runp/)
 [![Download](https://img.shields.io/badge/Download-Last%20release-brightgreen)](https://github.com/enr/runp/releases/latest)
 
-Like `docker-compose` but in addition to containers it also run processes on host and SSH tunnels.
+Runp is an enterprise-grade process orchestration tool that extends beyond container management. In addition to running containers, Runp orchestrates host processes and SSH tunnels, enabling comprehensive development environment setup and management.
 
-Useful to streamline the full setup of a development environment.
+Designed to streamline the complete setup of development environments with a unified configuration approach.
 
 ## Usage
 
-Define the system in a Runpfile:
+Define your system configuration in a Runpfile:
 
 ```yaml
 name: Example
@@ -56,21 +56,21 @@ units:
         port: 5432
 ```
 
-Run runp:
+Execute Runp:
 
 ```
 runp up -f /path/to/Runpfile
 ```
 
-For more examples see [examples directory](examples/), 
-for more info read the [documentation](https://enr.github.io/runp/).
+For additional examples, see the [examples directory](examples/).  
+For comprehensive documentation, visit the [official documentation](https://enr.github.io/runp/).
 
 
-## Develop
+## Development
 
-Download or clone repository.
+Clone or download the repository.
 
-Build (binaries will be created in `bin/`):
+Build the project (binaries will be created in `bin/`):
 
 ```
 ./.sdlc/build
@@ -82,7 +82,7 @@ or
 .sdlc\build.cmd
 ```
 
-Check (code quality and tests):
+Run code quality checks and tests:
 
 ```
 ./.sdlc/check

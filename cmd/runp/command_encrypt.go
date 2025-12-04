@@ -9,31 +9,31 @@ import (
 
 func doEncrypt(c *cli.Context) error {
 	if c.Args().Len() != 1 {
-		return exitErrorf(3, "Secret parameter is required")
+		return exitErrorf(3, "Secret value parameter is required")
 	}
 
 	kev := c.String(`key-env`)
 	key := c.String(`key`)
 	if kev != "" && key != "" {
-		return exitErrorf(3, "key and key-env used: they are mutually exclusive")
+		return exitErrorf(3, "Options --key and --key-env are mutually exclusive")
 	}
 	if kev != "" {
 		ev := os.Getenv(kev)
 		if ev == "" {
-			return exitErrorf(3, `key-env "%s" empty`, kev)
+			return exitErrorf(3, "Environment variable %s is empty", kev)
 		}
 		key = ev
 	}
 	if key == "" {
-		ui.WriteLinef("No key set, a random value will be used")
+		ui.WriteLinef("No encryption key provided, generating random key")
 		key = core.RandomKey()
 	}
-	ui.Debugf("Secret encrypted using key %s", key)
+	ui.Debugf("Encrypting secret using key: %s", key)
 	plain := c.Args().First()
 	secret, err := core.EncryptToBase64([]byte(plain), key)
 	if err != nil {
-		return exitErrorf(3, "Encryption failed: %v", err)
+		return exitErrorf(3, "Encryption operation failed: %v", err)
 	}
-	ui.WriteLinef("Secret: %s", secret)
+	ui.WriteLinef("Encrypted secret: %s", secret)
 	return nil
 }

@@ -17,7 +17,7 @@ func doUp(c *cli.Context) error {
 	vars := runpfile.Vars
 	userVars := c.StringSlice(`var`)
 	if len(vars) == 0 && len(userVars) > 0 {
-		return exitErrorf(4, `got var from command line but no var is registered in runpfile`)
+		return exitErrorf(4, "Variables provided via command line but no variables are defined in Runpfile")
 	}
 	var kv []string
 	for _, v := range userVars {
@@ -30,7 +30,7 @@ func doUp(c *cli.Context) error {
 	}
 	wd, err := os.Getwd()
 	if err != nil {
-		ui.WriteLinef(`Failed to resolve current working directory: %v`, err)
+		ui.WriteLinef("Failed to resolve current working directory: %v", err)
 	}
 	vars[`runp_root`] = runpfile.Root
 	vars[`runp_workdir`] = wd
@@ -40,12 +40,12 @@ func doUp(c *cli.Context) error {
 	kev := c.String(`key-env`)
 	key := c.String(`key`)
 	if kev != "" && key != "" {
-		return exitErrorf(3, `key and key-env used: they are mutually exclusive`)
+		return exitErrorf(3, "Options --key and --key-env are mutually exclusive")
 	}
 	if kev != "" {
 		ev := os.Getenv(kev)
 		if ev == "" {
-			return exitErrorf(3, `key-env "%s" empty`, kev)
+			return exitErrorf(3, "Environment variable %s is empty", kev)
 		}
 		runpfile.SecretKey = ev
 	}
@@ -53,11 +53,11 @@ func doUp(c *cli.Context) error {
 		runpfile.SecretKey = key
 	}
 
-	ui.Debugf("Up using runpfile root %s", runpfile.Root)
+	ui.Debugf("Starting execution with Runpfile root: %s", runpfile.Root)
 	executor := core.NewExecutor(runpfile)
 	executor.Start()
 	if err != nil {
-		return exitErrorf(3, "Failed to execute Runpfile %s", c.String("f"))
+		return exitErrorf(3, "Failed to execute Runpfile: %s", c.String("f"))
 	}
 	return nil
 }

@@ -99,7 +99,7 @@ func (c *ExecCommandStopper) Stop() error {
 func (c *ExecCommandStopper) stopWithGracefulShutdown(timeout time.Duration) error {
 	p := c.cmd.Process
 	if p == nil {
-		ui.WriteLinef("Process %s not found, was actually started?", c.id)
+		ui.WriteLinef("Process %s not found: process may not have been started", c.id)
 		return nil
 	}
 	if c.cmd.ProcessState != nil && c.cmd.ProcessState.Exited() {

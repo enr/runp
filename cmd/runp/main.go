@@ -23,34 +23,34 @@ func listenForShutdown(ch <-chan os.Signal) {
 	<-ch
 	appContext.SetShuttingDown()
 	runningProcesses := appContext.GetRunningProcesses()
-	ui.Debug("Initiating graceful shutdown sequence...")
+	ui.Debug("Initiating graceful shutdown sequence")
 	if len(runningProcesses) == 0 {
-		ui.Debug("No active processes to terminate.")
+		ui.Debug("No active processes to terminate")
 		os.Exit(0)
 	}
-	ui.Debugf("Active processes detected:")
+	ui.Debugf("Active processes detected: %d", len(runningProcesses))
 	for _, process := range runningProcesses {
-		ui.Debugf("- %s", process.ID())
+		ui.Debugf("  - %s", process.ID())
 	}
 
 	for _, process := range runningProcesses {
-		ui.WriteLinef("Terminating process %s", process.ID())
+		ui.WriteLinef("Terminating process: %s", process.ID())
 		cmd, err := process.StopCommand()
 		if err != nil {
-			ui.WriteLinef("Failed to load stop command for process %s: %v\n", process.ID(), err)
+			ui.WriteLinef("Failed to load stop command for process %s: %v", process.ID(), err)
 			continue
 		}
 		// Start() calls Stop() which implements graceful shutdown internally
 		if err := cmd.Start(); err != nil {
-			ui.WriteLinef("Failed to execute stop command for process %s: %v\n", process.ID(), err)
+			ui.WriteLinef("Failed to execute stop command for process %s: %v", process.ID(), err)
 			continue
 		}
 		// Wait for the stop command to complete (Stop() already handles timeout internally)
 		err = cmd.Wait()
 		if err != nil {
-			ui.WriteLinef("Process %s stopped with error: %v\n", process.ID(), err)
+			ui.WriteLinef("Process %s stopped with error: %v", process.ID(), err)
 		} else {
-			ui.Debugf("Process %s stopped successfully\n", process.ID())
+			ui.Debugf("Process %s stopped successfully", process.ID())
 		}
 	}
 
@@ -95,11 +95,11 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "runp"
 	app.Version = appVersion
-	app.Usage = "Run processes"
+	app.Usage = "Run processes defined in Runpfile"
 	app.Flags = []cli.Flag{
-		&cli.BoolFlag{Name: "debug", Aliases: []string{"d"}, Usage: "operates in debug mode: lot of output"},
-		&cli.BoolFlag{Name: "quiet", Aliases: []string{"q"}, Usage: "operates in quiet mode"},
-		&cli.BoolFlag{Name: "no-color", Aliases: []string{"C"}, Usage: "no colors in output"},
+		&cli.BoolFlag{Name: "debug", Aliases: []string{"d"}, Usage: "Enable debug mode with verbose output"},
+		&cli.BoolFlag{Name: "quiet", Aliases: []string{"q"}, Usage: "Enable quiet mode with minimal output"},
+		&cli.BoolFlag{Name: "no-color", Aliases: []string{"C"}, Usage: "Disable colored output"},
 	}
 	app.EnableBashCompletion = true
 
