@@ -5,7 +5,7 @@
 [![Documentation](https://img.shields.io/badge/Website-Documentation-orange)](https://enr.github.io/runp/)
 [![Download](https://img.shields.io/badge/Download-Last%20release-brightgreen)](https://github.com/enr/runp/releases/latest)
 
-Runp is an enterprise-grade process orchestration tool that extends beyond container management. 
+Runp is a process orchestration tool that extends beyond container management. 
 In addition to running containers, Runp orchestrates host processes and SSH tunnels, enabling comprehensive development environment setup and management.
 
 Designed to streamline the complete setup of development environments with a unified configuration approach.
