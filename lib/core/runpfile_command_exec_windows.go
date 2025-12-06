@@ -118,12 +118,16 @@ func stopWithGracefulShutdownWithID(cmd *exec.Cmd, timeout time.Duration, id str
 		return nil
 	}
 
+	status := checkProcessStatus(p.Pid)
+	if status == processExited {
+		return nil
+	}
 	// On Windows, SIGTERM doesn't exist. We use Kill() which sends a termination signal.
 	// For bash scripts in Git Bash/WSL, this should still allow graceful handling.
 	err := p.Kill()
 	if err != nil {
 		// If Kill() fails, check the process status to determine if it actually exited
-		status := checkProcessStatus(p.Pid)
+		status = checkProcessStatus(p.Pid)
 		switch status {
 		case processExited:
 			// Process has exited - we can ignore the Kill() error
