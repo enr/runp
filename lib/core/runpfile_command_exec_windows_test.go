@@ -108,7 +108,9 @@ func TestExecCommandWrapper(t *testing.T) {
 		if testing.CoverMode() != "" {
 			t.Skip("Skipping Stop() test when running with coverage due to potential hangs")
 		}
-		cmd := exec.Command("timeout", "/t", "10")
+		// Use ping instead of timeout - timeout is a special Windows command
+		// that can have permission issues when trying to terminate it
+		cmd := exec.Command("ping", "-n", "10", "127.0.0.1")
 		wrapper := &ExecCommandWrapper{cmd: cmd}
 
 		err := wrapper.Start()
@@ -229,7 +231,9 @@ func TestExecCommandStopper(t *testing.T) {
 		if testing.CoverMode() != "" {
 			t.Skip("Skipping Start() test when running with coverage due to potential hangs")
 		}
-		cmd := exec.Command("timeout", "/t", "10")
+		// Use ping instead of timeout - timeout is a special Windows command
+		// that can have permission issues when trying to terminate it
+		cmd := exec.Command("ping", "-n", "10", "127.0.0.1")
 		err := cmd.Start()
 		if err != nil {
 			t.Fatalf("Failed to start command: %v", err)
@@ -257,7 +261,9 @@ func TestExecCommandStopper(t *testing.T) {
 		if testing.CoverMode() != "" {
 			t.Skip("Skipping Run() test when running with coverage due to potential hangs")
 		}
-		cmd := exec.Command("timeout", "/t", "10")
+		// Use ping instead of timeout - timeout is a special Windows command
+		// that can have permission issues when trying to terminate it
+		cmd := exec.Command("ping", "-n", "10", "127.0.0.1")
 		err := cmd.Start()
 		if err != nil {
 			t.Fatalf("Failed to start command: %v", err)
@@ -285,7 +291,9 @@ func TestExecCommandStopper(t *testing.T) {
 		if testing.CoverMode() != "" {
 			t.Skip("Skipping Stop() test when running with coverage due to potential hangs")
 		}
-		cmd := exec.Command("timeout", "/t", "10")
+		// Use ping instead of timeout - timeout is a special Windows command
+		// that can have permission issues when trying to terminate it
+		cmd := exec.Command("ping", "-n", "10", "127.0.0.1")
 		err := cmd.Start()
 		if err != nil {
 			t.Fatalf("Failed to start command: %v", err)
