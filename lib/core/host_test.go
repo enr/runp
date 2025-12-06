@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"os"
 	"strings"
 	"testing"
 )
@@ -423,10 +424,12 @@ func TestHostProcessStartCommandExecutableInWorkingDir(t *testing.T) {
 
 	// Use a command that exists on the system as the executable,
 	// present in $PATH with the same name across all operating systems.
+	// Use os.TempDir() to get a valid temporary directory for all platforms.
+	tempDir := os.TempDir()
 	p := &HostProcess{
 		Executable: "hostname",
 		Args:       []string{},
-		WorkingDir: "/tmp",
+		WorkingDir: tempDir,
 	}
 	p.SetID("test-process")
 
@@ -445,12 +448,12 @@ func TestHostProcessStartCommandExecutableInWorkingDir(t *testing.T) {
 
 	err = cmdWrapper.Run()
 	if err != nil {
-		t.Fatalf("Error running command: %v", err)
+		t.Fatalf("Error running %v command: %v", p, err)
 	}
 
 	output := strings.TrimSpace(stdout.String())
 	if output == "" {
-		t.Errorf("Expected output not empty")
+		t.Errorf("Expected %v command output not empty, got '%s'", p, output)
 	}
 }
 
