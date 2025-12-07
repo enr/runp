@@ -27,13 +27,23 @@ IF DEFINED SDLC_GO_VENDOR (
     set buildmode=vendor
 )
 
+rem Check if race detector is available (requires CGO_ENABLED=1)
+for /f "tokens=*" %%i in ('go env CGO_ENABLED 2^>nul') do set CGO_ENABLED=%%i
+if "%CGO_ENABLED%"=="1" (
+    echo Race detector available, enabling -race flag
+    set RACE_FLAG=-race
+) else (
+    echo Race detector not available, skipping -race flag
+    set RACE_FLAG=
+)
+
 cd %project_dir%
 
 SETLOCAL ENABLEDELAYEDEXPANSION
 for /f %%x in ('dir /AD /B /S lib') do (
     echo --- go test lib %%x
     cd %%x
-    call go test -mod %buildmode% -race ./...
+    call go test -mod %buildmode% %RACE_FLAG% ./...
     call go test -mod %buildmode% -cover ./...
 )
 
