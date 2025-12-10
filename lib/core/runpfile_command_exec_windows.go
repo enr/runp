@@ -102,6 +102,76 @@ func terminateProcessDirectly(pid int) error {
 	return nil
 }
 
+// handleKillError handles errors when Kill() fails, attempting alternative termination methods
+func handleKillError(pid int, killErr error, id string, afterTimeout bool) error {
+	status := checkProcessStatus(pid)
+	switch status {
+	case processExited:
+		// Process has exited - we can ignore the Kill() error
+		return nil
+	case processAccessDenied:
+		// Process exists but we don't have access - try TerminateProcess directly
+		termErr := terminateProcessDirectly(pid)
+		if termErr == nil {
+			// TerminateProcess succeeded
+			return nil
+		}
+		// TerminateProcess also failed - wait a bit and check if process exited
+		time.Sleep(100 * time.Millisecond)
+		if !isProcessRunning(pid) {
+			// Process has exited - consider it successful
+			return nil
+		}
+		// Process is still running and we can't terminate it
+		// Log a warning but don't fail - we've done our best
+		if id != "" {
+			if afterTimeout {
+				ui.Debugf("Process %s (PID %d) could not be terminated after timeout: %v (access denied)", id, pid, killErr)
+			} else {
+				ui.Debugf("Process %s (PID %d) could not be terminated: %v (access denied)", id, pid, killErr)
+			}
+		}
+		// Return nil to avoid failing the stop operation
+		return nil
+	case processRunning:
+		// Process is confirmed running but Kill() failed - return the error
+		return killErr
+	default:
+		// Unknown status - return the error to be safe
+		return killErr
+	}
+}
+
+// pollProcessUntilExit polls the process state until it exits or the timeout expires
+func pollProcessUntilExit(cmd *exec.Cmd, timeout time.Duration) bool {
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		<-ticker.C
+		// Check if process has exited by polling ProcessState
+		if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
+			// Process exited
+			return true
+		}
+	}
+	return false
+}
+
+// attemptFinalKill attempts to kill the process after timeout, handling errors appropriately
+func attemptFinalKill(cmd *exec.Cmd, pid int, id string) error {
+	// Check if process is still running before attempting to kill it again
+	if !isProcessRunning(pid) {
+		return nil
+	}
+	err := cmd.Process.Kill()
+	if err != nil {
+		return handleKillError(pid, err, id, true)
+	}
+	return nil
+}
+
 // stopWithGracefulShutdownWithID implements graceful shutdown for Windows with process ID logging
 func stopWithGracefulShutdownWithID(cmd *exec.Cmd, timeout time.Duration, id string) error {
 	p := cmd.Process
@@ -114,7 +184,6 @@ func stopWithGracefulShutdownWithID(cmd *exec.Cmd, timeout time.Duration, id str
 
 	// Check if process is still running before attempting to kill it
 	if !isProcessRunning(p.Pid) {
-		// Process has already exited
 		return nil
 	}
 
@@ -122,110 +191,37 @@ func stopWithGracefulShutdownWithID(cmd *exec.Cmd, timeout time.Duration, id str
 	if status == processExited {
 		return nil
 	}
+
 	// On Windows, SIGTERM doesn't exist. We use Kill() which sends a termination signal.
 	// For bash scripts in Git Bash/WSL, this should still allow graceful handling.
 	err := p.Kill()
 	if err != nil {
-		// If Kill() fails, check the process status to determine if it actually exited
-		status = checkProcessStatus(p.Pid)
-		switch status {
-		case processExited:
-			// Process has exited - we can ignore the Kill() error
-			return nil
-		case processAccessDenied:
-			// Process exists but we don't have access - try TerminateProcess directly
-			// This can work in cases where p.Kill() fails due to permission issues
-			termErr := terminateProcessDirectly(p.Pid)
-			if termErr == nil {
-				// TerminateProcess succeeded - continue with polling
-				// Don't return here, let the polling loop handle it
-			} else {
-				// TerminateProcess also failed - wait a bit and check if process exited
-				// Sometimes the process might exit on its own or be terminated by the system
-				time.Sleep(100 * time.Millisecond)
-				if !isProcessRunning(p.Pid) {
-					// Process has exited - consider it successful
-					return nil
-				}
-				// Process is still running and we can't terminate it
-				// Log a warning but don't fail - we've done our best
-				if id != "" {
-					ui.Debugf("Process %s (PID %d) could not be terminated: %v (access denied)", id, p.Pid, err)
-				}
-				// Return nil to avoid failing the stop operation
-				// The process might be terminated by the system or exit on its own
-				return nil
-			}
-		case processRunning:
-			// Process is confirmed running but Kill() failed - return the error
-			return err
-		default:
-			// Unknown status - return the error to be safe
-			return err
+		// Handle Kill() error - may continue with polling if TerminateProcess succeeds
+		handleErr := handleKillError(p.Pid, err, id, false)
+		if handleErr != nil {
+			return handleErr
 		}
+		// If handleKillError returned nil, it means either:
+		// - Process exited
+		// - TerminateProcess succeeded (continue with polling)
+		// - Access denied but we'll let polling handle it
 	}
 
 	// Poll process state instead of calling Wait() to avoid conflicts
 	// The executor's main goroutine will handle Wait() when the process exits
-	ticker := time.NewTicker(50 * time.Millisecond)
-	defer ticker.Stop()
-	deadline := time.Now().Add(timeout)
-
-	for time.Now().Before(deadline) {
-		<-ticker.C
-		// Check if process has exited by polling ProcessState
-		if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
-			// Process exited
-			return nil
-		}
+	if pollProcessUntilExit(cmd, timeout) {
+		return nil
 	}
 
 	// On Windows, Kill() should terminate immediately, but log if it doesn't
 	if id != "" {
 		ui.Debugf("Process %s did not terminate within %v on Windows", id, timeout)
 	}
+
 	// Try killing again if still running
 	if cmd.ProcessState == nil || !cmd.ProcessState.Exited() {
-		// Check if process is still running before attempting to kill it again
-		if !isProcessRunning(p.Pid) {
-			return nil
-		}
-		err := p.Kill()
-		if err != nil {
-			// If Kill() fails, check the process status to determine if it actually exited
-			status := checkProcessStatus(p.Pid)
-			switch status {
-			case processExited:
-				// Process has exited - we can ignore the Kill() error
-				return nil
-			case processAccessDenied:
-				// Process exists but we don't have access - try TerminateProcess directly
-				termErr := terminateProcessDirectly(p.Pid)
-				if termErr == nil {
-					// TerminateProcess succeeded
-					return nil
-				}
-				// TerminateProcess also failed - wait a bit and check if process exited
-				time.Sleep(100 * time.Millisecond)
-				if !isProcessRunning(p.Pid) {
-					// Process has exited - consider it successful
-					return nil
-				}
-				// Process is still running and we can't terminate it
-				// Log a warning but don't fail - we've done our best
-				if id != "" {
-					ui.Debugf("Process %s (PID %d) could not be terminated after timeout: %v (access denied)", id, p.Pid, err)
-				}
-				// Return nil to avoid failing the stop operation
-				return nil
-			case processRunning:
-				// Process is confirmed running but Kill() failed - return the error
-				return err
-			default:
-				// Unknown status - return the error to be safe
-				return err
-			}
-		}
+		return attemptFinalKill(cmd, p.Pid, id)
 	}
+
 	return nil
 }

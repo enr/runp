@@ -74,6 +74,60 @@ func (p *EnvVarsPrecondition) IsSet() bool {
 	return len(p.EnvVars) > 0
 }
 
+// validateCheckConfig validates the configuration of a single check
+// Returns validation error message if invalid, empty string if valid
+func validateCheckConfig(check EnvVarCheck) string {
+	if check.Name == "" {
+		return "Environment variable check missing 'name' field"
+	}
+
+	if check.Condition == "" {
+		return fmt.Sprintf("Environment variable '%s' missing 'condition' field", check.Name)
+	}
+
+	// Validate that value is provided for is_equal condition
+	if check.Condition == EnvVarConditionIsEqual && check.Value == "" {
+		return fmt.Sprintf("Environment variable '%s' requires 'value' field when using condition 'is_equal'", check.Name)
+	}
+
+	// Validate condition is one of the allowed values
+	if check.Condition != EnvVarConditionIsSet &&
+		check.Condition != EnvVarConditionIsUnset &&
+		check.Condition != EnvVarConditionIsEqual {
+		return fmt.Sprintf("Invalid condition '%s' for environment variable '%s'", check.Condition, check.Name)
+	}
+
+	return ""
+}
+
+// performCheck executes a single environment variable check
+// Returns error message if check fails, empty string if check passes
+func performCheck(check EnvVarCheck, envReader func(string) string) string {
+	currentValue := envReader(check.Name)
+
+	switch check.Condition {
+	case EnvVarConditionIsSet:
+		if currentValue == "" {
+			return fmt.Sprintf("Environment variable '%s' is not set", check.Name)
+		}
+
+	case EnvVarConditionIsUnset:
+		if currentValue != "" {
+			return fmt.Sprintf("Environment variable '%s' is set but should be unset (current value: '%s')", check.Name, currentValue)
+		}
+
+	case EnvVarConditionIsEqual:
+		if currentValue == "" {
+			return fmt.Sprintf("Environment variable '%s' is not set", check.Name)
+		}
+		if currentValue != check.Value {
+			return fmt.Sprintf("Environment variable '%s' has value '%s' but expected '%s'", check.Name, currentValue, check.Value)
+		}
+	}
+
+	return ""
+}
+
 // Verify checks all environment variable checks
 func (p *EnvVarsPrecondition) Verify() PreconditionVerifyResult {
 	if p.envReader == nil {
@@ -81,66 +135,21 @@ func (p *EnvVarsPrecondition) Verify() PreconditionVerifyResult {
 	}
 
 	var reasons []string
-	allPassed := true
 
 	for _, check := range p.EnvVars {
 		// Validate check configuration
-		if check.Name == "" {
-			reasons = append(reasons, "Environment variable check missing 'name' field")
-			allPassed = false
-			continue
-		}
-
-		if check.Condition == "" {
-			reasons = append(reasons, fmt.Sprintf("Environment variable '%s' missing 'condition' field", check.Name))
-			allPassed = false
-			continue
-		}
-
-		// Validate that value is provided for is_equal condition
-		if check.Condition == EnvVarConditionIsEqual && check.Value == "" {
-			reasons = append(reasons, fmt.Sprintf("Environment variable '%s' requires 'value' field when using condition 'is_equal'", check.Name))
-			allPassed = false
-			continue
-		}
-
-		// Validate condition is one of the allowed values
-		if check.Condition != EnvVarConditionIsSet &&
-			check.Condition != EnvVarConditionIsUnset &&
-			check.Condition != EnvVarConditionIsEqual {
-			reasons = append(reasons, fmt.Sprintf("Invalid condition '%s' for environment variable '%s'", check.Condition, check.Name))
-			allPassed = false
+		if validationErr := validateCheckConfig(check); validationErr != "" {
+			reasons = append(reasons, validationErr)
 			continue
 		}
 
 		// Perform the check
-		currentValue := p.envReader(check.Name)
-
-		switch check.Condition {
-		case EnvVarConditionIsSet:
-			if currentValue == "" {
-				reasons = append(reasons, fmt.Sprintf("Environment variable '%s' is not set", check.Name))
-				allPassed = false
-			}
-
-		case EnvVarConditionIsUnset:
-			if currentValue != "" {
-				reasons = append(reasons, fmt.Sprintf("Environment variable '%s' is set but should be unset (current value: '%s')", check.Name, currentValue))
-				allPassed = false
-			}
-
-		case EnvVarConditionIsEqual:
-			if currentValue == "" {
-				reasons = append(reasons, fmt.Sprintf("Environment variable '%s' is not set", check.Name))
-				allPassed = false
-			} else if currentValue != check.Value {
-				reasons = append(reasons, fmt.Sprintf("Environment variable '%s' has value '%s' but expected '%s'", check.Name, currentValue, check.Value))
-				allPassed = false
-			}
+		if checkErr := performCheck(check, p.envReader); checkErr != "" {
+			reasons = append(reasons, checkErr)
 		}
 	}
 
-	if allPassed {
+	if len(reasons) == 0 {
 		return PreconditionVerifyResult{
 			Vote:    Proceed,
 			Reasons: []string{},
