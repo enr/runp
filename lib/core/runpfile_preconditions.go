@@ -43,9 +43,10 @@ type PreconditionVerifyResult struct {
 
 // Preconditions ...
 type Preconditions struct {
-	Os    OsPrecondition
-	Runp  RunpVersionPrecondition
-	Hosts EtcHostsPrecondition
+	Os      OsPrecondition          `yaml:"os"`
+	Runp    RunpVersionPrecondition `yaml:"runp"`
+	Hosts   EtcHostsPrecondition    `yaml:"hosts"`
+	EnvVars EnvVarsPrecondition     `yaml:"env_vars"`
 }
 
 // Verify ...
@@ -54,6 +55,7 @@ func (p *Preconditions) Verify() PreconditionVerifyResult {
 		&p.Os,
 		&p.Runp,
 		&p.Hosts,
+		&p.EnvVars,
 	}
 	var vr PreconditionVerifyResult
 	res := PreconditionVerifyResult{Vote: Proceed, Reasons: []string{}}

@@ -75,7 +75,7 @@ for dir in $(find "$LIB_DIR" -mindepth 1 -maxdepth 1 -type d); do
   goimports -w .
   diff <(goimports -d .) <(printf "")
   echo "--- gocyclo"
-  diff <(gocyclo -over 21 $(find . -type f -name "*.go" ! -name "*_test.go")) <(printf "")
+  diff <(gocyclo -over 15 $(find . -type f -name "*.go" ! -name "*_test.go")) <(printf "")
   cd "$dir"
   echo "--- go test -mod $buildmode -cover ./..."
   go test -mod "$buildmode" -cover ./...

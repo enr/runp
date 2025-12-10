@@ -8,8 +8,8 @@ import (
 	"errors"
 	"os"
 	"os/exec"
-	"syscall"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -18,40 +18,40 @@ import (
 // On Windows, some processes cannot be terminated due to security restrictions, resulting in "access denied" errors.
 // This function accepts both English and localized versions of the error message.
 func isAcceptableWindowsTerminationError(err error) bool {
-    if err == nil {
-        return true
-    }
-    // Direct match: wrapped errno
-    if errors.Is(err, syscall.ERROR_ACCESS_DENIED) {
-        return true
-    }
-    // If it's an os.SyscallError, check the inner Err
-    var syserr *os.SyscallError
-    if errors.As(err, &syserr) {
-        if errors.Is(syserr.Err, syscall.ERROR_ACCESS_DENIED) {
-            return true
-        }
-    }
-    // If the error itself can be interpreted as a syscall.Errno
-    var errno syscall.Errno
-    if errors.As(err, &errno) {
-        if errno == syscall.ERROR_ACCESS_DENIED {
-            return true
-        }
-    }
-    // If it's an exec.ExitError, try to unwrap common wrappers
-    var exitErr *exec.ExitError
-    if errors.As(err, &exitErr) {
-        // sometimes ExitError wraps a SyscallError or Errno; try a generic unwrap
-        if errors.Is(exitErr, syscall.ERROR_ACCESS_DENIED) {
-            return true
-        }
-        // check inner errors (if any)
-        if exitErr.ProcessState != nil {
-            // non sempre disponibile/utile, ma lasciamo la possibilità di altri controlli futuri
-        }
-    }
-    return false
+	if err == nil {
+		return true
+	}
+	// Direct match: wrapped errno
+	if errors.Is(err, syscall.ERROR_ACCESS_DENIED) {
+		return true
+	}
+	// If it's an os.SyscallError, check the inner Err
+	var syserr *os.SyscallError
+	if errors.As(err, &syserr) {
+		if errors.Is(syserr.Err, syscall.ERROR_ACCESS_DENIED) {
+			return true
+		}
+	}
+	// If the error itself can be interpreted as a syscall.Errno
+	var errno syscall.Errno
+	if errors.As(err, &errno) {
+		if errno == syscall.ERROR_ACCESS_DENIED {
+			return true
+		}
+	}
+	// If it's an exec.ExitError, try to unwrap common wrappers
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		// sometimes ExitError wraps a SyscallError or Errno; try a generic unwrap
+		if errors.Is(exitErr, syscall.ERROR_ACCESS_DENIED) {
+			return true
+		}
+		// check inner errors (if any)
+		if exitErr.ProcessState != nil {
+			// non sempre disponibile/utile, ma lasciamo la possibilità di altri controlli futuri
+		}
+	}
+	return false
 }
 
 func TestExecCommandWrapper(t *testing.T) {

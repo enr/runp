@@ -27,3 +27,19 @@ units:
             - hop
     host:
       command: echo file /etc/hosts contains mapping "127.0.1.1 hop"
+  envvars:
+    description: Unit with environment variables precondition
+    preconditions:
+      env_vars:
+        - name: DATABASE_URL
+          condition: is_set
+        - name: DEBUG_MODE
+          condition: is_unset
+        - name: NODE_ENV
+          condition: is_equal
+          value: "production"
+        - name: API_KEY
+          condition: is_equal
+          value: "secret-key-123"
+    host:
+      command: echo all environment variable preconditions satisfied

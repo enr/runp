@@ -1,0 +1,14 @@
+name: Test Runpfile with env vars
+description: This is Runpfile with env vars precondition
+units:
+  test1:
+    description: test unit with env vars
+    preconditions:
+      env_vars:
+        - name: DATABASE_URL
+          condition: is_set
+        - name: NODE_ENV
+          condition: is_equal
+          value: "production"
+    host:
+      command: echo test
