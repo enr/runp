@@ -114,33 +114,114 @@ Runp looks for a settings file in `~/.runp/settings.yaml`.
 
 If the file does not exist or is empty/invalid, Runp starts using these defaults:
 
-```yaml
+[source,yaml]
+----
 container_runner: docker
-```
+----
 
 **Preconditions**
 
-Preconditions can be at Runpfile level and Unit level.
+Preconditions can be defined at two levels: at the root of the `Runpfile` or within a specific `unit`.
 
-Any unit is ran if all its preconditions are satisfied.
+- *Root-level preconditions*: These are checked before any unit is executed. If any of these preconditions are not met, `runp` will exit and no units will be started. This is useful for ensuring that the environment is correctly set up before attempting to run any part of the system.
+- *Unit-level preconditions*: These are checked before the specific unit is executed. If the preconditions for a unit are not met, that unit is skipped, but other units in the `Runpfile` will still be executed.
 
 Available preconditions:
 
-- OS: unit is ran if OS is the specified one.
-- Runp version: unit is ran if Runp version is in range.
-- Hosts: unit is ran if `/etc/hosts` contains the given mapping.
+- *os*: This precondition checks if the operating system matches one of the specified values.
+- *runp*: This precondition checks if the `runp` version satisfies the specified constraint.
+- *hosts*: This precondition checks if `/etc/hosts` contains the given mapping.
+- *env_vars*: This precondition checks environment variables.
+
+***os***
+
+The `os` precondition checks if the operating system is one of the specified `inclusions`.
+
+Example:
+[source,yaml]
+----
+preconditions:
+  os:
+    inclusions:
+      - linux
+      - darwin
+----
+
+In this example, the execution will only proceed if the operating system is Linux or macOS.
+
+***runp***
+
+The `runp` precondition checks if the `runp` version satisfies the specified constraint. The available operators are: `LessThan`, `LessThanOrEqual`, `Equal`, `GreaterThanOrEqual`, `GreaterThan`.
+
+Example:
+[source,yaml]
+----
+preconditions:
+  runp:
+    operator: GreaterThanOrEqual
+    version: 0.10.0
+----
+
+This will ensure that `runp` version is at least `0.10.0`.
+
+***hosts***
+
+The `hosts` precondition checks for the presence of specific entries in the `/etc/hosts` file.
+
+Example:
+[source,yaml]
+----
+preconditions:
+  hosts:
+    - name: my.special.host
+      ip: 127.0.0.1
+----
+
+This precondition is satisfied if `my.special.host` resolves to `127.0.0.1`.
+
+***env_vars***
+
+The `env_vars` precondition checks for the presence or value of environment variables. The available conditions are `is_set`, `is_not_set`, `equals`, `not_equals`, `contains`, `not_contains`.
+
+Example of a root-level precondition:
+[source,yaml]
+----
+preconditions:
+  env_vars:
+    - name: DATABASE_URL
+      condition: is_set
+----
+
+In this case, `runp` will exit if the `DATABASE_URL` environment variable is not set.
+
+Example of a unit-level precondition:
+[source,yaml]
+----
+units:
+  my-service:
+    preconditions:
+      env_vars:
+        - name: MY_SERVICE_ENABLED
+          condition: equals
+          value: "true"
+    host:
+      command: "echo 'My service is enabled'"
+----
+
+In this example, the `my-service` unit will only be executed if the `MY_SERVICE_ENABLED` environment variable is set to `"true"`.
 
 **Runpfile composition**
 
 Runpfile can include other Runpfiles:
 
-```yaml
+[source,yaml]
+----
 name: Test Runpfile
 description: This is Runpfile
 include:
   - Runpfile-env.yml
   - Runpfile-vars.yml
-```
+----
 
 **Stop timeout**
 
@@ -253,11 +334,15 @@ You can set the container engine using the settings file (key: `container_runner
 
 Example:
 
-```yaml
+[source,yaml]
+----
 container_runner: /path/to/podman
-```
+----
 
-WARNING: Only Docker and Podman (as they use the same command line flags) are supported.
+[WARNING]
+====
+Only Docker and Podman (as they use the same command line flags) are supported.
+====
 
 Containers can talk to each other thorough a Docker network (`runp-network`).
 
@@ -423,7 +508,8 @@ units:
 
 Inclusions are compared to `runtime.GOOS`:
 
-```yaml
+[source,yaml]
+----
 units:
   win:
     description: Windows unit
@@ -444,7 +530,7 @@ units:
           - darwin
     host:
       command: ls -al {{vars runp_root}}
-```
+----
 
 **SSH tunnel to reach a remote LDAP**
 
@@ -545,9 +631,10 @@ units:
 
 The var `foo` will have value `FOO_DEFAULT_VALUE` or can be set from command line:
 
-```
+[source,bash]
+----
 $ bin/runp --debug up -f examples/Runpfile-vars.yml --var foo=bar
-```
+----
 
 **Implicit variables**
 
@@ -588,7 +675,8 @@ A unit can require a constraint on the Runp version.
 
 This unit requires runp version greater the 0.5.0:
 
-```yaml
+[source,yaml]
+----
 units:
   test1:
     description: test unit
@@ -599,7 +687,7 @@ units:
     host:
       command: env
       workdir: ${HOME}
-```
+----
 
 The available operators are:
 
