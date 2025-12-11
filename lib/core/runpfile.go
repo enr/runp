@@ -12,6 +12,7 @@ type Runpfile struct {
 	Units       map[string]*RunpUnit
 	SecretKey   string `yaml:"-"`
 	Include     []string
+	Preconditions Preconditions
 }
 
 // RunpUnit is...

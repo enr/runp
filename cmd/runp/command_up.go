@@ -53,6 +53,13 @@ func doUp(c *cli.Context) error {
 		runpfile.SecretKey = key
 	}
 
+	preconditions := runpfile.Preconditions
+	preconditionVerifyResult := preconditions.Verify()
+	if preconditionVerifyResult.Vote != core.Proceed {
+		ui.WriteLinef("Preconditions failed: %s", preconditionVerifyResult.Reasons)
+		return exitErrorf(3, "Preconditions failed: %s", preconditionVerifyResult.Reasons)
+	}
+
 	ui.Debugf("Starting execution with Runpfile root: %s", runpfile.Root)
 	executor := core.NewExecutor(runpfile)
 	executor.Start()

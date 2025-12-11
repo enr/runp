@@ -120,6 +120,8 @@ container_runner: docker
 
 **Preconditions**
 
+Preconditions can be at Runpfile level and Unit level.
+
 Any unit is ran if all its preconditions are satisfied.
 
 Available preconditions:
