@@ -1,0 +1,14 @@
+name: Test Runpfile
+description: This is Runpfile
+preconditions:
+  env_vars:
+    - name: DATABASE_URL
+      condition: is_set
+units:
+  echo:
+    description: env command
+    host:
+      command: |
+        echo ${DATABASE_URL}
+      env:
+        DATABASE_URL: ${DATABASE_URL}

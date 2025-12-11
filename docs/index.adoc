@@ -142,7 +142,47 @@ include:
   - Runpfile-vars.yml
 ```
 
-**App waiting for DB**
+**Stop timeout**
+
+For every unit, you can specify a timeout to wait for the process to stop gracefully.
+If the process does not stop within the timeout, it will be killed.
+The default value is 5 seconds.
+
+[source,yaml]
+----
+units:
+  zookeeper:
+    description: Zookeeper
+    stop_timeout: 0h0m15s
+    container:
+      name: zookeeper
+      image: strimzi/kafka:0.19.0-kafka-2.5.0
+      command: "bin/zookeeper-server-start.sh config/zookeeper.properties"
+      ports:
+        - "2181:2181"
+      env:
+        LOG_DIR: /tmp/logs
+----
+
+**App waiting for another resource**
+
+A unit can wait for a resource to be available before starting.
+The `await` block can be used to specify a `resource` and a `timeout`.
+
+If the `resource` is not specified, the unit will wait for the given `timeout`.
+
+[source,yaml]
+----
+units:
+  app:
+    description: app
+    host:
+      command: echo hi
+      env:
+        PATH: $PATH
+      await:
+        timeout: 0h0m03s
+----
 
 A backend app running on host waiting for a DB running in a container to be available:
 
@@ -170,6 +210,41 @@ units:
         POSTGRES_PASSWORD: pass
         POSTGRES_USER: user
         POSTGRES_DB: dbname
+----
+
+Wait for a file to be available:
+[source,yaml]
+----
+units:
+  await:
+    description: command
+    host:
+      command: env
+      await:
+        resource: file:///tmp/some_file.txt
+        timeout: 0h0m9s
+      env:
+        MYHOME: ${HOME}
+----
+
+Wait for an HTTP resource to be available:
+[source,yaml]
+----
+units:
+  run:
+    description: docker from shell
+    host:
+      command: docker run -t --rm hello-world
+      workdir: /tmp
+      await:
+        resource: http://localhost:8000
+        timeout: 0h0m25s
+  hello-web:
+    description: crccheck/hello-world
+    container:
+      image: crccheck/hello-world
+      ports:
+        - "8000:8000"
 ----
 
 **Containers**
@@ -324,6 +399,24 @@ TMP: ${TMP}
 USERNAME: ${USERNAME}
 USERPROFILE: ${USERPROFILE}
 windir: ${windir}
+----
+
+**Specify a shell for host processes**
+
+For host processes, you can specify a shell to execute the command.
+By default, `runp` uses the default shell of the operating system.
+
+[source,yaml]
+----
+units:
+  bash-process:
+    description: a process that runs with bash
+    host:
+      command: "echo $BASH_VERSION"
+      shell:
+        path: /bin/bash
+        args:
+          - -c
 ----
 
 **Run a different command on different operative systems**
