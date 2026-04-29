@@ -108,14 +108,14 @@ func (p *ContainerProcess) buildContainerName() string {
 	return fmt.Sprintf("%s%s", containerNamePrefix, p.ID())
 }
 
-func (p *ContainerProcess) buildCmdLine() string {
+func (p *ContainerProcess) buildCmdLine() (string, error) {
 	img := p.Image
 	ui.Debugf("Run image '%s'\n", img)
 
 	containerRunner, err := exec.LookPath(p.environmentSettings.ContainerRunnerExe)
 	if err != nil {
 		ui.WriteLinef("Container runner executable not found: %s (%v)", p.environmentSettings.ContainerRunnerExe, err)
-		return ""
+		return "", fmt.Errorf("container runner executable not found: %s (%w)", p.environmentSettings.ContainerRunnerExe, err)
 	}
 	cliPreprocessor := newCliPreprocessor(p.vars)
 	var sb strings.Builder
@@ -187,11 +187,14 @@ func (p *ContainerProcess) buildCmdLine() string {
 		sb.WriteString(p.Command)
 		sb.WriteString(` `)
 	}
-	return sb.String()
+	return sb.String(), nil
 }
 
 func (p *ContainerProcess) buildCmdImage() (*exec.Cmd, error) {
-	cl := p.buildCmdLine()
+	cl, err := p.buildCmdLine()
+	if err != nil {
+		return nil, err
+	}
 	cliPreprocessor := newCliPreprocessor(p.vars)
 	cl = cliPreprocessor.process(cl)
 	ui.Debugf("Container command:\n%s", cl)

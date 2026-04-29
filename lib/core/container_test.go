@@ -97,6 +97,23 @@ command: |
 	assertContainerProcess(cp, expected, t)
 }
 
+func TestStartCommandReturnsErrorWhenContainerRunnerNotFound(t *testing.T) {
+	ConfigureUI(testLogger, LoggerConfig{Debug: false, Color: false})
+
+	cp := &ContainerProcess{
+		Image: "alpine:3.12",
+		environmentSettings: &EnvironmentSettings{
+			ContainerRunnerExe: "this-exe-does-not-exist",
+		},
+	}
+	cp.SetID("test-id")
+
+	_, err := cp.StartCommand()
+	if err == nil {
+		t.Error("expected error when container runner is not found, got nil")
+	}
+}
+
 // docker run --rm --name reader --volumes-from fowler --volumes-from knuth alpine:3.12 ls -l /library/
 func TestParsing02(t *testing.T) {
 	ConfigureUI(testLogger, LoggerConfig{
