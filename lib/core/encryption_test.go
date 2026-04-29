@@ -48,6 +48,7 @@ func TestRandomKey(t *testing.T) {
 }
 
 func TestEncryptionDecryption(t *testing.T) {
+	ConfigureUI(testLogger, LoggerConfig{Debug: false, Color: false})
 	passphrase := `secret`
 	message := `the secret message`
 
@@ -73,7 +74,26 @@ func TestEncryptionDecryption(t *testing.T) {
 	}
 
 }
+func TestDecrypt_ShortInput(t *testing.T) {
+	passphrase := "secret"
+
+	// inputs shorter than the AES-GCM nonce size (12 bytes) must return an
+	// error, not panic
+	inputs := [][]byte{
+		{},
+		[]byte("short"),
+		make([]byte, 11),
+	}
+	for _, input := range inputs {
+		_, err := Decrypt(input, passphrase)
+		if err == nil {
+			t.Errorf("Decrypt(%q) should return an error for input shorter than nonce size", input)
+		}
+	}
+}
+
 func TestDecryptionError(t *testing.T) {
+	ConfigureUI(testLogger, LoggerConfig{Debug: false, Color: false})
 	passphrase := `secret`
 	message := `the secret message`
 
