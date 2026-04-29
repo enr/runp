@@ -5,6 +5,7 @@ package core
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 )
@@ -23,6 +24,7 @@ func TestEnvSubstitution(t *testing.T) {
 	sut := &RunpfileExecutor{
 		rf:            rp,
 		LoggerFactory: createStubLogger,
+		newPipe:       os.Pipe,
 	}
 	sut.Start()
 	for _, line := range testLogger.outputLines() {
@@ -60,6 +62,7 @@ func TestVarsSubstitution(t *testing.T) {
 	sut := &RunpfileExecutor{
 		rf:            rp,
 		LoggerFactory: createStubLogger,
+		newPipe:       os.Pipe,
 	}
 	sut.Start()
 	for _, line := range testLogger.outputLines() {

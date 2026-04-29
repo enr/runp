@@ -50,78 +50,15 @@ func (e *RunpfileExecutor) longestName() int {
 
 // Start call start on all processes.
 func (e *RunpfileExecutor) Start() error {
+	e.initializeUnits()
+	skipped := e.skippedUnits()
+	if len(skipped) > 0 {
+		ui.WriteLinef("Units skipped due to unsatisfied preconditions: %v", skipped)
+	}
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var errs []error
-
-	var host *HostProcess
-	var container *ContainerProcess
-	var sshTunnel *SSHTunnelProcess
-	for _, unit := range e.rf.Units {
-		unit.vars = e.rf.Vars
-		unit.secretKey = e.rf.SecretKey
-		unit.environmentSettings = e.environmentSettings
-		// Reset process to force rebuild with updated vars
-		unit.process = nil
-		if unit.Host != nil {
-			host = unit.Host
-			host.vars = unit.vars
-			host.secretKey = unit.secretKey
-			host.stopTimeout = unit.StopTimeout
-			host.environmentSettings = e.environmentSettings
-		}
-		if unit.Container != nil {
-			container = unit.Container
-			container.vars = unit.vars
-			container.secretKey = unit.secretKey
-			container.stopTimeout = unit.StopTimeout
-			container.environmentSettings = e.environmentSettings
-		}
-		if unit.SSHTunnel != nil {
-			sshTunnel = unit.SSHTunnel
-			sshTunnel.vars = unit.vars
-			sshTunnel.secretKey = unit.secretKey
-			sshTunnel.stopTimeout = unit.StopTimeout
-			sshTunnel.environmentSettings = e.environmentSettings
-		}
-	}
-
-	skipped := []string{}
-	var pr PreconditionVerifyResult
-	for _, unit := range e.rf.Units {
-		if unit.Host != nil {
-			host = unit.Host
-			pr = host.VerifyPreconditions()
-			if pr.Vote != Proceed {
-				skipped = append(skipped, unit.Name)
-				ui.WriteLinef("Preconditions not satisfied for unit %s (%s): %v", unit.Name, pr.Vote, pr.Reasons)
-				continue
-			}
-		}
-		if unit.Container != nil {
-			container = unit.Container
-			pr = container.VerifyPreconditions()
-			if pr.Vote != Proceed {
-				skipped = append(skipped, unit.Name)
-				ui.WriteLinef("Preconditions not satisfied for unit %s (%s): %v", unit.Name, pr.Vote, pr.Reasons)
-				continue
-			}
-		}
-		if unit.SSHTunnel != nil {
-			sshTunnel = unit.SSHTunnel
-			pr = sshTunnel.VerifyPreconditions()
-			if pr.Vote != Proceed {
-				skipped = append(skipped, unit.Name)
-				ui.WriteLinef("Preconditions not satisfied for unit %s (%s): %v", unit.Name, pr.Vote, pr.Reasons)
-				continue
-			}
-		}
-	}
-
-	if len(skipped) > 0 {
-		ui.WriteLinef("Units skipped due to unsatisfied preconditions: %v", skipped)
-	}
 
 	for _, unit := range e.rf.Units {
 		if sliceContains(skipped, unit.Name) {
@@ -143,6 +80,60 @@ func (e *RunpfileExecutor) Start() error {
 
 	if len(errs) > 0 {
 		return fmt.Errorf("%d unit(s) failed to start", len(errs))
+	}
+	return nil
+}
+
+func (e *RunpfileExecutor) initializeUnits() {
+	for _, unit := range e.rf.Units {
+		unit.vars = e.rf.Vars
+		unit.secretKey = e.rf.SecretKey
+		unit.environmentSettings = e.environmentSettings
+		unit.process = nil
+		if unit.Host != nil {
+			unit.Host.vars = unit.vars
+			unit.Host.secretKey = unit.secretKey
+			unit.Host.stopTimeout = unit.StopTimeout
+			unit.Host.environmentSettings = e.environmentSettings
+		}
+		if unit.Container != nil {
+			unit.Container.vars = unit.vars
+			unit.Container.secretKey = unit.secretKey
+			unit.Container.stopTimeout = unit.StopTimeout
+			unit.Container.environmentSettings = e.environmentSettings
+		}
+		if unit.SSHTunnel != nil {
+			unit.SSHTunnel.vars = unit.vars
+			unit.SSHTunnel.secretKey = unit.secretKey
+			unit.SSHTunnel.stopTimeout = unit.StopTimeout
+			unit.SSHTunnel.environmentSettings = e.environmentSettings
+		}
+	}
+}
+
+func (e *RunpfileExecutor) skippedUnits() []string {
+	skipped := []string{}
+	for _, unit := range e.rf.Units {
+		if pr := e.unitPreconditions(unit); pr != nil && pr.Vote != Proceed {
+			skipped = append(skipped, unit.Name)
+			ui.WriteLinef("Preconditions not satisfied for unit %s (%s): %v", unit.Name, pr.Vote, pr.Reasons)
+		}
+	}
+	return skipped
+}
+
+func (e *RunpfileExecutor) unitPreconditions(unit *RunpUnit) *PreconditionVerifyResult {
+	if unit.Host != nil {
+		pr := unit.Host.VerifyPreconditions()
+		return &pr
+	}
+	if unit.Container != nil {
+		pr := unit.Container.VerifyPreconditions()
+		return &pr
+	}
+	if unit.SSHTunnel != nil {
+		pr := unit.SSHTunnel.VerifyPreconditions()
+		return &pr
 	}
 	return nil
 }
