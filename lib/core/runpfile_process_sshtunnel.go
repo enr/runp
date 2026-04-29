@@ -9,6 +9,7 @@ import (
 	"github.com/enr/go-files/files"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 // Auth is auth
@@ -46,6 +47,11 @@ type SSHTunnelProcess struct {
 	Target Endpoint
 	// command executed to test connection to jump server
 	TestCommand string `yaml:"test_command"`
+	// KnownHostsFile overrides the default ~/.ssh/known_hosts path.
+	KnownHostsFile string `yaml:"known_hosts_file"`
+	// InsecureIgnoreHostKey disables SSH host key verification.
+	// Only use for local dev environments where MITM is not a concern.
+	InsecureIgnoreHostKey bool `yaml:"insecure_ignore_host_key"`
 
 	id                  string
 	vars                map[string]string
@@ -188,11 +194,32 @@ func (p *SSHTunnelProcess) resolveSSHCommandConfiguration() (*ssh.ClientConfig, 
 	if len(authMethods) == 0 {
 		return nil, errors.New("No authentication method configured")
 	}
+	var hostKeyCallback ssh.HostKeyCallback
+	if p.InsecureIgnoreHostKey {
+		ui.WriteLinef("WARNING: SSH host key verification disabled for %s — vulnerable to MITM", p.Jump.String())
+		hostKeyCallback = ssh.InsecureIgnoreHostKey()
+	} else {
+		knownHostsPath := p.KnownHostsFile
+		if knownHostsPath == "" {
+			knownHostsPath = "~/.ssh/known_hosts"
+		}
+		knownHostsPath = cliPreprocessor.process(knownHostsPath)
+		resolved, err := resolvePath(knownHostsPath, "")
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot resolve known_hosts path")
+		}
+		cb, err := knownhosts.New(resolved)
+		if err != nil {
+			return nil, errors.Wrapf(err, "cannot load known_hosts from %s — add the host key or set insecure_ignore_host_key: true", resolved)
+		}
+		hostKeyCallback = cb
+	}
+
 	sshUser := cliPreprocessor.process(p.User)
 	config := &ssh.ClientConfig{
 		User:            sshUser,
 		Auth:            authMethods,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: hostKeyCallback,
 	}
 	return config, nil
 }

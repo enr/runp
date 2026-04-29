@@ -16,6 +16,12 @@ import (
 	"github.com/enr/go-files/files"
 )
 
+func knownHostsFileForTest(t *testing.T, hostPattern, pubKeyPath string) string {
+	t.Helper()
+	keyLine := pubKeyKnownHostsLine(t, pubKeyPath)
+	return writeKnownHostsFile(t, hostPattern, keyLine)
+}
+
 func TestSSHTunnelHappyPath(t *testing.T) {
 
 	ConfigureUI(testLogger, LoggerConfig{
@@ -62,14 +68,20 @@ func TestSSHTunnelHappyPath(t *testing.T) {
 	https := httpServer(target, stubResponse, t)
 	defer https.Close()
 
+	knownHostsFile := knownHostsFileForTest(t,
+		fmt.Sprintf("[%s]:%d", jump.Host, jump.Port),
+		"../../testdata/keys/runp.pub",
+	)
+
 	tunnel := &SSHTunnelProcess{
 		User: sshUser,
 		Auth: Auth{
 			Secret: sshSecret,
 		},
-		Local:  local,
-		Jump:   jump,
-		Target: target,
+		Local:          local,
+		Jump:           jump,
+		Target:         target,
+		KnownHostsFile: knownHostsFile,
 	}
 
 	cmd, err := tunnel.StartCommand()

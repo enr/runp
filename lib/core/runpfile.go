@@ -4,14 +4,14 @@ import "fmt"
 
 // Runpfile is the model containing the full configuration.
 type Runpfile struct {
-	Name        string
-	Description string
-	Version     string
-	Vars        map[string]string
-	Root        string
-	Units       map[string]*RunpUnit
-	SecretKey   string `yaml:"-"`
-	Include     []string
+	Name          string
+	Description   string
+	Version       string
+	Vars          map[string]string
+	Root          string
+	Units         map[string]*RunpUnit
+	SecretKey     string `yaml:"-"`
+	Include       []string
 	Preconditions Preconditions
 }
 
