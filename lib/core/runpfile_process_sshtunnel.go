@@ -170,7 +170,11 @@ func (p *SSHTunnelProcess) resolveSSHCommandConfiguration() (*ssh.ClientConfig, 
 			return nil, errors.New("Invalid identity file: " + identityFile)
 		}
 		ui.Debugf("Connecting using SSH identity file: %s", identityFile)
-		authMethods = append(authMethods, publicKeyFile(identityFile))
+		am, err := publicKeyFile(identityFile)
+		if err != nil {
+			return nil, err
+		}
+		authMethods = append(authMethods, am)
 	}
 	if p.Auth.Secret != "" {
 		as := cliPreprocessor.process(p.Auth.Secret)
@@ -284,17 +288,14 @@ func (p *SSHTunnelProcess) resolveEnvironment() []string {
 	return environment
 }
 
-func publicKeyFile(file string) ssh.AuthMethod {
+func publicKeyFile(file string) (ssh.AuthMethod, error) {
 	buffer, err := ioutil.ReadFile(file)
 	if err != nil {
-		ui.WriteLinef("Failed to read SSH private key file: %s", file)
-		return nil
+		return nil, errors.Wrapf(err, "failed to read SSH private key file: %s", file)
 	}
-
 	key, err := ssh.ParsePrivateKey(buffer)
 	if err != nil {
-		ui.WriteLinef("Failed to parse SSH private key file: %s", file)
-		return nil
+		return nil, errors.Wrapf(err, "failed to parse SSH private key file: %s", file)
 	}
-	return ssh.PublicKeys(key)
+	return ssh.PublicKeys(key), nil
 }

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"os"
 	"testing"
 	"time"
 )
@@ -251,12 +252,18 @@ func TestPublicKeyFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			authMethod := publicKeyFile(tt.keyPath)
+			authMethod, err := publicKeyFile(tt.keyPath)
 			if tt.expectError {
+				if err == nil {
+					t.Error("publicKeyFile() should return an error for invalid file")
+				}
 				if authMethod != nil {
-					t.Error("publicKeyFile() should return nil for invalid file")
+					t.Error("publicKeyFile() should return nil auth method on error")
 				}
 			} else {
+				if err != nil {
+					t.Errorf("publicKeyFile() unexpected error: %v", err)
+				}
 				if authMethod == nil {
 					t.Error("publicKeyFile() should return non-nil AuthMethod for valid file")
 				}
@@ -313,4 +320,48 @@ func TestSSHTunnelProcess_executeCmd(t *testing.T) {
 			t.Error("Expected error when connecting to invalid host")
 		}
 	})
+}
+
+// TestResolveSSHCommandConfiguration_InvalidIdentityFile verifies that
+// resolveSSHCommandConfiguration returns an error when the identity file
+// contains invalid key data, rather than silently appending a nil
+// ssh.AuthMethod alongside other methods. A nil ssh.AuthMethod causes a
+// panic when the SSH client iterates auth methods at connection time.
+func TestResolveSSHCommandConfiguration_InvalidIdentityFile(t *testing.T) {
+	ConfigureUI(testLogger, LoggerConfig{Debug: false, Color: false})
+
+	f, err := os.CreateTemp("", "invalid_ssh_key_*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(f.Name())
+	f.WriteString("this is not a valid PEM-encoded private key")
+	f.Close()
+
+	// Use a real known_hosts so we can get past that check and observe
+	// that the nil auth method from the invalid identity file is the issue.
+	knownHosts, err := os.CreateTemp("", "test_known_hosts_*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(knownHosts.Name())
+	knownHosts.Close()
+
+	// Provide a valid Secret alongside the broken IdentityFile. Without the
+	// fix, publicKeyFile() returns nil which is appended to authMethods, the
+	// Secret method keeps len > 0, no error is returned, and the nil element
+	// causes a panic at connect time.
+	p := &SSHTunnelProcess{
+		Auth: Auth{
+			IdentityFile: f.Name(),
+			Secret:       "some-password",
+		},
+		KnownHostsFile: knownHosts.Name(),
+		vars:           map[string]string{},
+	}
+
+	_, err = p.resolveSSHCommandConfiguration()
+	if err == nil {
+		t.Error("expected error for invalid identity file, got nil — nil ssh.AuthMethod is silently included and will panic at connection time")
+	}
 }
