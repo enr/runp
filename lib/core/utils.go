@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -100,7 +99,7 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 		return nil, fmt.Errorf("circular dependency detected: Runpfile %s is included from both %s and %s", runpfile.path, runpfile.importedBy, val.importedBy)
 	}
 	visited[runpfile.path] = runpfile
-	data, err := ioutil.ReadFile(runpfile.path)
+	data, err := os.ReadFile(runpfile.path)
 	if err != nil {
 		return nil, err
 	}

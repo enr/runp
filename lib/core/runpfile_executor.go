@@ -272,7 +272,7 @@ func (e *RunpfileExecutor) startProcessCommand(cmd RunpCommand, unit *RunpUnit, 
 }
 
 func (e *RunpfileExecutor) monitorProcessExit(cmd RunpCommand, process RunpProcess, logger Logger, appContext *ApplicationContext, pwg *sync.WaitGroup) {
-	exit := make(chan error, 2)
+	exit := make(chan error, 1)
 	go func() {
 		exit <- cmd.Wait()
 		logger.WriteLinef("Process %s finished: %s", process.ID(), cmd)
@@ -329,13 +329,6 @@ func (e *RunpfileExecutor) isGracefulShutdown(err error, process RunpProcess, lo
 }
 
 func (e *RunpfileExecutor) handleProcessError(err error, process RunpProcess, logger Logger, appContext *ApplicationContext) {
-	// Verify if this is a graceful shutdown before logging as error
-	if e.isGracefulShutdown(err, process, logger) {
-		// Graceful shutdown: do not log as error, only at debug level if needed
-		logger.Debugf("Process %s terminated gracefully, skipping error reporting", process.ID())
-		return
-	}
-
 	switch err.(type) {
 	case *os.SyscallError:
 		logger.WriteLinef("System call error in process %s: %s", process.ID(), err.Error())

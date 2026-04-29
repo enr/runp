@@ -25,6 +25,9 @@ func doUp(c *cli.Context) error {
 		if len(kv) != 2 {
 			return exitErrorf(4, "Invalid --var value %q: expected key=value", v)
 		}
+		if _, declared := vars[kv[0]]; !declared {
+			return exitErrorf(4, "Unknown variable %q: not declared in Runpfile", kv[0])
+		}
 		vars[kv[0]] = kv[1]
 	}
 

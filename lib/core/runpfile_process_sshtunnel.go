@@ -3,7 +3,7 @@ package core
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/enr/go-files/files"
@@ -291,7 +291,7 @@ func (p *SSHTunnelProcess) resolveEnvironment() []string {
 }
 
 func publicKeyFile(file string) (ssh.AuthMethod, error) {
-	buffer, err := ioutil.ReadFile(file)
+	buffer, err := os.ReadFile(file)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to read SSH private key file: %s", file)
 	}
