@@ -237,6 +237,32 @@ func TestListLine(t *testing.T) {
 	}
 }
 
+func TestDoUpVarMissingEquals(t *testing.T) {
+	s := &stubLogger{}
+	ui = s
+	core.ConfigureUI(s, core.LoggerConfig{})
+
+	app := cli.NewApp()
+	set := flag.NewFlagSet("test", 0)
+	set.String("f", "../../testdata/runpfiles/vars-in-env-nix.yml", "doc")
+	varFlag := cli.StringSlice{}
+	varFlag.Set("foo") // no '=' — should return an error, not panic
+	set.Var(&varFlag, "var", "doc")
+	c := cli.NewContext(app, set, nil)
+
+	err := doUp(c)
+	if err == nil {
+		t.Fatal("Expected an error for --var without '=', got nil")
+	}
+	exitErr, ok := err.(cli.ExitCoder)
+	if !ok {
+		t.Fatalf("Expected cli.ExitCoder, got %T: %v", err, err)
+	}
+	if exitErr.ExitCode() != 4 {
+		t.Errorf("Expected exit code 4, got %d", exitErr.ExitCode())
+	}
+}
+
 func TestDoList(t *testing.T) {
 	s := &stubLogger{}
 	ui = s

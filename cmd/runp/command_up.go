@@ -22,6 +22,9 @@ func doUp(c *cli.Context) error {
 	var kv []string
 	for _, v := range userVars {
 		kv = strings.SplitN(v, `=`, 2)
+		if len(kv) != 2 {
+			return exitErrorf(4, "Invalid --var value %q: expected key=value", v)
+		}
 		vars[kv[0]] = kv[1]
 	}
 
