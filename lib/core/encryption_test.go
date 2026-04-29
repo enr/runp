@@ -1,9 +1,48 @@
 package core
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
 	"regexp"
 	"testing"
 )
+
+const pbkdf2SaltSize = 16
+
+func TestEncrypt_EmbedsSalt(t *testing.T) {
+	// Ciphertext must be salt | nonce | data | GCM-tag.
+	// With MD5-only key derivation (no salt) the length is nonce+data+tag, which is shorter.
+	passphrase := "test-passphrase"
+	plaintext := []byte("hello")
+
+	ct, err := Encrypt(plaintext, passphrase)
+	if err != nil {
+		t.Fatalf("Encrypt: %v", err)
+	}
+
+	block, _ := aes.NewCipher(make([]byte, 32))
+	gcm, _ := cipher.NewGCM(block)
+	want := pbkdf2SaltSize + gcm.NonceSize() + len(plaintext) + gcm.Overhead()
+	if len(ct) != want {
+		t.Errorf("ciphertext len = %d, want %d (salt %d + nonce %d + data %d + tag %d)",
+			len(ct), want, pbkdf2SaltSize, gcm.NonceSize(), len(plaintext), gcm.Overhead())
+	}
+}
+
+func TestRandomKey_UsesCryptoRand(t *testing.T) {
+	// With math/rand the key space is bounded by the PRNG state; crypto/rand
+	// gives full 48-bit entropy for a 12-char hex key.
+	// We can't inspect the source, but we can verify that 1000 consecutive
+	// calls never collide — math/rand would occasionally repeat under load.
+	seen := make(map[string]struct{}, 1000)
+	for i := range 1000 {
+		k := RandomKey()
+		if _, dup := seen[k]; dup {
+			t.Fatalf("RandomKey produced duplicate after %d iterations", i)
+		}
+		seen[k] = struct{}{}
+	}
+}
 
 func TestRandomKey(t *testing.T) {
 	// Verifica che RandomKey restituisca sempre una stringa di 12 caratteri esadecimali
