@@ -546,3 +546,31 @@ func TestRunpfileExecutor_handleAwaitResources(t *testing.T) {
 		})
 	}
 }
+
+func TestRunpfileExecutor_StartReturnsErrorOnUnitFailure(t *testing.T) {
+	ConfigureUI(testLogger, LoggerConfig{
+		Debug: false,
+		Color: false,
+	})
+
+	// Start() resets unit.process, so we must use a real Host with a
+	// nonexistent executable to force StartCommand() to return an error.
+	unit := &RunpUnit{
+		Name: "failing-unit",
+		Host: &HostProcess{
+			Executable: "/nonexistent/executable/that/does/not/exist",
+		},
+	}
+	rf := &Runpfile{
+		Units: map[string]*RunpUnit{
+			"failing-unit": unit,
+		},
+		Vars: map[string]string{},
+	}
+	executor := NewExecutor(rf)
+
+	err := executor.Start()
+	if err == nil {
+		t.Error("Start() should return an error when a unit fails to start")
+	}
+}

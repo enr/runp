@@ -47,9 +47,11 @@ func (e *RunpfileExecutor) longestName() int {
 }
 
 // Start call start on all processes.
-func (e *RunpfileExecutor) Start() {
+func (e *RunpfileExecutor) Start() error {
 
 	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var errs []error
 
 	var host *HostProcess
 	var container *ContainerProcess
@@ -125,10 +127,22 @@ func (e *RunpfileExecutor) Start() {
 			continue
 		}
 		wg.Add(1)
-		go e.startUnit(unit, &wg)
+		go func(u *RunpUnit) {
+			defer wg.Done()
+			if err := e.startUnit(u); err != nil {
+				mu.Lock()
+				errs = append(errs, err)
+				mu.Unlock()
+			}
+		}(unit)
 	}
 
 	wg.Wait()
+
+	if len(errs) > 0 {
+		return fmt.Errorf("%d unit(s) failed to start", len(errs))
+	}
+	return nil
 }
 
 func await(duration time.Duration, resources []string) error {
@@ -142,9 +156,7 @@ func await(duration time.Duration, resources []string) error {
 	return impatient.Await(context.Background(), resources, duration)
 }
 
-func (e *RunpfileExecutor) startUnit(unit *RunpUnit, wg *sync.WaitGroup) {
-	defer wg.Done()
-
+func (e *RunpfileExecutor) startUnit(unit *RunpUnit) error {
 	logger := e.LoggerFactory(unit.Name, e.longestName(), processLoggerConfiguration)
 	process := unit.Process()
 	logger.WriteLinef("Starting unit %s (working directory: %s)", unit.Name, process.Dir())
@@ -154,17 +166,17 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit, wg *sync.WaitGroup) {
 
 	cmd, err := e.setupProcessCommand(unit, process, logger, appContext)
 	if err != nil {
-		return
+		return err
 	}
 
 	if err := e.handleAwaitResources(process, logger, appContext); err != nil {
-		return
+		return err
 	}
 
 	logger.Debugf("Command for process %s: %v", process.ID(), cmd)
 
 	if err := e.verifyProcessStartability(process, logger, appContext); err != nil {
-		return
+		return err
 	}
 
 	r, w, _ := os.Pipe()
@@ -175,13 +187,14 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit, wg *sync.WaitGroup) {
 	pwg.Add(1)
 
 	if err := e.startProcessCommand(cmd, unit, process, logger, appContext, w, &pwg); err != nil {
-		return
+		return err
 	}
 
 	w.Close()
 	e.monitorProcessExit(cmd, process, logger, appContext, &pwg)
 	e.readProcessOutput(r, process, logger)
 	pwg.Wait()
+	return nil
 }
 
 func (e *RunpfileExecutor) setupProcessCommand(unit *RunpUnit, process RunpProcess, logger Logger, appContext *ApplicationContext) (RunpCommand, error) {
