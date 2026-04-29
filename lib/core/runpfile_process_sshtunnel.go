@@ -115,7 +115,9 @@ func (p *SSHTunnelProcess) executeCmd(command string) (*bytes.Buffer, error) {
 	defer session.Close()
 	var stdoutBuf bytes.Buffer
 	session.Stdout = &stdoutBuf
-	session.Run(command)
+	if err := session.Run(command); err != nil {
+		return nil, err
+	}
 	return &stdoutBuf, nil
 }
 
