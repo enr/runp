@@ -606,3 +606,42 @@ func TestRunpfileExecutor_StartReturnsErrorOnUnitFailure(t *testing.T) {
 		t.Error("Start() should return an error when a unit fails to start")
 	}
 }
+
+func TestRunpfileExecutor_skippedUnits(t *testing.T) {
+	ConfigureUI(testLogger, LoggerConfig{Debug: false, Color: false})
+
+	makeFailingHost := func() *HostProcess {
+		h := &HostProcess{Executable: "echo"}
+		h.SetPreconditions(Preconditions{
+			EnvVars: EnvVarsPrecondition{
+				EnvVars: []EnvVarCheck{
+					{Name: "RUNP_TEST_NONEXISTENT_12345", Condition: EnvVarConditionIsSet},
+				},
+			},
+		})
+		return h
+	}
+
+	rf := &Runpfile{
+		Units: map[string]*RunpUnit{
+			"skipped-a": {Name: "skipped-a", Host: makeFailingHost()},
+			"skipped-b": {Name: "skipped-b", Host: makeFailingHost()},
+			"ok":        {Name: "ok"},
+		},
+	}
+	executor := NewExecutor(rf)
+	skipped := executor.skippedUnits()
+
+	if !skipped["skipped-a"] {
+		t.Error("expected skipped-a to be in skipped set")
+	}
+	if !skipped["skipped-b"] {
+		t.Error("expected skipped-b to be in skipped set")
+	}
+	if skipped["ok"] {
+		t.Error("expected ok to NOT be in skipped set")
+	}
+	if len(skipped) != 2 {
+		t.Errorf("expected 2 skipped units, got %d", len(skipped))
+	}
+}

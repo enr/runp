@@ -53,7 +53,11 @@ func (e *RunpfileExecutor) Start() error {
 	e.initializeUnits()
 	skipped := e.skippedUnits()
 	if len(skipped) > 0 {
-		ui.WriteLinef("Units skipped due to unsatisfied preconditions: %v", skipped)
+		names := make([]string, 0, len(skipped))
+		for name := range skipped {
+			names = append(names, name)
+		}
+		ui.WriteLinef("Units skipped due to unsatisfied preconditions: %v", names)
 	}
 
 	var wg sync.WaitGroup
@@ -61,7 +65,7 @@ func (e *RunpfileExecutor) Start() error {
 	var errs []error
 
 	for _, unit := range e.rf.Units {
-		if sliceContains(skipped, unit.Name) {
+		if skipped[unit.Name] {
 			ui.WriteLinef("Skipping unit: %s", unit.Name)
 			continue
 		}
@@ -111,11 +115,11 @@ func (e *RunpfileExecutor) initializeUnits() {
 	}
 }
 
-func (e *RunpfileExecutor) skippedUnits() []string {
-	skipped := []string{}
+func (e *RunpfileExecutor) skippedUnits() map[string]bool {
+	skipped := make(map[string]bool)
 	for _, unit := range e.rf.Units {
 		if pr := e.unitPreconditions(unit); pr != nil && pr.Vote != Proceed {
-			skipped = append(skipped, unit.Name)
+			skipped[unit.Name] = true
 			ui.WriteLinef("Preconditions not satisfied for unit %s (%s): %v", unit.Name, pr.Vote, pr.Reasons)
 		}
 	}
