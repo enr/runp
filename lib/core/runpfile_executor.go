@@ -21,6 +21,7 @@ func NewExecutor(rf *Runpfile) *RunpfileExecutor {
 		rf:                  rf,
 		LoggerFactory:       createProcessLogger,
 		environmentSettings: loadEnvironmentSettings(),
+		newPipe:             os.Pipe,
 	}
 }
 
@@ -30,6 +31,7 @@ type RunpfileExecutor struct {
 	LoggerFactory       func(string, int, LoggerConfig) Logger
 	longest             int
 	environmentSettings *EnvironmentSettings
+	newPipe             func() (*os.File, *os.File, error)
 }
 
 func (e *RunpfileExecutor) longestName() int {
@@ -179,7 +181,10 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit) error {
 		return err
 	}
 
-	r, w, _ := os.Pipe()
+	r, w, err := e.newPipe()
+	if err != nil {
+		return fmt.Errorf("os.Pipe: %w", err)
+	}
 	cmd.Stdout(w)
 	cmd.Stderr(w)
 

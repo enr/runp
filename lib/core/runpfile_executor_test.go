@@ -547,6 +547,38 @@ func TestRunpfileExecutor_handleAwaitResources(t *testing.T) {
 	}
 }
 
+func TestRunpfileExecutor_startUnit_PipeError(t *testing.T) {
+	ConfigureUI(testLogger, LoggerConfig{
+		Debug: false,
+		Color: false,
+	})
+
+	mockCmd := &mockRunpCommand{}
+	mockProcess := &mockRunpProcess{
+		id:        "test-process",
+		startCmd:  mockCmd,
+		startable: true,
+	}
+	unit := &RunpUnit{
+		Name:    "test-unit",
+		process: mockProcess,
+	}
+
+	rf := &Runpfile{
+		Units: map[string]*RunpUnit{"test-unit": unit},
+		Vars:  map[string]string{},
+	}
+	executor := NewExecutor(rf)
+	executor.newPipe = func() (*os.File, *os.File, error) {
+		return nil, nil, errors.New("fd exhausted")
+	}
+
+	err := executor.startUnit(unit)
+	if err == nil {
+		t.Error("startUnit() should return an error when os.Pipe() fails")
+	}
+}
+
 func TestRunpfileExecutor_StartReturnsErrorOnUnitFailure(t *testing.T) {
 	ConfigureUI(testLogger, LoggerConfig{
 		Debug: false,
