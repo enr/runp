@@ -1,6 +1,6 @@
 module github.com/enr/runp
 
-go 1.24.0
+go 1.25.0
 
 require (
 	dev.justinjudd.org/justin/easyssh v0.0.0-20160730123631-a842df2410b5
