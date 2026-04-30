@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -192,6 +193,19 @@ func TestResetColor(t *testing.T) {
 
 	ResetColor()
 	// If we get here without a panic, the test has passed.
+}
+
+func TestCreateMainLoggerConcurrentRace(t *testing.T) {
+	const n = 50
+	var wg sync.WaitGroup
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		go func() {
+			defer wg.Done()
+			CreateMainLogger("proc", 10, "%s | ", false, false)
+		}()
+	}
+	wg.Wait()
 }
 
 func TestCreateProcessLogger(t *testing.T) {

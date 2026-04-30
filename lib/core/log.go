@@ -123,12 +123,14 @@ func CreateMainLogger(proc string, longest int, format string, debug bool, color
 		n = proc
 	}
 	f := "\r" + format
-	l := &clogger{idx: ci, proc: n, longest: longest, format: f, debug: debug, colors: colorize}
+	mutex.Lock()
+	idx := ci
 	ci++
 	if ci >= len(labelColors) {
 		ci = 0
 	}
-	return l
+	mutex.Unlock()
+	return &clogger{idx: idx, proc: n, longest: longest, format: f, debug: debug, colors: colorize}
 }
 
 // ResetColor resets the foreground and background to original colors
