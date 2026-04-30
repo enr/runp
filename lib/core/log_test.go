@@ -195,6 +195,49 @@ func TestResetColor(t *testing.T) {
 	// If we get here without a panic, the test has passed.
 }
 
+// TestWriteConcurrentNewlineRace verifies that Write's trailing "\r\n" is emitted
+// atomically with its content. Before the fix the print was outside the mutex,
+// so goroutines could interleave their newlines with another goroutine's content.
+// Run with -race to surface the synchronisation issue.
+func TestWriteConcurrentNewlineRace(t *testing.T) {
+	const goroutines = 50
+	longest := 4
+	format := fmt.Sprintf(`%%%ds | `, longest)
+
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+
+	out := captureOutput(func() {
+		for i := 0; i < goroutines; i++ {
+			go func(i int) {
+				defer wg.Done()
+				l := &clogger{
+					idx:     0,
+					proc:    fmt.Sprintf("%04d", i),
+					longest: longest,
+					format:  format,
+					colors:  false,
+				}
+				// no trailing newline – triggers the unsynchronised fmt.Print("\r\n")
+				l.Write([]byte("data"))
+			}(i)
+		}
+		wg.Wait()
+	}, t)
+
+	// Every logical line must end with "\r\n".
+	// Split on "\r\n" and verify each non-empty segment contains the separator " | ".
+	lines := strings.Split(out, "\r\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		if !strings.Contains(line, " | ") {
+			t.Errorf("line %q lacks \" | \" separator – newline was not emitted atomically with content", line)
+		}
+	}
+}
+
 func TestCreateMainLoggerConcurrentRace(t *testing.T) {
 	const n = 50
 	var wg sync.WaitGroup

@@ -97,6 +97,9 @@ func (l *clogger) Write(p []byte) (int, error) {
 				ct.ResetColor()
 			}
 			fmt.Print(s)
+			if s[len(s)-1] != '\n' {
+				fmt.Print("\r\n")
+			}
 			mutex.Unlock()
 
 			wrote += len(line)
@@ -104,9 +107,6 @@ func (l *clogger) Write(p []byte) (int, error) {
 		if err != nil {
 			break
 		}
-	}
-	if len(p) > 0 && p[len(p)-1] != '\n' {
-		fmt.Print("\r\n")
 	}
 	return len(p), nil
 }
