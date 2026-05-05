@@ -82,14 +82,6 @@ func (u *RunpUnit) buildProcess() RunpProcess {
 	return nil
 }
 
-func processEnv(env map[string]string, cliPreprocessor *cliPreprocessor) map[string]string {
-	envmap := map[string]string{}
-	for k, v := range env {
-		envmap[k] = cliPreprocessor.process(v)
-	}
-	return envmap
-}
-
 // SkipDirResolution avoid resolve dir for containers
 func (u *RunpUnit) SkipDirResolution() bool {
 	return u.Container != nil
