@@ -57,6 +57,23 @@ func TestIncludeOk(t *testing.T) {
 
 }
 
+// TestCircularDeepChain verifies that the error message for a deep circular include
+// (08 → 09 → 10 → 11 → 09) contains ALL nodes in the cycle, including intermediate ones.
+// Without the fix the message omits 10.yml ("09.yml included from both 11.yml and 08.yml").
+func TestCircularDeepChain(t *testing.T) {
+	ConfigureUI(testLogger, LoggerConfig{Debug: true, Color: false})
+	_, err := LoadRunpfileFromPath("../../testdata/runpfiles/include/08.yml")
+	if err == nil {
+		t.Fatal("expected circular dependency error but got nil")
+	}
+	msg := strings.ToLower(err.Error())
+	for _, want := range []string{"circular dependency", "09.yml", "10.yml", "11.yml"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("error message %q does not contain %q", err.Error(), want)
+		}
+	}
+}
+
 func TestIncludeKo(t *testing.T) {
 	ConfigureUI(testLogger, LoggerConfig{
 		Debug: true,

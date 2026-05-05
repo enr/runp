@@ -83,6 +83,7 @@ func IsRunpfileValid(runpfile *Runpfile) (bool, []error) {
 type runpfileSource struct {
 	path       string
 	importedBy string
+	chain      []string // ordered list of paths from root to this file's importer
 }
 
 // LoadRunpfileFromPath returns an Runpfile object reading file from path.
@@ -95,8 +96,21 @@ func LoadRunpfileFromPath(runpfilePath string) (*Runpfile, error) {
 }
 
 func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSource) (*Runpfile, error) {
-	if val, ok := visited[runpfile.path]; ok {
-		return nil, fmt.Errorf("circular dependency detected: Runpfile %s is included from both %s and %s", runpfile.path, runpfile.importedBy, val.importedBy)
+	if _, ok := visited[runpfile.path]; ok {
+		cycleStart := -1
+		for i, p := range runpfile.chain {
+			if p == runpfile.path {
+				cycleStart = i
+				break
+			}
+		}
+		var cycleNodes []string
+		if cycleStart >= 0 {
+			cycleNodes = append(runpfile.chain[cycleStart:], runpfile.path)
+		} else {
+			cycleNodes = append(runpfile.chain, runpfile.path)
+		}
+		return nil, fmt.Errorf("circular dependency detected: %s", strings.Join(cycleNodes, " -> "))
 	}
 	visited[runpfile.path] = runpfile
 	data, err := os.ReadFile(runpfile.path)
@@ -147,9 +161,13 @@ func merge(runpfile runpfileSource, rf *Runpfile, inc string, visited map[string
 	if !files.Exists(rpp) {
 		return fmt.Errorf("included Runpfile not found: %s", rpp)
 	}
+	newChain := make([]string, len(runpfile.chain)+1)
+	copy(newChain, runpfile.chain)
+	newChain[len(runpfile.chain)] = runpfile.path
 	source := runpfileSource{
 		path:       rpp,
 		importedBy: runpfile.path,
+		chain:      newChain,
 	}
 	if rf.Units == nil {
 		rf.Units = map[string]*RunpUnit{}
