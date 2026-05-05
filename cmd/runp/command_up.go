@@ -50,7 +50,7 @@ func doUp(c *cli.Context) error {
 
 func applyUserVars(vars map[string]string, userVars []string) (map[string]string, error) {
 	if len(vars) == 0 && len(userVars) > 0 {
-		return nil, exitErrorf(4, "Variables provided via command line but no variables are defined in Runpfile")
+		return nil, exitErrorf(4, "Variables provided via --var but Runpfile has no 'vars:' section: declare variable names under 'vars:' in the Runpfile before using --var")
 	}
 	for _, v := range userVars {
 		kv := strings.SplitN(v, `=`, 2)

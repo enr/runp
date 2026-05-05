@@ -237,6 +237,28 @@ func TestListLine(t *testing.T) {
 	}
 }
 
+func TestApplyUserVarsNilMap(t *testing.T) {
+	s := &stubLogger{}
+	ui = s
+
+	// nil vars map (no 'vars:' section in Runpfile) + user supplies --var
+	_, err := applyUserVars(nil, []string{"foo=bar"})
+	if err == nil {
+		t.Fatal("Expected an error when vars map is nil and user supplies --var, got nil")
+	}
+	exitErr, ok := err.(cli.ExitCoder)
+	if !ok {
+		t.Fatalf("Expected cli.ExitCoder, got %T: %v", err, err)
+	}
+	if exitErr.ExitCode() != 4 {
+		t.Errorf("Expected exit code 4, got %d", exitErr.ExitCode())
+	}
+	msg := exitErr.Error()
+	if !strings.Contains(msg, "vars:") {
+		t.Errorf("Error message should mention 'vars:' section to guide the user, got: %q", msg)
+	}
+}
+
 func TestDoUpVarMissingEquals(t *testing.T) {
 	s := &stubLogger{}
 	ui = s
