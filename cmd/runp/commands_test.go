@@ -473,3 +473,109 @@ func TestDoEncrypt(t *testing.T) {
 		}
 	})
 }
+
+func TestDoValidate(t *testing.T) {
+	s := &stubLogger{}
+	ui = s
+	core.ConfigureUI(s, core.LoggerConfig{})
+
+	newCtx := func(filePath string) *cli.Context {
+		app := cli.NewApp()
+		set := flag.NewFlagSet("test", 0)
+		set.String("f", filePath, "doc")
+		return cli.NewContext(app, set, nil)
+	}
+
+	t.Run("valid Runpfile exits 0", func(t *testing.T) {
+		s.lines = []string{}
+		err := doValidate(newCtx("../../testdata/runpfiles/env.yml"))
+		if err != nil {
+			t.Fatalf("Expected no error for a valid Runpfile, got %v", err)
+		}
+		if !strings.Contains(s.getLines(), "valid") {
+			t.Errorf("Expected output to contain 'valid', got %q", s.getLines())
+		}
+	})
+
+	t.Run("file not found exits 2", func(t *testing.T) {
+		s.lines = []string{}
+		err := doValidate(newCtx("nonexistent-runpfile.yml"))
+		if err == nil {
+			t.Fatal("Expected an error for a missing file, got nil")
+		}
+		exitErr, ok := err.(cli.ExitCoder)
+		if !ok {
+			t.Fatalf("Expected cli.ExitCoder, got %T", err)
+		}
+		if exitErr.ExitCode() != 2 {
+			t.Errorf("Expected exit code 2, got %d", exitErr.ExitCode())
+		}
+	})
+
+	t.Run("no units defined exits 1", func(t *testing.T) {
+		s.lines = []string{}
+		err := doValidate(newCtx("../../testdata/runpfiles/validation-error-01.yml"))
+		if err == nil {
+			t.Fatal("Expected an error for a Runpfile with no units, got nil")
+		}
+		exitErr, ok := err.(cli.ExitCoder)
+		if !ok {
+			t.Fatalf("Expected cli.ExitCoder, got %T", err)
+		}
+		if exitErr.ExitCode() != 1 {
+			t.Errorf("Expected exit code 1, got %d", exitErr.ExitCode())
+		}
+		output := s.getLines()
+		if !strings.Contains(output, "invalid") {
+			t.Errorf("Expected output to contain 'invalid', got %q", output)
+		}
+		if !strings.Contains(output, "No units defined") {
+			t.Errorf("Expected output to contain 'No units defined', got %q", output)
+		}
+	})
+
+	t.Run("undefined variable reference exits 1", func(t *testing.T) {
+		s.lines = []string{}
+		err := doValidate(newCtx("../../testdata/runpfiles/validate-unknown-var.yml"))
+		if err == nil {
+			t.Fatal("Expected an error for undefined variable reference, got nil")
+		}
+		exitErr, ok := err.(cli.ExitCoder)
+		if !ok {
+			t.Fatalf("Expected cli.ExitCoder, got %T", err)
+		}
+		if exitErr.ExitCode() != 1 {
+			t.Errorf("Expected exit code 1, got %d", exitErr.ExitCode())
+		}
+		output := s.getLines()
+		if !strings.Contains(output, "undefined_var") {
+			t.Errorf("Expected output to mention 'undefined_var', got %q", output)
+		}
+		if !strings.Contains(output, "not declared in vars section") {
+			t.Errorf("Expected output to mention 'not declared in vars section', got %q", output)
+		}
+	})
+
+	t.Run("invalid YAML exits 2", func(t *testing.T) {
+		s.lines = []string{}
+		tmpfile, err := os.CreateTemp("", "bad-runpfile-*.yml")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.Remove(tmpfile.Name())
+		tmpfile.WriteString("invalid yaml content: :")
+		tmpfile.Close()
+
+		err = doValidate(newCtx(tmpfile.Name()))
+		if err == nil {
+			t.Fatal("Expected an error for invalid YAML, got nil")
+		}
+		exitErr, ok := err.(cli.ExitCoder)
+		if !ok {
+			t.Fatalf("Expected cli.ExitCoder, got %T", err)
+		}
+		if exitErr.ExitCode() != 2 {
+			t.Errorf("Expected exit code 2, got %d", exitErr.ExitCode())
+		}
+	})
+}

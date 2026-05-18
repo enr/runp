@@ -17,6 +17,7 @@ var commands = []*cli.Command{
 	&commandEncrypt,
 	&commandList,
 	&commandStatus,
+	&commandValidate,
 }
 
 var commandUp = cli.Command{
@@ -47,6 +48,16 @@ var commandStatus = cli.Command{
 	Usage:       "status",
 	Description: `Show the runtime status of all units defined in the Runpfile`,
 	Action:      doStatus,
+	Flags: []cli.Flag{
+		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile`},
+	},
+}
+
+var commandValidate = cli.Command{
+	Name:        "validate",
+	Usage:       "validate",
+	Description: `Validate the Runpfile without starting any process. Exits 0 if valid, 1 if validation errors are found, 2 if the file cannot be loaded.`,
+	Action:      doValidate,
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile`},
 	},

@@ -1,0 +1,7 @@
+name: Test validate unknown variable
+description: This file is invalid because it references a variable not declared in vars
+units:
+  my-unit:
+    description: References an undeclared variable
+    host:
+      command: echo {{vars undefined_var}}
