@@ -13,7 +13,7 @@ func doReload(c *cli.Context) error {
 		return exitErrorf(3, "Usage: runp reload <unit-name>")
 	}
 
-	runpfilePath, err := core.ResolveRunpfilePath(c.String("f"))
+	runpfilePath, err := core.ResolveRunpfilePath(resolveRunpfileArg(c))
 	if err != nil {
 		return runpfileNotFoundError(runpfilePath)
 	}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/enr/runp/lib/core"
@@ -33,7 +34,7 @@ var commandUp = cli.Command{
    runp up --key-env RUNP_SECRET_KEY --var ENV=production --file ./prod/Runpfile`,
 	Action: doUp,
 	Flags: []cli.Flag{
-		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile`},
+		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile (overrides RUNP_FILE env var)`},
 		&cli.StringSliceFlag{Name: "var", Aliases: []string{"V"}, Usage: `Runtime variables in format "key=value"`},
 		&cli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: `Encryption key used to decrypt secrets`},
 		&cli.StringFlag{Name: "key-env", Usage: `Environment variable name containing the encryption key for secrets`},
@@ -65,7 +66,7 @@ var commandStatus = cli.Command{
    runp status --file ./infra/Runpfile`,
 	Action: doStatus,
 	Flags: []cli.Flag{
-		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile`},
+		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile (overrides RUNP_FILE env var)`},
 	},
 }
 
@@ -77,7 +78,7 @@ var commandValidate = cli.Command{
    runp validate --file ./infra/Runpfile`,
 	Action: doValidate,
 	Flags: []cli.Flag{
-		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile`},
+		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile (overrides RUNP_FILE env var)`},
 	},
 }
 
@@ -129,7 +130,7 @@ var commandReload = cli.Command{
    runp reload api --file ./infra/Runpfile`,
 	Action: doReload,
 	Flags: []cli.Flag{
-		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile`},
+		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile (overrides RUNP_FILE env var)`},
 	},
 }
 
@@ -145,7 +146,7 @@ var commandList = cli.Command{
    runp list --file ./infra/Runpfile`,
 	Action: doList,
 	Flags: []cli.Flag{
-		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile`},
+		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile (overrides RUNP_FILE env var)`},
 		&cli.StringFlag{Name: "output", Aliases: []string{"o"}, Value: "table", Usage: `Output format: table (default) or json`},
 	},
 }
@@ -197,6 +198,33 @@ func runpfileNotFoundError(resolvedPath string) error {
 	return exitErrorf(exitCodeLoad,
 		"Runpfile not found at %s\n  → Run `runp init` to create one, or use --file to specify a path",
 		resolvedPath)
+}
+
+// resolveRunpfileArg returns the Runpfile path to use for a command,
+// implementing the precedence: --file flag > RUNP_FILE env var > default.
+// A flag value that differs from the compiled-in default is treated as
+// explicitly set (this handles test helpers that inject a path as the
+// flag's default value without going through flag.Parse).
+func resolveRunpfileArg(c *cli.Context) string {
+	// Explicit set wins (works for both --file and -f, and for set.Set in tests).
+	if c.IsSet("file") || c.IsSet("f") {
+		if v := c.String("file"); v != "" {
+			return v
+		}
+		return c.String("f")
+	}
+	// Non-default value in either flag name (covers test helpers that set a
+	// specific path as the flag's default without going through flag.Parse).
+	if v := c.String("file"); v != "" && v != configFileBaseName {
+		return v
+	}
+	if v := c.String("f"); v != "" && v != configFileBaseName {
+		return v
+	}
+	if env := os.Getenv("RUNP_FILE"); env != "" {
+		return env
+	}
+	return configFileBaseName
 }
 
 // resolveLogLevel derives a LogLevel from the --log-level flag and the

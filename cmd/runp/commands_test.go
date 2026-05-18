@@ -45,6 +45,43 @@ func (l *stubLogger) getLines() string {
 	return strings.Join(l.lines, "\n")
 }
 
+func TestResolveRunpfileArg(t *testing.T) {
+	newCtx := func(fileFlag string, setFlag bool) *cli.Context {
+		app := cli.NewApp()
+		set := flag.NewFlagSet("test", 0)
+		set.String("file", configFileBaseName, "")
+		set.String("f", configFileBaseName, "")
+		if setFlag {
+			set.Set("file", fileFlag)
+		}
+		return cli.NewContext(app, set, nil)
+	}
+
+	t.Run("flag takes precedence over env", func(t *testing.T) {
+		t.Setenv("RUNP_FILE", "env-runpfile.yml")
+		got := resolveRunpfileArg(newCtx("flag-runpfile.yml", true))
+		if got != "flag-runpfile.yml" {
+			t.Errorf("expected flag value, got %q", got)
+		}
+	})
+
+	t.Run("env var used when flag not set", func(t *testing.T) {
+		t.Setenv("RUNP_FILE", "env-runpfile.yml")
+		got := resolveRunpfileArg(newCtx("", false))
+		if got != "env-runpfile.yml" {
+			t.Errorf("expected RUNP_FILE value, got %q", got)
+		}
+	})
+
+	t.Run("default used when neither flag nor env set", func(t *testing.T) {
+		t.Setenv("RUNP_FILE", "")
+		got := resolveRunpfileArg(newCtx("", false))
+		if got != configFileBaseName {
+			t.Errorf("expected default %q, got %q", configFileBaseName, got)
+		}
+	})
+}
+
 func TestResolveLogLevel(t *testing.T) {
 	newCtx := func(logLevel string, debug, quiet bool) *cli.Context {
 		app := cli.NewApp()

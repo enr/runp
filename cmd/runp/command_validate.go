@@ -6,7 +6,7 @@ import (
 )
 
 func doValidate(c *cli.Context) error {
-	runpfilePath, err := core.ResolveRunpfilePath(c.String("f"))
+	runpfilePath, err := core.ResolveRunpfilePath(resolveRunpfileArg(c))
 	if err != nil {
 		return runpfileNotFoundError(runpfilePath)
 	}
