@@ -132,7 +132,7 @@ func loadRunpfile(f string) (*core.Runpfile, error) {
 	if err != nil {
 		return &core.Runpfile{}, exitErrorf(2, "Runpfile %s not found", runpfilePath)
 	}
-	ui.Debugf("Using Runpfile %s", runpfilePath)
+	ui.WriteLinef("Loaded: %s", runpfilePath)
 	runpfile, err := core.LoadRunpfileFromPath(runpfilePath)
 	if err != nil {
 		return &core.Runpfile{}, exitErrorf(2, "Failed to load Runpfile %s: %s", runpfilePath, err.Error())

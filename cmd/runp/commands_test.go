@@ -105,6 +105,7 @@ func TestLoadRunpfile(t *testing.T) {
 
 	// Success case
 	t.Run("success", func(t *testing.T) {
+		s.lines = []string{}
 		runpfile, err := loadRunpfile("../../testdata/runpfiles/env.yml")
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
@@ -115,6 +116,9 @@ func TestLoadRunpfile(t *testing.T) {
 		tasks := runpfile.Units
 		if len(tasks) == 0 {
 			t.Error("Expected tasks to be loaded")
+		}
+		if !strings.Contains(s.getLines(), "Loaded:") {
+			t.Errorf("Expected 'Loaded:' line in output, got %q", s.getLines())
 		}
 	})
 

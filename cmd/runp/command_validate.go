@@ -15,6 +15,7 @@ func doValidate(c *cli.Context) error {
 	if err != nil {
 		return exitErrorf(2, "Failed to load Runpfile %s: %s", runpfilePath, err.Error())
 	}
+	ui.WriteLinef("Loaded: %s", runpfilePath)
 
 	result := core.ValidateRunpfile(runpfile)
 
