@@ -95,7 +95,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "runp"
 	app.Version = appVersion
-	app.Usage = "Run processes defined in Runpfile"
+	app.Usage = "Run processes defined in Runpfile (default command: up)"
 	app.Flags = []cli.Flag{
 		&cli.BoolFlag{Name: "debug", Aliases: []string{"d"}, Usage: "Enable debug mode with verbose output"},
 		&cli.BoolFlag{Name: "quiet", Aliases: []string{"q"}, Usage: "Enable quiet mode with minimal output"},
@@ -118,6 +118,7 @@ func main() {
 	}
 
 	app.Commands = commands
+	app.DefaultCommand = "up"
 
 	app.Run(os.Args)
 }

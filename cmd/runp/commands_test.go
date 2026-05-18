@@ -474,6 +474,40 @@ func TestDoEncrypt(t *testing.T) {
 	})
 }
 
+func TestDefaultCommandIsUp(t *testing.T) {
+	s := &stubLogger{}
+	ui = s
+	core.ConfigureUI(s, core.LoggerConfig{})
+
+	// Prevent cli from calling os.Exit when the action returns an ExitCoder.
+	var capturedCode int
+	oldExiter := cli.OsExiter
+	cli.OsExiter = func(code int) { capturedCode = code }
+	defer func() { cli.OsExiter = oldExiter }()
+
+	// Build the app exactly as main() does and verify that running it with no
+	// subcommand invokes doUp — confirmed by the exit code 2 that loadRunpfile
+	// returns when no Runpfile exists in the working directory.
+	app := cli.NewApp()
+	app.Name = "runp"
+	app.Flags = []cli.Flag{
+		&cli.BoolFlag{Name: "debug", Aliases: []string{"d"}},
+		&cli.BoolFlag{Name: "quiet", Aliases: []string{"q"}},
+		&cli.BoolFlag{Name: "no-color", Aliases: []string{"C"}},
+	}
+	app.Before = func(c *cli.Context) error { return nil }
+	app.Commands = commands
+	app.DefaultCommand = "up"
+
+	app.Run([]string{"runp"})
+
+	// Exit code 2 == loadRunpfile could not find the Runpfile.
+	// Any other code (e.g. 0, 3) would mean the default command wasn't 'up'.
+	if capturedCode != 2 {
+		t.Errorf("Expected OsExiter to be called with code 2 (doUp ran, file not found), got %d", capturedCode)
+	}
+}
+
 func TestDoConfig(t *testing.T) {
 	s := &stubLogger{}
 	ui = s
