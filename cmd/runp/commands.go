@@ -42,11 +42,12 @@ var commandUp = cli.Command{
 
 var commandEncrypt = cli.Command{
 	Name:        "encrypt",
-	Usage:       "encrypt [--key KEY] [--key-env KEYENV] SECRET",
-	Description: `Encrypt a secret value for use in Runpfile`,
+	Usage:       "encrypt [--key KEY] [--key-env KEYENV] [SECRET]",
+	Description: `Encrypt a secret value for use in Runpfile. The secret can be passed as a positional argument or piped via stdin.`,
 	UsageText: `runp encrypt --key-env RUNP_SECRET_KEY mysecretvalue
    runp encrypt --key myplaintextkey mysecretvalue
-   runp encrypt mysecretvalue   # generates and prints a random key`,
+   runp encrypt mysecretvalue   # generates and prints a random key
+   echo mysecretvalue | runp encrypt --key-env RUNP_SECRET_KEY`,
 	Action: doEncrypt,
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: `Encryption key used to encrypt the secret`},

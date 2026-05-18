@@ -473,8 +473,9 @@ func TestDoEncrypt(t *testing.T) {
 		}
 	})
 
-	t.Run("missing secret parameter", func(t *testing.T) {
+	t.Run("missing secret parameter (no stdin pipe)", func(t *testing.T) {
 		s.lines = []string{}
+		// In test environment stdin is not a pipe, so we expect a usage error.
 		app := cli.NewApp()
 		set := flag.NewFlagSet("test", 0)
 		c := cli.NewContext(app, set, nil)
@@ -490,8 +491,57 @@ func TestDoEncrypt(t *testing.T) {
 		if exitErr.ExitCode() != 3 {
 			t.Errorf("Expected exit code 3, got %d", exitErr.ExitCode())
 		}
-		if !strings.Contains(exitErr.Error(), "Secret value parameter is required") {
-			t.Errorf("Expected error message to contain 'Secret value parameter is required', got '%s'", exitErr.Error())
+		if !strings.Contains(exitErr.Error(), "Secret value required") {
+			t.Errorf("Expected error message to mention 'Secret value required', got '%s'", exitErr.Error())
+		}
+	})
+
+	t.Run("reads secret from stdin pipe", func(t *testing.T) {
+		s.lines = []string{}
+		r, w, _ := os.Pipe()
+		w.WriteString("piped-secret\n")
+		w.Close()
+		oldStdin := os.Stdin
+		os.Stdin = r
+		defer func() { os.Stdin = oldStdin }()
+
+		app := cli.NewApp()
+		set := flag.NewFlagSet("test", 0)
+		set.String("key", "testkey123", "doc")
+		c := cli.NewContext(app, set, nil)
+
+		err := doEncrypt(c)
+		if err != nil {
+			t.Fatalf("Expected no error reading from stdin pipe, got %v", err)
+		}
+		if !strings.Contains(s.getLines(), "Encrypted secret:") {
+			t.Errorf("Expected 'Encrypted secret:' in output, got %q", s.getLines())
+		}
+	})
+
+	t.Run("empty stdin pipe exits 3", func(t *testing.T) {
+		s.lines = []string{}
+		r, w, _ := os.Pipe()
+		w.Close() // empty pipe
+		oldStdin := os.Stdin
+		os.Stdin = r
+		defer func() { os.Stdin = oldStdin }()
+
+		app := cli.NewApp()
+		set := flag.NewFlagSet("test", 0)
+		set.String("key", "testkey123", "doc")
+		c := cli.NewContext(app, set, nil)
+
+		err := doEncrypt(c)
+		if err == nil {
+			t.Fatal("Expected an error for empty stdin, got nil")
+		}
+		exitErr, ok := err.(cli.ExitCoder)
+		if !ok {
+			t.Fatalf("Expected cli.ExitCoder, got %T", err)
+		}
+		if exitErr.ExitCode() != 3 {
+			t.Errorf("Expected exit code 3, got %d", exitErr.ExitCode())
 		}
 	})
 
