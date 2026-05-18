@@ -37,6 +37,8 @@ func ValidateRunpfile(rf *Runpfile) ValidationResult {
 
 	result.Errors = append(result.Errors, validateVariableRefs(rf)...)
 
+	result.Errors = append(result.Errors, validateDependsOn(rf)...)
+
 	result.Warnings = append(result.Warnings, collectPreconditionWarnings(rf)...)
 
 	return result

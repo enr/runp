@@ -19,7 +19,8 @@ type Runpfile struct {
 type RunpUnit struct {
 	Name          string
 	Description   string
-	StopTimeout   string `yaml:"stop_timeout"`
+	StopTimeout   string   `yaml:"stop_timeout"`
+	DependsOn     []string `yaml:"depends_on"`
 	Preconditions Preconditions
 
 	Host      *HostProcess

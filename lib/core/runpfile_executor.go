@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sort"
 	"sync"
 	"syscall"
 	"time"
@@ -73,6 +74,9 @@ func (e *RunpfileExecutor) StartSingleUnit(unitName string) error {
 }
 
 // Start call start on all processes.
+// Units are started in topological order derived from their depends_on fields:
+// units in the same dependency layer start concurrently; each layer waits for
+// the previous one to complete before beginning.
 func (e *RunpfileExecutor) Start() error {
 	e.initializeUnits()
 	skipped := e.skippedUnits()
@@ -81,35 +85,42 @@ func (e *RunpfileExecutor) Start() error {
 		for name := range skipped {
 			names = append(names, name)
 		}
+		sort.Strings(names)
 		ui.WriteLinef("Units skipped due to unsatisfied preconditions: %v", names)
+		for _, name := range names {
+			ui.WriteLinef("Skipping unit: %s", name)
+		}
 	}
 	warnInsecureSSHTunnels(e.rf.Units, skipped)
 
-	var wg sync.WaitGroup
+	layers, err := TopologicalLayers(e.rf.Units, skipped)
+	if err != nil {
+		return fmt.Errorf("cannot start: %w", err)
+	}
+
 	var mu sync.Mutex
 	var errs []error
 
-	for _, unit := range e.rf.Units {
-		if skipped[unit.Name] {
-			ui.WriteLinef("Skipping unit: %s", unit.Name)
-			continue
+	for _, layer := range layers {
+		var wg sync.WaitGroup
+		for _, name := range layer {
+			unit := e.rf.Units[name]
+			wg.Add(1)
+			go func(u *RunpUnit) {
+				defer wg.Done()
+				if startErr := e.startUnit(u); startErr != nil {
+					mu.Lock()
+					errs = append(errs, startErr)
+					mu.Unlock()
+				}
+			}(unit)
 		}
-		wg.Add(1)
-		go func(u *RunpUnit) {
-			defer wg.Done()
-			if err := e.startUnit(u); err != nil {
-				mu.Lock()
-				errs = append(errs, err)
-				mu.Unlock()
-			}
-		}(unit)
+		wg.Wait()
+		if len(errs) > 0 {
+			return fmt.Errorf("%d unit(s) failed to start", len(errs))
+		}
 	}
 
-	wg.Wait()
-
-	if len(errs) > 0 {
-		return fmt.Errorf("%d unit(s) failed to start", len(errs))
-	}
 	return nil
 }
 
