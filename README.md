@@ -67,6 +67,56 @@ For additional examples, see the [examples directory](examples/).
 For comprehensive documentation, visit the [official documentation](https://enr.github.io/runp/).
 
 
+## Composing Runpfiles with `include:`
+
+Large projects can split their configuration across multiple files and compose them with the `include:` key.
+Each entry is a path **relative to the directory of the file that declares it**.
+All units from included files are merged into the root Runpfile before startup.
+
+```yaml
+# Runpfile  (project root)
+name: My Project
+include:
+  - infra/Runpfile      # defines units: db, redis
+  - services/Runpfile   # defines units: api, worker
+units:
+  proxy:
+    host:
+      command: nginx -g "daemon off;"
+```
+
+```yaml
+# infra/Runpfile
+units:
+  db:
+    container:
+      image: postgres:15
+      ports: ["5432:5432"]
+  redis:
+    container:
+      image: redis:7
+      ports: ["6379:6379"]
+```
+
+After loading, `runp up` starts all five units (`db`, `redis`, `api`, `worker`, `proxy`) as if they were defined in a single file.
+
+**Duplicate unit names** across any two files are an error — loading fails immediately with:
+
+```
+duplicate unit identifier: <name>
+```
+
+Rename the conflicting unit in one of the files before proceeding.
+
+**Circular includes** are detected and reported with the full import chain, for example:
+
+```
+circular dependency detected: a.yml → b.yml → c.yml → b.yml
+```
+
+Includes can be nested to any depth as long as there are no cycles and no duplicate unit names.
+
+
 ## Development
 
 Clone or download the repository.
