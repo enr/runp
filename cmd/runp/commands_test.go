@@ -181,60 +181,41 @@ func TestLoadRunpfile(t *testing.T) {
 	})
 }
 
-func TestListLine(t *testing.T) {
-	testCases := []struct {
-		name     string
-		unit     *core.RunpUnit
-		expected string
-	}{
-		{
-			name: "Host process",
-			unit: &core.RunpUnit{
-				Name:        "test-unit",
-				Description: "A test unit",
+func TestListEntries(t *testing.T) {
+	rf := &core.Runpfile{
+		Units: map[string]*core.RunpUnit{
+			"web": {
+				Name:        "web",
+				Description: "frontend",
 				Host:        &core.HostProcess{},
 			},
-			expected: "- test-unit (Host process): A test unit ",
-		},
-		{
-			name: "Container process",
-			unit: &core.RunpUnit{
-				Name:      "test-container",
-				Container: &core.ContainerProcess{Image: "test-image"},
+			"db": {
+				Name:      "db",
+				Container: &core.ContainerProcess{Image: "postgres:15"},
 			},
-			expected: "- test-container (Container process test-image)",
-		},
-		{
-			name: "SSHTunnel process",
-			unit: &core.RunpUnit{
-				Name: "test-tunnel",
-				SSHTunnel: &core.SSHTunnelProcess{
-					Local:  core.Endpoint{Host: "localhost", Port: 8080},
-					Jump:   core.Endpoint{Host: "", Port: 0}, // Explicitly set Jump to its default zero value
-					Target: core.Endpoint{Host: "remotehost", Port: 80},
-				},
-			},
-			expected: "- test-tunnel (SSH tunnel localhost:8080 -> localhost:0 -> remotehost:80)",
-		},
-		{
-			name:     "No process",
-			unit:     &core.RunpUnit{Name: "no-process"},
-			expected: "- no-process",
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// Ensure Kind() has a valid process before calling it.
-			// This might be required for the SSHTunnel Kind to return the expected value
-			if tc.unit.Host != nil || tc.unit.Container != nil || tc.unit.SSHTunnel != nil {
-				tc.unit.Process()
-			}
-			got := listLine(tc.unit)
-			if got != tc.expected {
-				t.Errorf("Expected '%s', got '%s'", tc.expected, got)
-			}
-		})
+	entries := core.ListEntries(rf)
+
+	if len(entries) != 2 {
+		t.Fatalf("Expected 2 entries, got %d", len(entries))
+	}
+	// sorted by name: db, web
+	if entries[0].Name != "db" {
+		t.Errorf("Expected first entry 'db', got %q", entries[0].Name)
+	}
+	if entries[0].Kind != "container" {
+		t.Errorf("Expected kind 'container', got %q", entries[0].Kind)
+	}
+	if entries[0].Preconditions != "-" {
+		t.Errorf("Expected preconditions '-', got %q", entries[0].Preconditions)
+	}
+	if entries[1].Name != "web" {
+		t.Errorf("Expected second entry 'web', got %q", entries[1].Name)
+	}
+	if entries[1].Description != "frontend" {
+		t.Errorf("Expected description 'frontend', got %q", entries[1].Description)
 	}
 }
 
@@ -291,37 +272,78 @@ func TestDoList(t *testing.T) {
 	ui = s
 	core.ConfigureUI(s, core.LoggerConfig{})
 
-	t.Run("success", func(t *testing.T) {
-		s.lines = []string{}
+	newCtx := func(filePath, outputFmt string) *cli.Context {
 		app := cli.NewApp()
 		set := flag.NewFlagSet("test", 0)
-		set.String("f", "../../testdata/runpfiles/env.yml", "doc")
-		c := cli.NewContext(app, set, nil)
+		set.String("f", filePath, "doc")
+		set.String("output", outputFmt, "doc")
+		set.String("o", outputFmt, "doc")
+		return cli.NewContext(app, set, nil)
+	}
 
-		err := doList(c)
+	t.Run("table output has header and unit name", func(t *testing.T) {
+		s.lines = []string{}
+		old := os.Stdout
+		r, w, _ := os.Pipe()
+		os.Stdout = w
+
+		err := doList(newCtx("../../testdata/runpfiles/env.yml", "table"))
+
+		w.Close()
+		os.Stdout = old
+		var buf strings.Builder
+		io.Copy(&buf, r)
+		stdout := buf.String()
+
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
-
-		output := s.getLines()
-		if !strings.Contains(output, "Units defined in Runpfile:") {
-			t.Errorf("Expected output to contain 'Units defined in Runpfile:', got '%s'", output)
+		if !strings.Contains(s.getLines(), "Units defined in Runpfile:") {
+			t.Errorf("Expected logger output to contain 'Units defined in Runpfile:', got %q", s.getLines())
 		}
-		// Corrected expected string for TestDoList/success
-		expectedUnitInfo := "- env-test-unit (Host process): echo a user defined environment variable "
-		if !strings.Contains(output, expectedUnitInfo) {
-			t.Errorf("Expected output to contain '%s', got '%s'", expectedUnitInfo, output)
+		if !strings.Contains(stdout, "NAME") {
+			t.Errorf("Expected stdout to contain 'NAME' header, got %q", stdout)
+		}
+		if !strings.Contains(stdout, "env-test-unit") {
+			t.Errorf("Expected stdout to contain unit name 'env-test-unit', got %q", stdout)
+		}
+		if !strings.Contains(stdout, "host") {
+			t.Errorf("Expected stdout to contain kind 'host', got %q", stdout)
 		}
 	})
 
-	t.Run("file not found", func(t *testing.T) {
+	t.Run("json output is valid JSON array", func(t *testing.T) {
 		s.lines = []string{}
-		app := cli.NewApp()
-		set := flag.NewFlagSet("test", 0)
-		set.String("f", "non-existent-file.yml", "doc")
-		c := cli.NewContext(app, set, nil)
+		old := os.Stdout
+		r, w, _ := os.Pipe()
+		os.Stdout = w
 
-		err := doList(c)
+		err := doList(newCtx("../../testdata/runpfiles/env.yml", "json"))
+
+		w.Close()
+		os.Stdout = old
+		var buf strings.Builder
+		io.Copy(&buf, r)
+		stdout := buf.String()
+
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+		// Must be a JSON array
+		if !strings.HasPrefix(strings.TrimSpace(stdout), "[") {
+			t.Errorf("Expected JSON array output, got %q", stdout)
+		}
+		if !strings.Contains(stdout, `"name"`) {
+			t.Errorf("Expected JSON to contain 'name' key, got %q", stdout)
+		}
+		if !strings.Contains(stdout, "env-test-unit") {
+			t.Errorf("Expected JSON to contain unit name, got %q", stdout)
+		}
+	})
+
+	t.Run("file not found exits 2", func(t *testing.T) {
+		s.lines = []string{}
+		err := doList(newCtx("non-existent-file.yml", "table"))
 		if err == nil {
 			t.Fatal("Expected an error, got nil")
 		}
