@@ -36,23 +36,31 @@ var commandUp = cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile (overrides RUNP_FILE env var)`},
 		&cli.StringSliceFlag{Name: "var", Aliases: []string{"V"}, Usage: `Runtime variables in format "key=value"`},
-		&cli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: `Encryption key used to decrypt secrets`},
-		&cli.StringFlag{Name: "key-env", Usage: `Environment variable name containing the encryption key for secrets`},
+		&cli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: `Decryption key (WARNING: visible in 'ps aux' and shell history — prefer --key-env)`},
+		&cli.StringFlag{Name: "key-env", Usage: `Name of the environment variable containing the decryption key (recommended)`},
 	},
 }
 
 var commandEncrypt = cli.Command{
-	Name:        "encrypt",
-	Usage:       "encrypt [--key KEY] [--key-env KEYENV] [SECRET]",
-	Description: `Encrypt a secret value for use in Runpfile. The secret can be passed as a positional argument or piped via stdin.`,
+	Name:  "encrypt",
+	Usage: "encrypt [--key-env KEYENV | --key KEY] [SECRET]",
+	Description: `Encrypt a secret value for use in Runpfile. The secret can be passed as a
+positional argument or piped via stdin.
+
+SECURITY NOTE: avoid --key with a literal value — the key will be visible in
+'ps aux' output and recorded in your shell history. Use --key-env to pass the
+key through an environment variable instead:
+
+  export RUNP_SECRET_KEY=my-encryption-key
+  runp encrypt --key-env RUNP_SECRET_KEY mysecretvalue`,
 	UsageText: `runp encrypt --key-env RUNP_SECRET_KEY mysecretvalue
-   runp encrypt --key myplaintextkey mysecretvalue
+   echo mysecretvalue | runp encrypt --key-env RUNP_SECRET_KEY
    runp encrypt mysecretvalue   # generates and prints a random key
-   echo mysecretvalue | runp encrypt --key-env RUNP_SECRET_KEY`,
+   runp encrypt --key myplaintextkey mysecretvalue  # WARNING: key visible in ps/history`,
 	Action: doEncrypt,
 	Flags: []cli.Flag{
-		&cli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: `Encryption key used to encrypt the secret`},
-		&cli.StringFlag{Name: "key-env", Usage: `Environment variable name containing the encryption key`},
+		&cli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: `Encryption key (WARNING: visible in 'ps aux' and shell history — prefer --key-env)`},
+		&cli.StringFlag{Name: "key-env", Usage: `Name of the environment variable containing the encryption key (recommended)`},
 	},
 }
 
