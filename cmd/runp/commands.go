@@ -16,6 +16,7 @@ var commands = []*cli.Command{
 	&commandUp,
 	&commandEncrypt,
 	&commandList,
+	&commandStatus,
 }
 
 var commandUp = cli.Command{
@@ -40,6 +41,17 @@ var commandEncrypt = cli.Command{
 		&cli.StringFlag{Name: "key-env", Usage: `Environment variable name containing the encryption key`},
 	},
 }
+var commandStatus = cli.Command{
+	Name:        "status",
+	Aliases:     []string{"ps"},
+	Usage:       "status",
+	Description: `Show the runtime status of all units defined in the Runpfile`,
+	Action:      doStatus,
+	Flags: []cli.Flag{
+		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile`},
+	},
+}
+
 var commandList = cli.Command{
 	Name:        "list",
 	Aliases:     []string{"ls"},

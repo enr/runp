@@ -17,11 +17,18 @@ import (
 
 // NewExecutor creates new RunpfileExecutor
 func NewExecutor(rf *Runpfile) *RunpfileExecutor {
+	pidDir := ""
+	if rf.Root != "" {
+		if d, err := PIDDirForRoot(rf.Root); err == nil {
+			pidDir = d
+		}
+	}
 	return &RunpfileExecutor{
 		rf:                  rf,
 		LoggerFactory:       createProcessLogger,
 		environmentSettings: loadEnvironmentSettings(),
 		newPipe:             os.Pipe,
+		PIDDir:              pidDir,
 	}
 }
 
@@ -32,6 +39,7 @@ type RunpfileExecutor struct {
 	longest             int
 	environmentSettings *EnvironmentSettings
 	newPipe             func() (*os.File, *os.File, error)
+	PIDDir              string
 }
 
 func (e *RunpfileExecutor) longestName() int {
@@ -191,7 +199,7 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit) error {
 	}
 
 	w.Close()
-	e.monitorProcessExit(cmd, process, logger, appContext, &pwg)
+	e.monitorProcessExit(cmd, unit, process, logger, appContext, &pwg)
 	e.readProcessOutput(r, process, logger)
 	pwg.Wait()
 	return nil
@@ -272,10 +280,17 @@ func (e *RunpfileExecutor) startProcessCommand(cmd RunpCommand, unit *RunpUnit, 
 		return err
 	}
 	logger.Debugf("Process %s started successfully", process.ID())
+	if unit.Host != nil && e.PIDDir != "" {
+		if pid := cmd.Pid(); pid > 0 {
+			if werr := WritePIDFile(e.PIDDir, unit.Name, pid); werr != nil {
+				logger.Debugf("Failed to write PID file for unit %s: %v", unit.Name, werr)
+			}
+		}
+	}
 	return nil
 }
 
-func (e *RunpfileExecutor) monitorProcessExit(cmd RunpCommand, process RunpProcess, logger Logger, appContext *ApplicationContext, pwg *sync.WaitGroup) {
+func (e *RunpfileExecutor) monitorProcessExit(cmd RunpCommand, unit *RunpUnit, process RunpProcess, logger Logger, appContext *ApplicationContext, pwg *sync.WaitGroup) {
 	exit := make(chan error, 1)
 	go func() {
 		exit <- cmd.Wait()
@@ -285,6 +300,11 @@ func (e *RunpfileExecutor) monitorProcessExit(cmd RunpCommand, process RunpProce
 	go func() {
 		defer pwg.Done()
 		defer appContext.RemoveRunningProcess(process)
+		defer func() {
+			if unit.Host != nil && e.PIDDir != "" {
+				RemovePIDFile(e.PIDDir, unit.Name)
+			}
+		}()
 
 		err := <-exit
 		if err != nil {

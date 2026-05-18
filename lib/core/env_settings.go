@@ -15,6 +15,11 @@ type EnvironmentSettings struct {
 	ContainerRunnerExe string `yaml:"container_runner"`
 }
 
+// LoadEnvironmentSettings loads and returns the environment settings from ~/.runp/settings.yaml.
+func LoadEnvironmentSettings() *EnvironmentSettings {
+	return loadEnvironmentSettings()
+}
+
 func loadEnvironmentSettings() *EnvironmentSettings {
 	var es = &EnvironmentSettings{
 		ContainerRunnerExe: "docker",
