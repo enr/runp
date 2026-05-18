@@ -15,7 +15,7 @@ func doReload(c *cli.Context) error {
 
 	runpfilePath, err := core.ResolveRunpfilePath(c.String("f"))
 	if err != nil {
-		return exitErrorf(2, "Runpfile %s not found", c.String("f"))
+		return runpfileNotFoundError(runpfilePath)
 	}
 
 	runpfile, err := core.LoadRunpfileFromPath(runpfilePath)

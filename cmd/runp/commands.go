@@ -165,9 +165,7 @@ func exitError(exitCode int, message string) error {
 func loadRunpfile(f string) (*core.Runpfile, error) {
 	runpfilePath, err := core.ResolveRunpfilePath(f)
 	if err != nil {
-		return &core.Runpfile{}, exitErrorf(exitCodeLoad,
-			"Runpfile not found: %s\n  → Create one or use --file to specify a path",
-			runpfilePath)
+		return &core.Runpfile{}, runpfileNotFoundError(runpfilePath)
 	}
 	ui.WriteLinef("Loaded: %s", runpfilePath)
 	runpfile, err := core.LoadRunpfileFromPath(runpfilePath)
@@ -190,6 +188,14 @@ func loadRunpfile(f string) (*core.Runpfile, error) {
 
 func exitErrorf(exitCode int, template string, args ...interface{}) error {
 	return cli.NewExitError(fmt.Sprintf(template, args...), exitCode)
+}
+
+// runpfileNotFoundError returns a consistent exit-code-2 error when the
+// Runpfile cannot be found at the given absolute path.
+func runpfileNotFoundError(resolvedPath string) error {
+	return exitErrorf(exitCodeLoad,
+		"Runpfile not found at %s\n  → Run `runp init` to create one, or use --file to specify a path",
+		resolvedPath)
 }
 
 // resolveLogLevel derives a LogLevel from the --log-level flag and the
