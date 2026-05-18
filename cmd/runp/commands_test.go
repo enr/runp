@@ -474,6 +474,113 @@ func TestDoEncrypt(t *testing.T) {
 	})
 }
 
+func TestDoConfig(t *testing.T) {
+	s := &stubLogger{}
+	ui = s
+	core.ConfigureUI(s, core.LoggerConfig{})
+
+	// Redirect HOME to a temp dir so tests don't touch the real settings file.
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+
+	newCtx := func(args ...string) *cli.Context {
+		app := cli.NewApp()
+		set := flag.NewFlagSet("test", 0)
+		set.Parse(args)
+		return cli.NewContext(app, set, nil)
+	}
+
+	t.Run("get missing key exits 3", func(t *testing.T) {
+		s.lines = []string{}
+		err := doConfigGet(newCtx())
+		if err == nil {
+			t.Fatal("Expected error when key omitted, got nil")
+		}
+		exitErr, ok := err.(cli.ExitCoder)
+		if !ok {
+			t.Fatalf("Expected cli.ExitCoder, got %T", err)
+		}
+		if exitErr.ExitCode() != 3 {
+			t.Errorf("Expected exit code 3, got %d", exitErr.ExitCode())
+		}
+	})
+
+	t.Run("get unknown key exits 3", func(t *testing.T) {
+		s.lines = []string{}
+		err := doConfigGet(newCtx("totally_unknown"))
+		if err == nil {
+			t.Fatal("Expected error for unknown key, got nil")
+		}
+		exitErr, ok := err.(cli.ExitCoder)
+		if !ok {
+			t.Fatalf("Expected cli.ExitCoder, got %T", err)
+		}
+		if exitErr.ExitCode() != 3 {
+			t.Errorf("Expected exit code 3, got %d", exitErr.ExitCode())
+		}
+	})
+
+	t.Run("get returns default when no file", func(t *testing.T) {
+		s.lines = []string{}
+		// No settings file in temp dir — should return the default "docker".
+		err := doConfigGet(newCtx("container_runner"))
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+	})
+
+	t.Run("set missing args exits 3", func(t *testing.T) {
+		s.lines = []string{}
+		err := doConfigSet(newCtx("container_runner"))
+		if err == nil {
+			t.Fatal("Expected error when value omitted, got nil")
+		}
+		exitErr, ok := err.(cli.ExitCoder)
+		if !ok {
+			t.Fatalf("Expected cli.ExitCoder, got %T", err)
+		}
+		if exitErr.ExitCode() != 3 {
+			t.Errorf("Expected exit code 3, got %d", exitErr.ExitCode())
+		}
+	})
+
+	t.Run("set unknown key exits 3", func(t *testing.T) {
+		s.lines = []string{}
+		err := doConfigSet(newCtx("bad_key", "value"))
+		if err == nil {
+			t.Fatal("Expected error for unknown key, got nil")
+		}
+		exitErr, ok := err.(cli.ExitCoder)
+		if !ok {
+			t.Fatalf("Expected cli.ExitCoder, got %T", err)
+		}
+		if exitErr.ExitCode() != 3 {
+			t.Errorf("Expected exit code 3, got %d", exitErr.ExitCode())
+		}
+	})
+
+	t.Run("set then get round-trip", func(t *testing.T) {
+		s.lines = []string{}
+		if err := doConfigSet(newCtx("container_runner", "podman")); err != nil {
+			t.Fatalf("doConfigSet failed: %v", err)
+		}
+		if !strings.Contains(s.getLines(), "podman") {
+			t.Errorf("Expected confirmation output to mention 'podman', got %q", s.getLines())
+		}
+	})
+
+	t.Run("show prints path", func(t *testing.T) {
+		s.lines = []string{}
+		err := doConfigShow(newCtx())
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+		if !strings.Contains(s.getLines(), ".runp") {
+			t.Errorf("Expected output to mention '.runp', got %q", s.getLines())
+		}
+	})
+}
+
 func TestDoReload(t *testing.T) {
 	s := &stubLogger{}
 	ui = s

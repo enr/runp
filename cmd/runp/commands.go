@@ -19,6 +19,7 @@ var commands = []*cli.Command{
 	&commandStatus,
 	&commandValidate,
 	&commandReload,
+	&commandConfig,
 }
 
 var commandUp = cli.Command{
@@ -61,6 +62,40 @@ var commandValidate = cli.Command{
 	Action:      doValidate,
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile`},
+	},
+}
+
+var commandConfig = cli.Command{
+	Name:  "config",
+	Usage: "config <subcommand>",
+	Description: `Manage runp user settings stored in ~/.runp/settings.yaml.
+
+Supported keys:
+` + "  container_runner    Container runtime executable used for container units (default: \"docker\")" + `
+
+Subcommands:
+  get <key>          Print the current value of a setting key
+  set <key> <value>  Write a setting key to the settings file
+  show               Print the full settings file and its path`,
+	Subcommands: []*cli.Command{
+		{
+			Name:        "get",
+			Usage:       "get <key>",
+			Description: `Print the current value of a settings key (returns the default if not explicitly set).`,
+			Action:      doConfigGet,
+		},
+		{
+			Name:        "set",
+			Usage:       "set <key> <value>",
+			Description: `Write a settings key to ~/.runp/settings.yaml. Creates the file if it does not exist.`,
+			Action:      doConfigSet,
+		},
+		{
+			Name:        "show",
+			Usage:       "show",
+			Description: `Print the full contents of ~/.runp/settings.yaml together with its path.`,
+			Action:      doConfigShow,
+		},
 	},
 }
 
