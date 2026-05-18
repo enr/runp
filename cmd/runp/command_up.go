@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
@@ -40,10 +41,51 @@ func doUp(c *cli.Context) error {
 		return exitErrorf(3, "Preconditions failed: %s", preconditionVerifyResult.Reasons)
 	}
 
-	ui.Debugf("Starting execution with Runpfile root: %s", runpfile.Root)
 	executor := core.NewExecutor(runpfile)
+
+	if c.Bool("dry-run") {
+		return doDryRun(executor)
+	}
+
+	ui.Debugf("Starting execution with Runpfile root: %s", runpfile.Root)
 	if err := executor.Start(); err != nil {
 		return exitErrorf(3, "Failed to execute Runpfile: %s", c.String("f"))
+	}
+	return nil
+}
+
+func doDryRun(executor *core.RunpfileExecutor) error {
+	previews := executor.DryRunPreviews()
+	if len(previews) == 0 {
+		fmt.Fprintln(os.Stdout, "No units defined in Runpfile.")
+		return nil
+	}
+
+	nameW := len("NAME")
+	kindW := len("KIND")
+	for _, p := range previews {
+		if len(p.Name) > nameW {
+			nameW = len(p.Name)
+		}
+		if len(p.Kind) > kindW {
+			kindW = len(p.Kind)
+		}
+	}
+
+	rowFmt := fmt.Sprintf("%%-%ds  %%-%ds  %%s\n", nameW, kindW)
+	header := fmt.Sprintf(rowFmt, "NAME", "KIND", "COMMAND")
+	sepLen := nameW + kindW + 2 + len("COMMAND")
+	sep := strings.Repeat("-", sepLen)
+
+	fmt.Fprintln(os.Stdout, "[dry-run] units that would be started:")
+	fmt.Fprint(os.Stdout, header)
+	fmt.Fprintln(os.Stdout, sep)
+	for _, p := range previews {
+		cmd := p.Command
+		if p.Skipped {
+			cmd = fmt.Sprintf("(skipped: %s)", p.SkipReason)
+		}
+		fmt.Fprintf(os.Stdout, rowFmt, p.Name, p.Kind, cmd)
 	}
 	return nil
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -472,6 +473,49 @@ func TestDoEncrypt(t *testing.T) {
 			t.Errorf("Expected error message to contain 'is empty', got '%s'", exitErr.Error())
 		}
 	})
+}
+
+func TestDoUpDryRun(t *testing.T) {
+	s := &stubLogger{}
+	ui = s
+	core.ConfigureUI(s, core.LoggerConfig{})
+
+	// Redirect stdout so we can assert on the table output.
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	app := cli.NewApp()
+	app.Name = "runp"
+	app.Flags = []cli.Flag{
+		&cli.BoolFlag{Name: "dry-run", Aliases: []string{"n"}},
+		&cli.BoolFlag{Name: "debug", Aliases: []string{"d"}},
+		&cli.BoolFlag{Name: "quiet", Aliases: []string{"q"}},
+		&cli.BoolFlag{Name: "no-color", Aliases: []string{"C"}},
+	}
+	app.Before = func(c *cli.Context) error { return nil }
+	app.Commands = commands
+
+	err := app.Run([]string{"runp", "--dry-run", "up", "--file", "../../testdata/runpfiles/env.yml"})
+
+	w.Close()
+	os.Stdout = old
+	var buf strings.Builder
+	io.Copy(&buf, r)
+	output := buf.String()
+
+	if err != nil {
+		t.Fatalf("Expected no error for dry-run up, got %v", err)
+	}
+	if !strings.Contains(output, "dry-run") {
+		t.Errorf("Expected output to mention 'dry-run', got %q", output)
+	}
+	if !strings.Contains(output, "NAME") {
+		t.Errorf("Expected output to contain table header 'NAME', got %q", output)
+	}
+	if !strings.Contains(output, "host") {
+		t.Errorf("Expected output to list 'host' kind, got %q", output)
+	}
 }
 
 func TestDefaultCommandIsUp(t *testing.T) {

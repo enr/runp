@@ -100,6 +100,7 @@ func main() {
 		&cli.BoolFlag{Name: "debug", Aliases: []string{"d"}, Usage: "Enable debug mode with verbose output"},
 		&cli.BoolFlag{Name: "quiet", Aliases: []string{"q"}, Usage: "Enable quiet mode with minimal output"},
 		&cli.BoolFlag{Name: "no-color", Aliases: []string{"C"}, Usage: "Disable colored output"},
+		&cli.BoolFlag{Name: "dry-run", Aliases: []string{"n"}, Usage: "Print what would be executed without starting any process"},
 	}
 	app.EnableBashCompletion = true
 

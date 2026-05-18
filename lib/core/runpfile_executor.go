@@ -135,6 +135,12 @@ func (e *RunpfileExecutor) initializeUnits() {
 			unit.SSHTunnel.stopTimeout = unit.StopTimeout
 			unit.SSHTunnel.environmentSettings = e.environmentSettings
 		}
+		// Propagate unit-level preconditions to the process. LoadRunpfileFromPath
+		// does this during loading, but units created directly (e.g. in tests or
+		// via StartSingleUnit) rely on this path to have preconditions applied.
+		if p := unit.Process(); p != nil {
+			p.SetPreconditions(unit.Preconditions)
+		}
 	}
 }
 
