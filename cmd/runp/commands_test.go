@@ -45,6 +45,59 @@ func (l *stubLogger) getLines() string {
 	return strings.Join(l.lines, "\n")
 }
 
+func TestResolveLogLevel(t *testing.T) {
+	newCtx := func(logLevel string, debug, quiet bool) *cli.Context {
+		app := cli.NewApp()
+		set := flag.NewFlagSet("test", 0)
+		set.String("log-level", logLevel, "")
+		set.Bool("debug", debug, "")
+		set.Bool("quiet", quiet, "")
+		return cli.NewContext(app, set, nil)
+	}
+
+	tests := []struct {
+		logLevel string
+		debug    bool
+		quiet    bool
+		want     core.LogLevel
+		wantErr  bool
+	}{
+		{"info", false, false, core.LogLevelInfo, false},
+		{"debug", false, false, core.LogLevelDebug, false},
+		{"warn", false, false, core.LogLevelWarn, false},
+		{"error", false, false, core.LogLevelError, false},
+		{"trace", false, false, core.LogLevelTrace, false},
+		// --debug alias
+		{"info", true, false, core.LogLevelDebug, false},
+		// --quiet alias
+		{"info", false, true, core.LogLevelWarn, false},
+		// --log-level takes precedence over --debug when non-default
+		{"warn", true, false, core.LogLevelWarn, false},
+		// invalid level
+		{"bogus", false, false, core.LogLevelInfo, true},
+	}
+
+	for _, tc := range tests {
+		got, err := resolveLogLevel(newCtx(tc.logLevel, tc.debug, tc.quiet))
+		if tc.wantErr {
+			if err == nil {
+				t.Errorf("resolveLogLevel(%q, debug=%v, quiet=%v): expected error, got nil",
+					tc.logLevel, tc.debug, tc.quiet)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("resolveLogLevel(%q, debug=%v, quiet=%v): unexpected error: %v",
+				tc.logLevel, tc.debug, tc.quiet, err)
+			continue
+		}
+		if got != tc.want {
+			t.Errorf("resolveLogLevel(%q, debug=%v, quiet=%v) = %v, want %v",
+				tc.logLevel, tc.debug, tc.quiet, got, tc.want)
+		}
+	}
+}
+
 func TestExitError(t *testing.T) {
 	s := &stubLogger{}
 	ui = s

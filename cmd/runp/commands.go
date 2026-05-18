@@ -155,3 +155,20 @@ func exitErrorf(exitCode int, template string, args ...interface{}) error {
 	ui.WriteLinef("Error occurred")
 	return cli.NewExitError(fmt.Sprintf(template, args...), exitCode)
 }
+
+// resolveLogLevel derives a LogLevel from the --log-level flag and the
+// deprecated --debug / --quiet aliases. --log-level takes precedence when
+// set to a non-default value; aliases are checked afterwards.
+func resolveLogLevel(c *cli.Context) (core.LogLevel, error) {
+	ls := c.String("log-level")
+	if ls != "" && ls != "info" {
+		return core.ParseLogLevel(ls)
+	}
+	if c.Bool("debug") {
+		return core.LogLevelDebug, nil
+	}
+	if c.Bool("quiet") {
+		return core.LogLevelWarn, nil
+	}
+	return core.LogLevelInfo, nil
+}

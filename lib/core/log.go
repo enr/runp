@@ -10,6 +10,11 @@ import (
 
 // LoggerConfig contains configuration for a logger.
 type LoggerConfig struct {
+	// Level sets the minimum log level. Zero value (LogLevelUnset) is treated
+	// as LogLevelInfo unless Debug is also set.
+	Level LogLevel
+	// Debug is a legacy field. If Level is LogLevelUnset and Debug is true,
+	// the effective level is LogLevelDebug.
 	Debug bool
 	Color bool
 }
@@ -28,7 +33,7 @@ type clogger struct {
 	proc    string
 	longest int
 	format  string
-	debug   bool
+	level   LogLevel
 	colors  bool
 }
 
@@ -36,25 +41,40 @@ type clogger struct {
 var ci int
 var mutex = new(sync.Mutex)
 
-func (l *clogger) Debugf(format string, a ...interface{}) (int, error) {
-	if l.debug {
-		return l.WriteLine(fmt.Sprintf(format, a...))
+func (l *clogger) effectiveLevel() LogLevel {
+	if l.level != LogLevelUnset {
+		return l.level
 	}
-	return 0, nil
+	return LogLevelInfo
 }
 
+// Debugf writes a debug-level message. Suppressed below LogLevelDebug.
+func (l *clogger) Debugf(format string, a ...interface{}) (int, error) {
+	return l.Debug(fmt.Sprintf(format, a...))
+}
+
+// WriteLinef writes an info-level message. Suppressed below LogLevelInfo.
 func (l *clogger) WriteLinef(format string, a ...interface{}) (int, error) {
 	return l.WriteLine(fmt.Sprintf(format, a...))
 }
 
+// Debug writes a debug-level line. Suppressed below LogLevelDebug.
 func (l *clogger) Debug(line string) (int, error) {
-	if l.debug {
-		return l.WriteLine(line)
+	if l.effectiveLevel() >= LogLevelDebug {
+		return l.doWriteLine(line)
 	}
 	return 0, nil
 }
 
+// WriteLine writes an info-level line. Suppressed below LogLevelInfo.
 func (l *clogger) WriteLine(line string) (int, error) {
+	if l.effectiveLevel() >= LogLevelInfo {
+		return l.doWriteLine(line)
+	}
+	return 0, nil
+}
+
+func (l *clogger) doWriteLine(line string) (int, error) {
 	if len(line) == 0 {
 		return 0, nil
 	}
@@ -74,6 +94,7 @@ func (l *clogger) WriteLine(line string) (int, error) {
 	return len(line), nil
 }
 
+// Write pipes raw process output. Always printed regardless of log level.
 func (l *clogger) Write(p []byte) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
@@ -111,13 +132,31 @@ func (l *clogger) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// create logger instance for processes output.
-func createProcessLogger(proc string, longest int, processLoggerConfiguration LoggerConfig) Logger {
-	return CreateMainLogger(proc, longest, fmt.Sprintf("%%%ds | ", longest), processLoggerConfiguration.Debug, processLoggerConfiguration.Color)
+// createProcessLogger creates a logger for a single process's output stream.
+func createProcessLogger(proc string, longest int, cfg LoggerConfig) Logger {
+	level := cfg.Level
+	if level == LogLevelUnset {
+		if cfg.Debug {
+			level = LogLevelDebug
+		} else {
+			level = LogLevelInfo
+		}
+	}
+	return CreateMainLoggerWithLevel(proc, longest, fmt.Sprintf("%%%ds | ", longest), level, cfg.Color)
 }
 
-// CreateMainLogger creates logger instance for main process (runp).
+// CreateMainLogger creates a logger instance. debug=true is equivalent to
+// LogLevelDebug; use CreateMainLoggerWithLevel for full level control.
 func CreateMainLogger(proc string, longest int, format string, debug bool, colorize bool) Logger {
+	level := LogLevelInfo
+	if debug {
+		level = LogLevelDebug
+	}
+	return CreateMainLoggerWithLevel(proc, longest, format, level, colorize)
+}
+
+// CreateMainLoggerWithLevel creates a logger instance with an explicit level.
+func CreateMainLoggerWithLevel(proc string, longest int, format string, level LogLevel, colorize bool) Logger {
 	n := ` `
 	if proc != "" {
 		n = proc
@@ -130,7 +169,7 @@ func CreateMainLogger(proc string, longest int, format string, debug bool, color
 		ci = 0
 	}
 	mutex.Unlock()
-	return &clogger{idx: idx, proc: n, longest: longest, format: f, debug: debug, colors: colorize}
+	return &clogger{idx: idx, proc: n, longest: longest, format: f, level: level, colors: colorize}
 }
 
 // ResetColor resets the foreground and background to original colors

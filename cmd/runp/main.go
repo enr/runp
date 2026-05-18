@@ -97,24 +97,24 @@ func main() {
 	app.Version = appVersion
 	app.Usage = "Run processes defined in Runpfile (default command: up)"
 	app.Flags = []cli.Flag{
-		&cli.BoolFlag{Name: "debug", Aliases: []string{"d"}, Usage: "Enable debug mode with verbose output"},
-		&cli.BoolFlag{Name: "quiet", Aliases: []string{"q"}, Usage: "Enable quiet mode with minimal output"},
+		&cli.StringFlag{Name: "log-level", Aliases: []string{"l"}, Value: "info", Usage: "Log verbosity: trace, debug, info (default), warn, error"},
+		&cli.BoolFlag{Name: "debug", Aliases: []string{"d"}, Usage: "Deprecated: use --log-level debug"},
+		&cli.BoolFlag{Name: "quiet", Aliases: []string{"q"}, Usage: "Deprecated: use --log-level warn"},
 		&cli.BoolFlag{Name: "no-color", Aliases: []string{"C"}, Usage: "Disable colored output"},
 		&cli.BoolFlag{Name: "dry-run", Aliases: []string{"n"}, Usage: "Print what would be executed without starting any process"},
 	}
 	app.EnableBashCompletion = true
 
 	app.Before = func(c *cli.Context) error {
-		debug := c.Bool("debug")
+		level, err := resolveLogLevel(c)
+		if err != nil {
+			return cli.NewExitError(err.Error(), 3)
+		}
 		_, noColorEnv := os.LookupEnv("NO_COLOR")
 		avoidColor := noColorEnv || c.Bool("no-color")
 		colorize := !avoidColor
-		ui = core.CreateMainLogger(" ", 6, "%s> ", debug, colorize)
-		processLoggerConfiguration := core.LoggerConfig{
-			Debug: debug,
-			Color: colorize,
-		}
-		core.ConfigureUI(ui, processLoggerConfiguration)
+		ui = core.CreateMainLoggerWithLevel(" ", 6, "%s> ", level, colorize)
+		core.ConfigureUI(ui, core.LoggerConfig{Level: level, Color: colorize})
 		return nil
 	}
 

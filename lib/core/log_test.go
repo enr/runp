@@ -68,7 +68,7 @@ func TestWriteLinef(t *testing.T) {
 	expected := fmt.Sprintf("   name | %s\n", message)
 	longest := 7
 	format := fmt.Sprintf(`%%%ds | `, longest)
-	sut := &clogger{idx: ci, proc: `name`, longest: longest, format: format, debug: true, colors: false}
+	sut := &clogger{idx: ci, proc: `name`, longest: longest, format: format, level: LogLevelDebug, colors: false}
 
 	world := `world`
 
@@ -98,7 +98,7 @@ func TestWrite(t *testing.T) {
 	expected := fmt.Sprintf("   test | %s\n", message)
 	longest := 7
 	format := fmt.Sprintf(`%%%ds | `, longest)
-	sut := &clogger{idx: ci, proc: `test`, longest: longest, format: format, debug: true, colors: false}
+	sut := &clogger{idx: ci, proc: `test`, longest: longest, format: format, level: LogLevelDebug, colors: false}
 
 	var written int
 	var err error
@@ -120,7 +120,7 @@ func TestLogDebug(t *testing.T) {
 
 	longest := 7
 	format := fmt.Sprintf(`%%%ds | `, longest)
-	sut := &clogger{idx: ci, proc: `name`, longest: longest, format: format, debug: false, colors: false}
+	sut := &clogger{idx: ci, proc: `name`, longest: longest, format: format, level: LogLevelInfo, colors: false}
 
 	world := `world`
 
@@ -145,7 +145,7 @@ func TestDebug(t *testing.T) {
 	format := fmt.Sprintf(`%%%ds | `, longest)
 
 	// Test with debug enabled.
-	sut := &clogger{idx: ci, proc: `test`, longest: longest, format: format, debug: true, colors: false}
+	sut := &clogger{idx: ci, proc: `test`, longest: longest, format: format, level: LogLevelDebug, colors: false}
 	message := `debug message`
 
 	var written int
@@ -166,7 +166,7 @@ func TestDebug(t *testing.T) {
 	}
 
 	// Test with debug disabled.
-	sut2 := &clogger{idx: ci, proc: `test2`, longest: longest, format: format, debug: false, colors: false}
+	sut2 := &clogger{idx: ci, proc: `test2`, longest: longest, format: format, level: LogLevelInfo, colors: false}
 	out2 := captureOutput(func() {
 		written, err = sut2.Debug(message)
 	}, t)
