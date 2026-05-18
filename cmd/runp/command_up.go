@@ -37,8 +37,7 @@ func doUp(c *cli.Context) error {
 	preconditions := runpfile.Preconditions
 	preconditionVerifyResult := preconditions.Verify()
 	if preconditionVerifyResult.Vote != core.Proceed {
-		ui.WriteLinef("Preconditions failed: %s", preconditionVerifyResult.Reasons)
-		return exitErrorf(3, "Preconditions failed: %s", preconditionVerifyResult.Reasons)
+		return exitErrorf(exitCodeExec, "Preconditions not met: %s\n  → Check that the required OS, environment variables, and runp version are satisfied", preconditionVerifyResult.Reasons)
 	}
 
 	executor := core.NewExecutor(runpfile)
@@ -49,7 +48,7 @@ func doUp(c *cli.Context) error {
 
 	ui.Debugf("Starting execution with Runpfile root: %s", runpfile.Root)
 	if err := executor.Start(); err != nil {
-		return exitErrorf(3, "Failed to execute Runpfile: %s", c.String("f"))
+		return exitErrorf(exitCodeExec, "Failed to execute Runpfile: %s", c.String("f"))
 	}
 	return nil
 }

@@ -149,8 +149,15 @@ var commandList = cli.Command{
 	},
 }
 
+// Exit codes used across all commands.
+const (
+	exitCodeLoad = 2 // file not found or cannot be parsed
+	exitCodeArg  = 3 // bad arguments: mutually exclusive flags, missing required arg
+	exitCodeVar  = 4 // invalid / undeclared variable
+	exitCodeExec = 5 // execution error: process failed to start, preconditions not met
+)
+
 func exitError(exitCode int, message string) error {
-	ui.WriteLinef("Error occurred")
 	return cli.NewExitError(message, exitCode)
 }
 
@@ -158,29 +165,30 @@ func exitError(exitCode int, message string) error {
 func loadRunpfile(f string) (*core.Runpfile, error) {
 	runpfilePath, err := core.ResolveRunpfilePath(f)
 	if err != nil {
-		return &core.Runpfile{}, exitErrorf(2, "Runpfile %s not found", runpfilePath)
+		return &core.Runpfile{}, exitErrorf(exitCodeLoad,
+			"Runpfile not found: %s\n  → Create one or use --file to specify a path",
+			runpfilePath)
 	}
 	ui.WriteLinef("Loaded: %s", runpfilePath)
 	runpfile, err := core.LoadRunpfileFromPath(runpfilePath)
 	if err != nil {
-		return &core.Runpfile{}, exitErrorf(2, "Failed to load Runpfile %s: %s", runpfilePath, err.Error())
+		return &core.Runpfile{}, exitErrorf(exitCodeLoad,
+			"Cannot parse Runpfile at %s:\n  %s", runpfilePath, err.Error())
 	}
 	valid, errs := core.IsRunpfileValid(runpfile)
 	if !valid {
 		var b strings.Builder
-		b.WriteString("Invalid Runpfile ")
-		b.WriteString(runpfilePath)
-		b.WriteString(":\n")
+		fmt.Fprintf(&b, "Invalid Runpfile %s:\n", runpfilePath)
 		for _, e := range errs {
-			fmt.Fprintf(&b, "- %s\n", e.Error())
+			fmt.Fprintf(&b, "  - %s\n", e.Error())
 		}
-		return &core.Runpfile{}, exitErrorf(2, "%s", b.String())
+		b.WriteString("  → Run `runp validate` for the full report")
+		return &core.Runpfile{}, exitErrorf(exitCodeLoad, "%s", b.String())
 	}
 	return runpfile, nil
 }
 
 func exitErrorf(exitCode int, template string, args ...interface{}) error {
-	ui.WriteLinef("Error occurred")
 	return cli.NewExitError(fmt.Sprintf(template, args...), exitCode)
 }
 

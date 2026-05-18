@@ -117,10 +117,6 @@ func TestExitError(t *testing.T) {
 	if exitErr.Error() != message {
 		t.Errorf("Expected error message '%s', got '%s'", message, exitErr.Error())
 	}
-
-	if !strings.Contains(s.getLines(), "Error occurred") {
-		t.Errorf("Expected UI to contain 'Error occurred', got '%s'", s.getLines())
-	}
 }
 
 func TestExitErrorf(t *testing.T) {
@@ -144,10 +140,6 @@ func TestExitErrorf(t *testing.T) {
 
 	if exitErr.Error() != expectedMessage {
 		t.Errorf("Expected error message '%s', got '%s'", expectedMessage, exitErr.Error())
-	}
-
-	if !strings.Contains(s.getLines(), "Error occurred") {
-		t.Errorf("Expected UI to contain 'Error occurred', got '%s'", s.getLines())
 	}
 }
 

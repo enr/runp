@@ -32,7 +32,7 @@ func doEncrypt(c *cli.Context) error {
 	plain := c.Args().First()
 	secret, err := core.EncryptToBase64([]byte(plain), key)
 	if err != nil {
-		return exitErrorf(3, "Encryption operation failed: %v", err)
+		return exitErrorf(exitCodeExec, "Encryption operation failed: %v", err)
 	}
 	ui.WriteLinef("Encrypted secret: %s", secret)
 	return nil

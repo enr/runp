@@ -50,7 +50,7 @@ func doReload(c *cli.Context) error {
 	ui.WriteLinef("Starting unit %s", unitName)
 	executor := core.NewExecutor(runpfile)
 	if err := executor.StartSingleUnit(unitName); err != nil {
-		return exitErrorf(3, "failed to start unit %q: %s", unitName, err.Error())
+		return exitErrorf(exitCodeExec, "failed to start unit %q: %s", unitName, err.Error())
 	}
 
 	ui.WriteLinef("Unit %s reloaded successfully", unitName)
