@@ -23,10 +23,15 @@ var commands = []*cli.Command{
 }
 
 var commandUp = cli.Command{
-	Name:        "up",
-	Usage:       "up [--var K=V] [--key KEY] [--key-env KEYENV] [--file RUNPFILE]",
+	Name:  "up",
+	Usage: "up [--var K=V] [--key KEY] [--key-env KEYENV] [--file RUNPFILE]",
 	Description: `Start all processes defined in the Runpfile. This is the default command: invoking runp without a subcommand is equivalent to runp up.`,
-	Action:      doUp,
+	UsageText: `runp up
+   runp up --file ./infra/Runpfile
+   runp up --var DB_HOST=localhost --var DB_PORT=5432
+   runp up --key-env RUNP_SECRET_KEY
+   runp up --key-env RUNP_SECRET_KEY --var ENV=production --file ./prod/Runpfile`,
+	Action: doUp,
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile`},
 		&cli.StringSliceFlag{Name: "var", Aliases: []string{"V"}, Usage: `Runtime variables in format "key=value"`},
@@ -34,22 +39,30 @@ var commandUp = cli.Command{
 		&cli.StringFlag{Name: "key-env", Usage: `Environment variable name containing the encryption key for secrets`},
 	},
 }
+
 var commandEncrypt = cli.Command{
 	Name:        "encrypt",
 	Usage:       "encrypt [--key KEY] [--key-env KEYENV] SECRET",
 	Description: `Encrypt a secret value for use in Runpfile`,
-	Action:      doEncrypt,
+	UsageText: `runp encrypt --key-env RUNP_SECRET_KEY mysecretvalue
+   runp encrypt --key myplaintextkey mysecretvalue
+   runp encrypt mysecretvalue   # generates and prints a random key`,
+	Action: doEncrypt,
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: `Encryption key used to encrypt the secret`},
 		&cli.StringFlag{Name: "key-env", Usage: `Environment variable name containing the encryption key`},
 	},
 }
+
 var commandStatus = cli.Command{
 	Name:        "status",
 	Aliases:     []string{"ps"},
 	Usage:       "status",
 	Description: `Show the runtime status of all units defined in the Runpfile`,
-	Action:      doStatus,
+	UsageText: `runp status
+   runp ps
+   runp status --file ./infra/Runpfile`,
+	Action: doStatus,
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile`},
 	},
@@ -59,7 +72,9 @@ var commandValidate = cli.Command{
 	Name:        "validate",
 	Usage:       "validate",
 	Description: `Validate the Runpfile without starting any process. Exits 0 if valid, 1 if validation errors are found, 2 if the file cannot be loaded.`,
-	Action:      doValidate,
+	UsageText: `runp validate
+   runp validate --file ./infra/Runpfile`,
+	Action: doValidate,
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile`},
 	},
@@ -77,23 +92,29 @@ Subcommands:
   get <key>          Print the current value of a setting key
   set <key> <value>  Write a setting key to the settings file
   show               Print the full settings file and its path`,
+	UsageText: `runp config show
+   runp config get container_runner
+   runp config set container_runner podman`,
 	Subcommands: []*cli.Command{
 		{
 			Name:        "get",
 			Usage:       "get <key>",
 			Description: `Print the current value of a settings key (returns the default if not explicitly set).`,
+			UsageText:   `runp config get container_runner`,
 			Action:      doConfigGet,
 		},
 		{
 			Name:        "set",
 			Usage:       "set <key> <value>",
 			Description: `Write a settings key to ~/.runp/settings.yaml. Creates the file if it does not exist.`,
+			UsageText:   `runp config set container_runner podman`,
 			Action:      doConfigSet,
 		},
 		{
 			Name:        "show",
 			Usage:       "show",
 			Description: `Print the full contents of ~/.runp/settings.yaml together with its path.`,
+			UsageText:   `runp config show`,
 			Action:      doConfigShow,
 		},
 	},
@@ -103,7 +124,9 @@ var commandReload = cli.Command{
 	Name:        "reload",
 	Usage:       "reload <unit-name>",
 	Description: `Stop and restart a single unit by name. Run this in a separate shell while runp up is running to reload a single service without stopping the full stack. SSH tunnel units are not supported.`,
-	Action:      doReload,
+	UsageText: `runp reload web
+   runp reload api --file ./infra/Runpfile`,
+	Action: doReload,
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile`},
 	},
@@ -114,7 +137,12 @@ var commandList = cli.Command{
 	Aliases:     []string{"ls"},
 	Usage:       "list",
 	Description: `List all units defined in the Runpfile`,
-	Action:      doList,
+	UsageText: `runp list
+   runp ls
+   runp list --output json
+   runp list --output json | jq '.[].name'
+   runp list --file ./infra/Runpfile`,
+	Action: doList,
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile`},
 		&cli.StringFlag{Name: "output", Aliases: []string{"o"}, Value: "table", Usage: `Output format: table (default) or json`},
