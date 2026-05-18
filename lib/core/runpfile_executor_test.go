@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -643,5 +644,56 @@ func TestRunpfileExecutor_skippedUnits(t *testing.T) {
 	}
 	if len(skipped) != 2 {
 		t.Errorf("expected 2 skipped units, got %d", len(skipped))
+	}
+}
+
+func TestWarnInsecureSSHTunnels(t *testing.T) {
+	units := map[string]*RunpUnit{
+		"secure-tunnel": {
+			Name:      "secure-tunnel",
+			SSHTunnel: &SSHTunnelProcess{InsecureIgnoreHostKey: false},
+		},
+		"insecure-tunnel": {
+			Name:      "insecure-tunnel",
+			SSHTunnel: &SSHTunnelProcess{InsecureIgnoreHostKey: true},
+		},
+		"skipped-insecure": {
+			Name:      "skipped-insecure",
+			SSHTunnel: &SSHTunnelProcess{InsecureIgnoreHostKey: true},
+		},
+		"host-unit": {
+			Name: "host-unit",
+			Host: &HostProcess{},
+		},
+	}
+	skipped := map[string]bool{"skipped-insecure": true}
+
+	// Redirect stderr to capture the warning output.
+	r, w, _ := os.Pipe()
+	oldStderr := os.Stderr
+	os.Stderr = w
+
+	warnInsecureSSHTunnels(units, skipped)
+
+	w.Close()
+	os.Stderr = oldStderr
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	output := buf.String()
+
+	if !strings.Contains(output, "unit insecure-tunnel") {
+		t.Errorf("expected warning for insecure-tunnel, got: %q", output)
+	}
+	if strings.Contains(output, "unit secure-tunnel") {
+		t.Errorf("unexpected warning for secure-tunnel, got: %q", output)
+	}
+	if strings.Contains(output, "skipped-insecure") {
+		t.Errorf("skipped unit should not produce a warning, got: %q", output)
+	}
+	if strings.Contains(output, "host-unit") {
+		t.Errorf("host unit should not produce a warning, got: %q", output)
+	}
+	if !strings.Contains(output, "WARNING") {
+		t.Errorf("expected WARNING prefix in output, got: %q", output)
 	}
 }

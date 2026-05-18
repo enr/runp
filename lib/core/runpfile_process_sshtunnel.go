@@ -202,7 +202,7 @@ func (p *SSHTunnelProcess) resolveSSHCommandConfiguration() (*ssh.ClientConfig, 
 	}
 	var hostKeyCallback ssh.HostKeyCallback
 	if p.InsecureIgnoreHostKey {
-		ui.WriteLinef("WARNING: SSH host key verification disabled for %s — vulnerable to MITM", p.Jump.String())
+		fmt.Fprintf(os.Stderr, "WARNING: insecure_ignore_host_key is enabled for unit %s — host key verification is disabled (MITM risk)\n", p.id)
 		hostKeyCallback = ssh.InsecureIgnoreHostKey()
 	} else {
 		knownHostsPath := p.KnownHostsFile

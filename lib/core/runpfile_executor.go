@@ -68,6 +68,7 @@ func (e *RunpfileExecutor) StartSingleUnit(unitName string) error {
 	if pr := e.unitPreconditions(unit); pr != nil && pr.Vote != Proceed {
 		return fmt.Errorf("preconditions not satisfied for unit %q: %v", unitName, pr.Reasons)
 	}
+	warnInsecureSSHTunnels(e.rf.Units, map[string]bool{})
 	return e.startUnit(unit)
 }
 
@@ -82,6 +83,7 @@ func (e *RunpfileExecutor) Start() error {
 		}
 		ui.WriteLinef("Units skipped due to unsatisfied preconditions: %v", names)
 	}
+	warnInsecureSSHTunnels(e.rf.Units, skipped)
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -273,6 +275,22 @@ func (e *RunpfileExecutor) handleAwaitResources(process RunpProcess, logger Logg
 	diff := time.Since(start)
 	logger.WriteLinef("Process %s starting at %v (waited %v for resource: %s)", process.ID(), time.Now(), diff, process.AwaitResource())
 	return nil
+}
+
+// warnInsecureSSHTunnels prints a stderr warning for every non-skipped SSH
+// tunnel unit that has insecure_ignore_host_key: true. The warning is written
+// directly to os.Stderr so it is always visible regardless of log level.
+func warnInsecureSSHTunnels(units map[string]*RunpUnit, skipped map[string]bool) {
+	for name, unit := range units {
+		if skipped[name] {
+			continue
+		}
+		if unit.SSHTunnel != nil && unit.SSHTunnel.InsecureIgnoreHostKey {
+			fmt.Fprintf(os.Stderr,
+				"WARNING: insecure_ignore_host_key is enabled for unit %s — host key verification is disabled (MITM risk)\n",
+				name)
+		}
+	}
 }
 
 func (e *RunpfileExecutor) verifyProcessStartability(process RunpProcess, logger Logger, appContext *ApplicationContext) error {
