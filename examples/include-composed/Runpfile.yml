@@ -1,0 +1,37 @@
+name: include-composed root
+description: |
+  Root Runpfile demonstrating include: composition and cross-file depends_on (RNP-013, RNP-018).
+
+  File layout:
+    include-composed/
+      Runpfile.yml      ← this file (root)
+      infra.yml         ← defines: postgres, redis
+      services.yml      ← defines: api (depends_on postgres+redis), worker (depends_on api)
+
+  After loading, runp merges all units into a single graph:
+    Layer 0 (parallel): postgres, redis
+    Layer 1:            api
+    Layer 2:            worker, proxy
+
+  Manual test commands (run from repo root):
+    runp up       --file examples/include-composed/Runpfile.yml
+    runp up       --file examples/include-composed/Runpfile.yml --dry-run
+    runp list     --file examples/include-composed/Runpfile.yml
+    runp validate --file examples/include-composed/Runpfile.yml
+
+  RUNP_FILE env var alternative:
+    export RUNP_FILE=examples/include-composed/Runpfile.yml
+    runp list
+    runp up --dry-run
+    unset RUNP_FILE
+
+include:
+  - infra.yml      # provides postgres, redis
+  - services.yml   # provides api, worker
+
+units:
+  proxy:
+    description: Reverse proxy (defined in root Runpfile, starts after api)
+    depends_on: [api]
+    host:
+      command: 'echo "[$(date +%T)] proxy: routing traffic to api"'

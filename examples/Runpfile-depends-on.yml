@@ -1,0 +1,63 @@
+name: depends_on example
+description: |
+  Demonstrates explicit startup ordering via depends_on (RNP-018).
+
+  Units form a dependency graph with three layers:
+    Layer 0 (parallel): database, cache
+    Layer 1 (parallel): api, metrics     <- wait for layer 0
+    Layer 2 (parallel): worker, frontend <- wait for layer 1
+
+  Each unit prints a timestamp so you can verify the order in the output.
+
+  Manual test commands:
+    runp up   --file examples/Runpfile-depends-on.yml
+    runp up   --file examples/Runpfile-depends-on.yml --dry-run
+    runp list --file examples/Runpfile-depends-on.yml
+    runp validate --file examples/Runpfile-depends-on.yml
+
+units:
+  database:
+    description: Infrastructure — relational database (layer 0)
+    host:
+      command: >
+        echo "[$(date +%T)] database: started" &&
+        sleep 0.4 &&
+        echo "[$(date +%T)] database: ready"
+
+  cache:
+    description: Infrastructure — in-memory cache (layer 0)
+    host:
+      command: >
+        echo "[$(date +%T)] cache: started" &&
+        sleep 0.2 &&
+        echo "[$(date +%T)] cache: ready"
+
+  api:
+    description: Application — REST API server (layer 1, needs database + cache)
+    depends_on: [database, cache]
+    host:
+      command: >
+        echo "[$(date +%T)] api: started (database and cache are ready)" &&
+        sleep 0.3 &&
+        echo "[$(date +%T)] api: ready"
+
+  metrics:
+    description: Application — metrics collector (layer 1, needs database)
+    depends_on: [database]
+    host:
+      command: >
+        echo "[$(date +%T)] metrics: started (database is ready)" &&
+        sleep 0.1 &&
+        echo "[$(date +%T)] metrics: ready"
+
+  worker:
+    description: Application — background job worker (layer 2, needs api)
+    depends_on: [api]
+    host:
+      command: 'echo "[$(date +%T)] worker: started (api is ready)"'
+
+  frontend:
+    description: Application — web frontend (layer 2, needs api)
+    depends_on: [api]
+    host:
+      command: 'echo "[$(date +%T)] frontend: started (api is ready)"'

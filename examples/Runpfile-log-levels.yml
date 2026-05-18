@@ -1,0 +1,50 @@
+name: log-level demo
+description: |
+  Demonstrates --log-level output differences (RNP-009).
+  Run the same command with different levels and observe what is printed.
+
+  Manual test commands:
+    runp --log-level trace up --file examples/Runpfile-log-levels.yml
+    runp --log-level debug up --file examples/Runpfile-log-levels.yml
+    runp --log-level info  up --file examples/Runpfile-log-levels.yml   (default)
+    runp --log-level warn  up --file examples/Runpfile-log-levels.yml
+    runp --log-level error up --file examples/Runpfile-log-levels.yml
+
+  What changes:
+    trace/debug  → shows resolved paths, var substitutions, process details
+    info         → shows "Loaded: <path>" and unit start messages (default)
+    warn/error   → suppresses info messages; only warnings/errors appear
+
+  Deprecated aliases (still work):
+    runp --debug up --file examples/Runpfile-log-levels.yml
+    runp --quiet up --file examples/Runpfile-log-levels.yml
+
+  No-color:
+    NO_COLOR=1 runp up --file examples/Runpfile-log-levels.yml
+    runp --no-color up --file examples/Runpfile-log-levels.yml
+
+vars:
+  greeting: hello
+  runp_workdir: ""  # injected at runtime; declared here to pass static validation
+
+units:
+  alpha:
+    description: First unit — prints greeting var
+    host:
+      command: 'echo "alpha: {{vars greeting}} from unit alpha"'
+
+  beta:
+    description: Second unit — prints working directory
+    host:
+      command: 'echo "beta: workdir={{vars runp_workdir}}"'
+
+  gamma:
+    description: Third unit — precondition always satisfied on Linux/macOS
+    preconditions:
+      os:
+        inclusions:
+          - linux
+          - darwin
+          - windows
+    host:
+      command: 'echo "gamma: OS precondition satisfied"'

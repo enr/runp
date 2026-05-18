@@ -1,0 +1,47 @@
+name: validate — error cases
+description: |
+  Intentionally invalid Runpfile for testing runp validate error reporting (RNP-002).
+  This file contains four distinct validation errors:
+    1. Unit with no process type (no host/container/ssh_tunnel)
+    2. Variable reference not declared in vars section
+    3. depends_on reference to a unit that does not exist
+    4. depends_on reference to a unit defined in this file — valid (included for contrast)
+
+  Expected result: exit code 1, four error lines printed.
+
+  Manual test command:
+    runp validate --file examples/Runpfile-validate-errors.yml
+
+vars:
+  declared_var: "hello"
+
+units:
+  # ERROR 1 — unit with no process type
+  no-process:
+    description: This unit has no host/container/ssh_tunnel block
+
+  # ERROR 2 — {{vars undeclared_var}} is not in the vars section above
+  bad-var-ref:
+    description: Unit referencing an undeclared variable
+    host:
+      command: echo "value is {{vars undeclared_var}}"
+
+  # ERROR 3 — depends_on references a unit name that does not exist
+  bad-dep:
+    description: Unit depending on a ghost unit
+    depends_on: [ghost-unit]
+    host:
+      command: echo "this will never run"
+
+  # VALID — depends on a unit defined in this file (no error)
+  good-dep:
+    description: Unit with a valid depends_on reference
+    depends_on: [bad-var-ref]
+    host:
+      command: echo "valid dep on bad-var-ref (which exists)"
+
+  # VALID — uses the declared var (no error here)
+  good-var:
+    description: Unit using a declared variable
+    host:
+      command: echo "{{vars declared_var}}"

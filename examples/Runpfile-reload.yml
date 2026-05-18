@@ -1,0 +1,42 @@
+name: reload example
+description: |
+  Long-running host process for testing runp reload (RNP-003).
+
+  The "ticker" unit prints a timestamped line every second indefinitely.
+  Use runp reload in a second terminal to stop and restart it while the
+  rest of the stack keeps running.
+
+  Manual test workflow:
+    Terminal 1:  runp up --file examples/Runpfile-reload.yml
+    Terminal 2:  runp reload ticker --file examples/Runpfile-reload.yml
+                 runp reload logger --file examples/Runpfile-reload.yml
+
+  You should see the ticker output pause briefly and then resume after reload.
+  The "logger" unit is independent — reloading one does not affect the other.
+
+units:
+  ticker:
+    description: Prints a timestamp every second (reload me!)
+    stop_timeout: 0h0m3s
+    host:
+      command: >
+        while true; do
+          echo "[$(date +%T)] ticker: tick";
+          sleep 1;
+        done
+      env:
+        PATH: $PATH
+
+  logger:
+    description: Prints a counter line every two seconds (independent unit)
+    stop_timeout: 0h0m3s
+    host:
+      command: >
+        i=0;
+        while true; do
+          i=$((i+1));
+          echo "[$(date +%T)] logger: count=$i";
+          sleep 2;
+        done
+      env:
+        PATH: $PATH

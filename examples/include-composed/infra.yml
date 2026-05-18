@@ -1,0 +1,19 @@
+name: infra
+description: Infrastructure units — included by Runpfile.yml
+
+units:
+  postgres:
+    description: PostgreSQL database (layer 0)
+    host:
+      command: >
+        echo "[$(date +%T)] postgres: started" &&
+        sleep 0.5 &&
+        echo "[$(date +%T)] postgres: ready on :5432"
+
+  redis:
+    description: Redis cache (layer 0)
+    host:
+      command: >
+        echo "[$(date +%T)] redis: started" &&
+        sleep 0.3 &&
+        echo "[$(date +%T)] redis: ready on :6379"

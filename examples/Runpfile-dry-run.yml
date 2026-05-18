@@ -1,0 +1,73 @@
+name: dry-run demo
+description: |
+  Shows --dry-run output with variables, preconditions, and multiple unit kinds (RNP-006).
+
+  The dry-run table resolves {{vars ...}} substitutions and marks skipped units,
+  so you can verify the effective command before actually starting anything.
+
+  Manual test commands:
+    runp up --file examples/Runpfile-dry-run.yml --dry-run
+    runp up --file examples/Runpfile-dry-run.yml --dry-run --var env=staging
+    runp up --file examples/Runpfile-dry-run.yml --dry-run --var env=production
+
+  With --log-level flag:
+    runp --log-level debug up --file examples/Runpfile-dry-run.yml --dry-run
+    runp --log-level warn  up --file examples/Runpfile-dry-run.yml --dry-run
+
+vars:
+  env: development
+  app_port: "8080"
+  db_host: localhost
+
+units:
+  setup:
+    description: One-shot setup script (always runs)
+    host:
+      command: echo "setup for env={{vars env}} port={{vars app_port}}"
+
+  app:
+    description: Application server (Linux/macOS only, resolves vars)
+    preconditions:
+      os:
+        inclusions:
+          - linux
+          - darwin
+    depends_on: [setup]
+    host:
+      command: ./app --port {{vars app_port}} --db {{vars db_host}}
+      env:
+        APP_ENV: "{{vars env}}"
+
+  app-windows:
+    description: Application server (Windows only — will be skipped on Linux/macOS)
+    preconditions:
+      os:
+        inclusions:
+          - windows
+    depends_on: [setup]
+    host:
+      command: app.exe --port {{vars app_port}} --db {{vars db_host}}
+
+  database:
+    description: PostgreSQL container (always shown in dry-run)
+    container:
+      image: docker.io/postgres:15-alpine
+      ports:
+        - "5432:5432"
+      env:
+        POSTGRES_DB: "{{vars env}}_db"
+
+  tunnel:
+    description: SSH tunnel to remote service (always shown)
+    ssh_tunnel:
+      user: ops
+      auth:
+        identity_file: ~/.ssh/id_rsa
+      local:
+        port: 9090
+      jump:
+        host: bastion.example.com
+        port: 22
+      target:
+        host: metrics.internal
+        port: 9090

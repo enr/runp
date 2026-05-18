@@ -1,0 +1,76 @@
+name: list / status / dry-run demo
+description: |
+  Mixed-kind Runpfile for testing runp list, runp status, and --dry-run (RNP-007, RNP-001, RNP-006).
+  Contains host, container, and ssh_tunnel units with descriptions and preconditions.
+
+  Manual test commands:
+    runp list   --file examples/Runpfile-list-mixed.yml
+    runp list   --file examples/Runpfile-list-mixed.yml --output json
+    runp list   --file examples/Runpfile-list-mixed.yml --output json | jq '.[].name'
+    runp status --file examples/Runpfile-list-mixed.yml
+    runp up     --file examples/Runpfile-list-mixed.yml --dry-run
+    runp validate --file examples/Runpfile-list-mixed.yml
+
+vars:
+  db_port: "5432"
+  app_port: "8080"
+
+units:
+  # --- host units ---
+
+  app:
+    description: Web application (host process, Linux/macOS only)
+    preconditions:
+      os:
+        inclusions:
+          - linux
+          - darwin
+    host:
+      command: echo "app listening on port {{vars app_port}}"
+      env:
+        APP_PORT: "{{vars app_port}}"
+
+  app-windows:
+    description: Web application (host process, Windows only)
+    preconditions:
+      os:
+        inclusions:
+          - windows
+    host:
+      command: echo app listening on port {{vars app_port}}
+
+  migration:
+    description: Database migration one-shot command
+    depends_on: [database]
+    host:
+      command: echo "running DB migrations against localhost:{{vars db_port}}"
+
+  # --- container unit ---
+
+  database:
+    description: PostgreSQL database (container)
+    container:
+      image: docker.io/postgres:15-alpine
+      ports:
+        - "{{vars db_port}}:5432"
+      env:
+        POSTGRES_PASSWORD: example
+        POSTGRES_USER: runp
+        POSTGRES_DB: demo
+
+  # --- ssh_tunnel unit ---
+
+  remote-db:
+    description: SSH tunnel to remote corporate database
+    ssh_tunnel:
+      user: ops
+      auth:
+        identity_file: ~/.ssh/id_rsa
+      local:
+        port: 5433
+      jump:
+        host: bastion.example.com
+        port: 22
+      target:
+        host: db.internal.example.com
+        port: 5432

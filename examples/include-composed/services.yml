@@ -1,0 +1,18 @@
+name: services
+description: Application service units — included by Runpfile.yml. Depend on infra units.
+
+units:
+  api:
+    description: REST API server (layer 1 — depends on postgres and redis)
+    depends_on: [postgres, redis]
+    host:
+      command: >
+        echo "[$(date +%T)] api: started (postgres and redis are ready)" &&
+        sleep 0.3 &&
+        echo "[$(date +%T)] api: listening on :8080"
+
+  worker:
+    description: Background job worker (layer 2 — depends on api)
+    depends_on: [api]
+    host:
+      command: 'echo "[$(date +%T)] worker: started (api is ready)"'

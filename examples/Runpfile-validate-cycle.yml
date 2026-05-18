@@ -1,0 +1,33 @@
+name: validate — circular dependency
+description: |
+  Demonstrates circular dependency detection in runp validate (RNP-018).
+  Units a → b → c → a form a cycle that cannot be topologically sorted.
+
+  Expected result: exit code 1, error mentioning "circular dependency".
+
+  Manual test command:
+    runp validate --file examples/Runpfile-validate-cycle.yml
+
+units:
+  a:
+    description: Depends on c (part of the cycle)
+    depends_on: [c]
+    host:
+      command: echo a
+
+  b:
+    description: Depends on a (part of the cycle)
+    depends_on: [a]
+    host:
+      command: echo b
+
+  c:
+    description: Depends on b (closes the cycle)
+    depends_on: [b]
+    host:
+      command: echo c
+
+  standalone:
+    description: No dependencies — not part of the cycle, but blocked because validate fails
+    host:
+      command: echo "I would run fine on my own"
