@@ -18,6 +18,7 @@ var commands = []*cli.Command{
 	&commandList,
 	&commandStatus,
 	&commandValidate,
+	&commandReload,
 }
 
 var commandUp = cli.Command{
@@ -58,6 +59,16 @@ var commandValidate = cli.Command{
 	Usage:       "validate",
 	Description: `Validate the Runpfile without starting any process. Exits 0 if valid, 1 if validation errors are found, 2 if the file cannot be loaded.`,
 	Action:      doValidate,
+	Flags: []cli.Flag{
+		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile`},
+	},
+}
+
+var commandReload = cli.Command{
+	Name:        "reload",
+	Usage:       "reload <unit-name>",
+	Description: `Stop and restart a single unit by name. Run this in a separate shell while runp up is running to reload a single service without stopping the full stack. SSH tunnel units are not supported.`,
+	Action:      doReload,
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile`},
 	},

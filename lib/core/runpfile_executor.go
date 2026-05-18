@@ -56,6 +56,21 @@ func (e *RunpfileExecutor) longestName() int {
 	return e.longest
 }
 
+// StartSingleUnit starts only the named unit and blocks until it exits.
+// Used by runp reload to restart a unit in a separate shell while
+// runp up is running in another terminal.
+func (e *RunpfileExecutor) StartSingleUnit(unitName string) error {
+	unit, ok := e.rf.Units[unitName]
+	if !ok {
+		return fmt.Errorf("unit %q not found in Runpfile", unitName)
+	}
+	e.initializeUnits()
+	if pr := e.unitPreconditions(unit); pr != nil && pr.Vote != Proceed {
+		return fmt.Errorf("preconditions not satisfied for unit %q: %v", unitName, pr.Reasons)
+	}
+	return e.startUnit(unit)
+}
+
 // Start call start on all processes.
 func (e *RunpfileExecutor) Start() error {
 	e.initializeUnits()

@@ -474,6 +474,67 @@ func TestDoEncrypt(t *testing.T) {
 	})
 }
 
+func TestDoReload(t *testing.T) {
+	s := &stubLogger{}
+	ui = s
+	core.ConfigureUI(s, core.LoggerConfig{})
+
+	newCtx := func(filePath, unitName string) *cli.Context {
+		app := cli.NewApp()
+		set := flag.NewFlagSet("test", 0)
+		set.String("f", filePath, "doc")
+		if unitName != "" {
+			set.Parse([]string{unitName})
+		}
+		return cli.NewContext(app, set, nil)
+	}
+
+	t.Run("missing unit name exits 3", func(t *testing.T) {
+		s.lines = []string{}
+		err := doReload(newCtx("../../testdata/runpfiles/env.yml", ""))
+		if err == nil {
+			t.Fatal("Expected error when unit name omitted, got nil")
+		}
+		exitErr, ok := err.(cli.ExitCoder)
+		if !ok {
+			t.Fatalf("Expected cli.ExitCoder, got %T", err)
+		}
+		if exitErr.ExitCode() != 3 {
+			t.Errorf("Expected exit code 3, got %d", exitErr.ExitCode())
+		}
+	})
+
+	t.Run("file not found exits 2", func(t *testing.T) {
+		s.lines = []string{}
+		err := doReload(newCtx("nonexistent-runpfile.yml", "any-unit"))
+		if err == nil {
+			t.Fatal("Expected error for missing file, got nil")
+		}
+		exitErr, ok := err.(cli.ExitCoder)
+		if !ok {
+			t.Fatalf("Expected cli.ExitCoder, got %T", err)
+		}
+		if exitErr.ExitCode() != 2 {
+			t.Errorf("Expected exit code 2, got %d", exitErr.ExitCode())
+		}
+	})
+
+	t.Run("unknown unit name exits 3", func(t *testing.T) {
+		s.lines = []string{}
+		err := doReload(newCtx("../../testdata/runpfiles/env.yml", "no-such-unit"))
+		if err == nil {
+			t.Fatal("Expected error for unknown unit, got nil")
+		}
+		exitErr, ok := err.(cli.ExitCoder)
+		if !ok {
+			t.Fatalf("Expected cli.ExitCoder, got %T", err)
+		}
+		if exitErr.ExitCode() != 3 {
+			t.Errorf("Expected exit code 3, got %d", exitErr.ExitCode())
+		}
+	})
+}
+
 func TestDoValidate(t *testing.T) {
 	s := &stubLogger{}
 	ui = s
