@@ -131,6 +131,71 @@ func TestDecrypt_ShortInput(t *testing.T) {
 	}
 }
 
+func TestDecrypt_TruncatedPayload(t *testing.T) {
+	passphrase := "secret"
+
+	// gcm nonce is 12 bytes; the minimum well-formed ciphertext is
+	// kdfSaltSize(16) + nonceSize(12) + GCM-tag(16) = 44 bytes.
+	cases := []struct {
+		name  string
+		input []byte
+	}{
+		{"exactly salt size", make([]byte, kdfSaltSize)},
+		{"salt plus partial nonce", make([]byte, kdfSaltSize+6)},
+		{"salt plus full nonce no ciphertext", make([]byte, kdfSaltSize+12)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Decrypt(tc.input, passphrase)
+			if err == nil {
+				t.Errorf("Decrypt(%d bytes) should return an error", len(tc.input))
+			}
+		})
+	}
+}
+
+func TestDecrypt_CorruptedAEADTag(t *testing.T) {
+	passphrase := "secret"
+	plaintext := []byte("hello")
+
+	ct, err := Encrypt(plaintext, passphrase)
+	if err != nil {
+		t.Fatalf("Encrypt: %v", err)
+	}
+
+	// Flip the last byte of the AEAD tag, which sits at the very end of ct.
+	corrupted := make([]byte, len(ct))
+	copy(corrupted, ct)
+	corrupted[len(corrupted)-1] ^= 0xff
+
+	_, err = Decrypt(corrupted, passphrase)
+	if err == nil {
+		t.Error("Decrypt with corrupted AEAD tag should return an error")
+	}
+}
+
+func TestDecryptBase64_InvalidBase64Variants(t *testing.T) {
+	passphrase := "secret"
+
+	cases := []struct {
+		name  string
+		input string
+	}{
+		{"empty string", ""},
+		{"whitespace", "   "},
+		{"non-base64 chars", "!@#$%^&*()"},
+		{"truncated padding", "YQ="},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := DecryptBase64(tc.input, passphrase)
+			if err == nil {
+				t.Errorf("DecryptBase64(%q) should return an error", tc.input)
+			}
+		})
+	}
+}
+
 func TestDecryptionError(t *testing.T) {
 	ConfigureUI(testLogger, LoggerConfig{Debug: false, Color: false})
 	passphrase := `secret`
