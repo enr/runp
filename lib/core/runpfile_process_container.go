@@ -74,14 +74,12 @@ func (p *ContainerProcess) StartCommand() (RunpCommand, error) {
 func (p *ContainerProcess) StopCommand() (RunpCommand, error) {
 	containerRunner, err := exec.LookPath(p.environmentSettings.ContainerRunnerExe)
 	if err != nil {
-		ui.WriteLinef("Container runner executable not found: %s (%v)", p.environmentSettings.ContainerRunnerExe, err)
-		return nil, err
+		return nil, fmt.Errorf("container runner executable not found: %s: %w", p.environmentSettings.ContainerRunnerExe, err)
 	}
 	cl := fmt.Sprintf(`%s stop %s`, containerRunner, p.buildContainerName())
 	cmd, err := cmd(cl)
 	if err != nil {
-		ui.WriteLinef("Failed to build stop command: %s (%v)", cl, err)
-		return nil, err
+		return nil, fmt.Errorf("failed to build stop command %s: %w", cl, err)
 	}
 	return &ExecCommandWrapper{
 		cmd: cmd,
@@ -123,8 +121,7 @@ func (p *ContainerProcess) buildCmdLine() (string, error) {
 
 	containerRunner, err := exec.LookPath(p.environmentSettings.ContainerRunnerExe)
 	if err != nil {
-		ui.WriteLinef("Container runner executable not found: %s (%v)", p.environmentSettings.ContainerRunnerExe, err)
-		return "", fmt.Errorf("container runner executable not found: %s (%w)", p.environmentSettings.ContainerRunnerExe, err)
+		return "", fmt.Errorf("container runner executable not found: %s: %w", p.environmentSettings.ContainerRunnerExe, err)
 	}
 	cliPreprocessor := newCliPreprocessor(p.vars)
 	var sb strings.Builder
@@ -234,8 +231,7 @@ func (p *ContainerProcess) String() string {
 func (p *ContainerProcess) IsStartable() (bool, error) {
 	containerRunner, err := exec.LookPath(p.environmentSettings.ContainerRunnerExe)
 	if err != nil {
-		ui.WriteLinef("Unable to find container runner %s executable: %v", p.environmentSettings.ContainerRunnerExe, err)
-		return false, err
+		return false, fmt.Errorf("container runner executable not found: %s: %w", p.environmentSettings.ContainerRunnerExe, err)
 	}
 	cn := p.buildContainerName()
 	cmdLine := fmt.Sprintf("%s ps -aq -f name=%s", containerRunner, cn)

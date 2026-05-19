@@ -145,8 +145,7 @@ func (p *HostProcess) buildCmdExecutable() (*exec.Cmd, error) {
 		m := filepath.FromSlash(path.Join(resolvedWorkingDir, exe))
 		p2, err := exec.LookPath(m)
 		if err != nil {
-			ui.WriteLinef("Executable for process %s not found. Attempted paths: %s, %s", p.ID(), exe, m)
-			return nil, err
+			return nil, fmt.Errorf("executable for process %s not found (tried: %s, %s): %w", p.ID(), exe, m, err)
 		}
 		exe = p2
 	} else {

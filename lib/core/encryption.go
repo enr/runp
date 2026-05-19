@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 
 	"golang.org/x/crypto/pbkdf2"
@@ -93,8 +94,7 @@ func Decrypt(data []byte, passphrase string) ([]byte, error) {
 func DecryptBase64(encoded string, passphrase string) ([]byte, error) {
 	decoded, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil {
-		ui.WriteLinef("Failed to decode base64 encrypted secret: %v", err)
-		return []byte{}, err
+		return []byte{}, fmt.Errorf("failed to decode base64 encrypted secret: %w", err)
 	}
 	return Decrypt(decoded, passphrase)
 }
