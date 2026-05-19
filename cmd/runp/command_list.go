@@ -11,7 +11,7 @@ import (
 )
 
 func doList(c *cli.Context) error {
-	runpfile, err := loadRunpfile(resolveRunpfileArg(c))
+	runpfile, err := loadRunpfile(resolveRunpfileArg(c), resolveChecksumArg(c))
 	if err != nil {
 		return err
 	}

@@ -13,16 +13,21 @@ func doReload(c *cli.Context) error {
 		return exitErrorf(3, "Usage: runp reload <unit-name>")
 	}
 
-	runpfilePath, err := core.ResolveRunpfilePath(resolveRunpfileArg(c))
+	f := resolveRunpfileArg(c)
+	localPath, displayPath, cleanup, err := fetchRunpfilePath(f, resolveChecksumArg(c))
+	defer cleanup()
 	if err != nil {
-		return runpfileNotFoundError(runpfilePath)
+		if isURL(f) {
+			return exitErrorf(exitCodeLoad, "Failed to fetch Runpfile: %s", err)
+		}
+		return runpfileNotFoundError(localPath)
 	}
 
-	runpfile, err := core.LoadRunpfileFromPath(runpfilePath)
+	runpfile, err := core.LoadRunpfileFromPath(localPath)
 	if err != nil {
-		return exitErrorf(2, "Failed to load Runpfile %s: %s", runpfilePath, err.Error())
+		return exitErrorf(exitCodeLoad, "Failed to load Runpfile %s: %s", displayPath, err.Error())
 	}
-	ui.WriteLinef("Loaded: %s", runpfilePath)
+	ui.WriteLinef("Loaded: %s", displayPath)
 
 	unit, ok := runpfile.Units[unitName]
 	if !ok {

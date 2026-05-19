@@ -9,6 +9,30 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+func isURL(s string) bool {
+	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
+}
+
+// fetchRunpfilePath resolves f to a local file path, downloading it when f is
+// an HTTP/HTTPS URL. For URLs the returned cleanup removes the temp file; for
+// local paths cleanup is a no-op. displayPath is always f (the original value).
+func fetchRunpfilePath(f, checksum string) (localPath, displayPath string, cleanup func(), err error) {
+	cleanup = func() {}
+	displayPath = f
+	if isURL(f) {
+		var tmp string
+		tmp, err = core.FetchRunpfile(f, checksum)
+		if err != nil {
+			return
+		}
+		localPath = tmp
+		cleanup = func() { os.Remove(tmp) }
+		return
+	}
+	localPath, err = core.ResolveRunpfilePath(f)
+	return
+}
+
 const (
 	configFileBaseName = "Runpfile"
 )
@@ -35,7 +59,8 @@ var commandUp = cli.Command{
    runp up --key-env RUNP_SECRET_KEY --var ENV=production --file ./prod/Runpfile`,
 	Action: doUp,
 	Flags: []cli.Flag{
-		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile (overrides RUNP_FILE env var)`},
+		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile or HTTP/HTTPS URL (overrides RUNP_FILE env var)`},
+		&cli.StringFlag{Name: "checksum", Usage: `Expected SHA-256 checksum of the Runpfile in "sha256:<hex>" format; used to verify integrity when --file is a URL`},
 		&cli.BoolFlag{Name: "dry-run", Aliases: []string{"n"}, Usage: "Print what would be executed without starting any process"},
 		&cli.StringSliceFlag{Name: "var", Aliases: []string{"V"}, Usage: `Runtime variables in format "key=value"`},
 		&cli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: `Decryption key (WARNING: visible in 'ps aux' and shell history — prefer --key-env)`},
@@ -76,7 +101,8 @@ var commandStatus = cli.Command{
    runp status --file ./infra/Runpfile`,
 	Action: doStatus,
 	Flags: []cli.Flag{
-		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile (overrides RUNP_FILE env var)`},
+		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile or HTTP/HTTPS URL (overrides RUNP_FILE env var)`},
+		&cli.StringFlag{Name: "checksum", Usage: `Expected SHA-256 checksum in "sha256:<hex>" format`},
 	},
 }
 
@@ -88,7 +114,8 @@ var commandValidate = cli.Command{
    runp validate --file ./infra/Runpfile`,
 	Action: doValidate,
 	Flags: []cli.Flag{
-		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile (overrides RUNP_FILE env var)`},
+		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile or HTTP/HTTPS URL (overrides RUNP_FILE env var)`},
+		&cli.StringFlag{Name: "checksum", Usage: `Expected SHA-256 checksum in "sha256:<hex>" format`},
 	},
 }
 
@@ -140,7 +167,8 @@ var commandReload = cli.Command{
    runp reload api --file ./infra/Runpfile`,
 	Action: doReload,
 	Flags: []cli.Flag{
-		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile (overrides RUNP_FILE env var)`},
+		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile or HTTP/HTTPS URL (overrides RUNP_FILE env var)`},
+		&cli.StringFlag{Name: "checksum", Usage: `Expected SHA-256 checksum in "sha256:<hex>" format`},
 	},
 	BashComplete: completionUnitNames,
 }
@@ -157,7 +185,8 @@ var commandList = cli.Command{
    runp list --file ./infra/Runpfile`,
 	Action: doList,
 	Flags: []cli.Flag{
-		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile (overrides RUNP_FILE env var)`},
+		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile or HTTP/HTTPS URL (overrides RUNP_FILE env var)`},
+		&cli.StringFlag{Name: "checksum", Usage: `Expected SHA-256 checksum in "sha256:<hex>" format`},
 		&cli.StringFlag{Name: "output", Aliases: []string{"o"}, Value: "table", Usage: `Output format: table (default) or json`},
 	},
 }
@@ -167,21 +196,25 @@ func exitError(exitCode int, message string) error {
 }
 
 // when error it returns an `exitError`
-func loadRunpfile(f string) (*core.Runpfile, error) {
-	runpfilePath, err := core.ResolveRunpfilePath(f)
+func loadRunpfile(f, checksum string) (*core.Runpfile, error) {
+	localPath, displayPath, cleanup, err := fetchRunpfilePath(f, checksum)
+	defer cleanup()
 	if err != nil {
-		return &core.Runpfile{}, runpfileNotFoundError(runpfilePath)
+		if isURL(f) {
+			return &core.Runpfile{}, exitErrorf(exitCodeLoad, "Failed to fetch Runpfile: %s", err)
+		}
+		return &core.Runpfile{}, runpfileNotFoundError(localPath)
 	}
-	ui.WriteLinef("Loaded: %s", runpfilePath)
-	runpfile, err := core.LoadRunpfileFromPath(runpfilePath)
+	ui.WriteLinef("Loaded: %s", displayPath)
+	runpfile, err := core.LoadRunpfileFromPath(localPath)
 	if err != nil {
 		return &core.Runpfile{}, exitErrorf(exitCodeLoad,
-			"Cannot parse Runpfile at %s:\n  %s", runpfilePath, err.Error())
+			"Cannot parse Runpfile at %s:\n  %s", displayPath, err.Error())
 	}
 	valid, errs := core.IsRunpfileValid(runpfile)
 	if !valid {
 		var b strings.Builder
-		fmt.Fprintf(&b, "Invalid Runpfile %s:\n", runpfilePath)
+		fmt.Fprintf(&b, "Invalid Runpfile %s:\n", displayPath)
 		for _, e := range errs {
 			fmt.Fprintf(&b, "  - %s\n", e.Error())
 		}
@@ -235,6 +268,17 @@ func resolveRunpfileArg(c *cli.Context) string {
 		return env
 	}
 	return configFileBaseName
+}
+
+// resolveChecksumArg returns the --checksum value from the first context in the
+// lineage that has it set, or empty string if not provided.
+func resolveChecksumArg(c *cli.Context) string {
+	for _, ctx := range c.Lineage() {
+		if ctx.IsSet("checksum") {
+			return ctx.String("checksum")
+		}
+	}
+	return ""
 }
 
 // boolFromLineage returns true if any of the named flags was explicitly set

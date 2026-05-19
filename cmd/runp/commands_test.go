@@ -188,7 +188,7 @@ func TestLoadRunpfile(t *testing.T) {
 	// Success case
 	t.Run("success", func(t *testing.T) {
 		s.lines = []string{}
-		runpfile, err := loadRunpfile("../../testdata/runpfiles/env.yml")
+		runpfile, err := loadRunpfile("../../testdata/runpfiles/env.yml", "")
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
@@ -206,7 +206,7 @@ func TestLoadRunpfile(t *testing.T) {
 
 	// File not found case
 	t.Run("file not found", func(t *testing.T) {
-		_, err := loadRunpfile("non-existent-file.yml")
+		_, err := loadRunpfile("non-existent-file.yml", "")
 		if err == nil {
 			t.Fatal("Expected an error for non-existent file, got nil")
 		}
@@ -235,7 +235,7 @@ func TestLoadRunpfile(t *testing.T) {
 		}
 		tmpfile.Close()
 
-		_, err = loadRunpfile(tmpfile.Name())
+		_, err = loadRunpfile(tmpfile.Name(), "")
 		if err == nil {
 			t.Fatal("Expected an error for invalid file, got nil")
 		}
@@ -250,7 +250,7 @@ func TestLoadRunpfile(t *testing.T) {
 
 	// Invalid runpfile structure case
 	t.Run("invalid structure", func(t *testing.T) {
-		_, err := loadRunpfile("../../testdata/runpfiles/validation-error-01.yml")
+		_, err := loadRunpfile("../../testdata/runpfiles/validation-error-01.yml", "")
 		if err == nil {
 			t.Fatal("Expected an error for invalid runpfile structure, got nil")
 		}
