@@ -26,6 +26,10 @@ func doUp(c *cli.Context) error {
 	vars[`runp_root`] = runpfile.Root
 	vars[`runp_workdir`] = wd
 	vars[`runp_file_separator`] = string(os.PathSeparator)
+	vars, err = core.ExpandVars(vars)
+	if err != nil {
+		return exitErrorf(exitCodeVar, "Variable expansion failed: %v", err)
+	}
 	runpfile.Vars = vars
 
 	secretKey, err := resolveSecretKey(c.String(`key-env`), c.String(`key`))

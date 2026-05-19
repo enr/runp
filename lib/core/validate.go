@@ -25,6 +25,7 @@ func (r *ValidationResult) Valid() bool {
 //   - no units defined
 //   - unit with multiple or missing process types
 //   - variable references that are not declared in the vars section
+//   - circular variable references in the vars section
 //
 // Warnings (informational, do not fail validation):
 //   - OS or runp-version preconditions that would cause a unit to be skipped
@@ -35,6 +36,7 @@ func ValidateRunpfile(rf *Runpfile) ValidationResult {
 	_, structErrs := IsRunpfileValid(rf)
 	result.Errors = append(result.Errors, structErrs...)
 
+	result.Errors = append(result.Errors, validateVarExpansion(rf)...)
 	result.Errors = append(result.Errors, validateVariableRefs(rf)...)
 
 	result.Errors = append(result.Errors, validateDependsOn(rf)...)
@@ -42,6 +44,18 @@ func ValidateRunpfile(rf *Runpfile) ValidationResult {
 	result.Warnings = append(result.Warnings, collectPreconditionWarnings(rf)...)
 
 	return result
+}
+
+// validateVarExpansion checks that var values do not reference undeclared vars
+// and contain no circular references (vars-in-vars).
+func validateVarExpansion(rf *Runpfile) []error {
+	if len(rf.Vars) == 0 {
+		return nil
+	}
+	if _, err := ExpandVars(rf.Vars); err != nil {
+		return []error{fmt.Errorf("vars section: %w", err)}
+	}
+	return nil
 }
 
 // validateVariableRefs checks that every {{vars NAME}} reference inside a
