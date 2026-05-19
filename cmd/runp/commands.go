@@ -160,14 +160,6 @@ var commandList = cli.Command{
 	},
 }
 
-// Exit codes used across all commands.
-const (
-	exitCodeLoad = 2 // file not found or cannot be parsed
-	exitCodeArg  = 3 // bad arguments: mutually exclusive flags, missing required arg
-	exitCodeVar  = 4 // invalid / undeclared variable
-	exitCodeExec = 5 // execution error: process failed to start, preconditions not met
-)
-
 func exitError(exitCode int, message string) error {
 	return cli.NewExitError(message, exitCode)
 }

@@ -139,7 +139,7 @@ func TestExitError(t *testing.T) {
 	s := &stubLogger{}
 	ui = s
 	message := "test error"
-	exitCode := 3
+	exitCode := exitCodeArg
 	err := exitError(exitCode, message)
 
 	exitErr, ok := err.(cli.ExitCoder)
@@ -162,7 +162,7 @@ func TestExitErrorf(t *testing.T) {
 	template := "error with value %d"
 	value := 42
 	expectedMessage := fmt.Sprintf(template, value)
-	exitCode := 4
+	exitCode := exitCodeVar
 
 	err := exitErrorf(exitCode, template, value)
 
@@ -214,8 +214,8 @@ func TestLoadRunpfile(t *testing.T) {
 		if !ok {
 			t.Fatalf("Expected an error implementing cli.ExitCoder, got %T", err)
 		}
-		if exitErr.ExitCode() != 2 {
-			t.Errorf("Expected exit code 2, got %d", exitErr.ExitCode())
+		if exitErr.ExitCode() != exitCodeLoad {
+			t.Errorf("Expected exit code %d, got %d", exitCodeLoad, exitErr.ExitCode())
 		}
 		if !strings.Contains(exitErr.Error(), "not found") {
 			t.Errorf("Expected error message to contain 'not found', got '%s'", exitErr.Error())
@@ -243,8 +243,8 @@ func TestLoadRunpfile(t *testing.T) {
 		if !ok {
 			t.Fatalf("Expected an error implementing cli.ExitCoder, got %T", err)
 		}
-		if exitErr.ExitCode() != 2 {
-			t.Errorf("Expected exit code 2, got %d", exitErr.ExitCode())
+		if exitErr.ExitCode() != exitCodeLoad {
+			t.Errorf("Expected exit code %d, got %d", exitCodeLoad, exitErr.ExitCode())
 		}
 	})
 
@@ -258,8 +258,8 @@ func TestLoadRunpfile(t *testing.T) {
 		if !ok {
 			t.Fatalf("Expected an error implementing cli.ExitCoder, got %T", err)
 		}
-		if exitErr.ExitCode() != 2 {
-			t.Errorf("Expected exit code 2, got %d", exitErr.ExitCode())
+		if exitErr.ExitCode() != exitCodeLoad {
+			t.Errorf("Expected exit code %d, got %d", exitCodeLoad, exitErr.ExitCode())
 		}
 		if !strings.Contains(exitErr.Error(), "Invalid Runpfile") {
 			t.Errorf("Expected error message to contain 'Invalid Runpfile', got '%s'", exitErr.Error())
@@ -318,8 +318,8 @@ func TestApplyUserVarsNilMap(t *testing.T) {
 	if !ok {
 		t.Fatalf("Expected cli.ExitCoder, got %T: %v", err, err)
 	}
-	if exitErr.ExitCode() != 4 {
-		t.Errorf("Expected exit code 4, got %d", exitErr.ExitCode())
+	if exitErr.ExitCode() != exitCodeVar {
+		t.Errorf("Expected exit code %d, got %d", exitCodeVar, exitErr.ExitCode())
 	}
 	msg := exitErr.Error()
 	if !strings.Contains(msg, "vars:") {
@@ -348,8 +348,8 @@ func TestDoUpVarMissingEquals(t *testing.T) {
 	if !ok {
 		t.Fatalf("Expected cli.ExitCoder, got %T: %v", err, err)
 	}
-	if exitErr.ExitCode() != 4 {
-		t.Errorf("Expected exit code 4, got %d", exitErr.ExitCode())
+	if exitErr.ExitCode() != exitCodeVar {
+		t.Errorf("Expected exit code %d, got %d", exitCodeVar, exitErr.ExitCode())
 	}
 }
 
@@ -437,8 +437,8 @@ func TestDoList(t *testing.T) {
 		if !ok {
 			t.Fatalf("Expected an error implementing cli.ExitCoder, got %T", err)
 		}
-		if exitErr.ExitCode() != 2 {
-			t.Errorf("Expected exit code 2, got %d", exitErr.ExitCode())
+		if exitErr.ExitCode() != exitCodeLoad {
+			t.Errorf("Expected exit code %d, got %d", exitCodeLoad, exitErr.ExitCode())
 		}
 	})
 }
@@ -525,8 +525,8 @@ func TestDoEncrypt(t *testing.T) {
 		if !ok {
 			t.Fatalf("Expected an error implementing cli.ExitCoder, got %T", err)
 		}
-		if exitErr.ExitCode() != 3 {
-			t.Errorf("Expected exit code 3, got %d", exitErr.ExitCode())
+		if exitErr.ExitCode() != exitCodeArg {
+			t.Errorf("Expected exit code %d, got %d", exitCodeArg, exitErr.ExitCode())
 		}
 		if !strings.Contains(exitErr.Error(), "Secret value required") {
 			t.Errorf("Expected error message to mention 'Secret value required', got '%s'", exitErr.Error())
@@ -577,8 +577,8 @@ func TestDoEncrypt(t *testing.T) {
 		if !ok {
 			t.Fatalf("Expected cli.ExitCoder, got %T", err)
 		}
-		if exitErr.ExitCode() != 3 {
-			t.Errorf("Expected exit code 3, got %d", exitErr.ExitCode())
+		if exitErr.ExitCode() != exitCodeArg {
+			t.Errorf("Expected exit code %d, got %d", exitCodeArg, exitErr.ExitCode())
 		}
 	})
 
@@ -599,8 +599,8 @@ func TestDoEncrypt(t *testing.T) {
 		if !ok {
 			t.Fatalf("Expected an error implementing cli.ExitCoder, got %T", err)
 		}
-		if exitErr.ExitCode() != 3 {
-			t.Errorf("Expected exit code 3, got %d", exitErr.ExitCode())
+		if exitErr.ExitCode() != exitCodeArg {
+			t.Errorf("Expected exit code %d, got %d", exitCodeArg, exitErr.ExitCode())
 		}
 		if !strings.Contains(exitErr.Error(), "mutually exclusive") {
 			t.Errorf("Expected error message to contain 'mutually exclusive', got '%s'", exitErr.Error())
@@ -624,8 +624,8 @@ func TestDoEncrypt(t *testing.T) {
 		if !ok {
 			t.Fatalf("Expected an error implementing cli.ExitCoder, got %T", err)
 		}
-		if exitErr.ExitCode() != 3 {
-			t.Errorf("Expected exit code 3, got %d", exitErr.ExitCode())
+		if exitErr.ExitCode() != exitCodeArg {
+			t.Errorf("Expected exit code %d, got %d", exitCodeArg, exitErr.ExitCode())
 		}
 		if !strings.Contains(exitErr.Error(), "is empty") {
 			t.Errorf("Expected error message to contain 'is empty', got '%s'", exitErr.Error())
@@ -688,7 +688,7 @@ func TestDefaultCommandIsUp(t *testing.T) {
 	defer func() { cli.OsExiter = oldExiter }()
 
 	// Build the app exactly as main() does and verify that running it with no
-	// subcommand invokes doUp — confirmed by the exit code 2 that loadRunpfile
+	// subcommand invokes doUp — confirmed by exitCodeLoad that loadRunpfile
 	// returns when no Runpfile exists in the working directory.
 	app := cli.NewApp()
 	app.Name = "runp"
@@ -703,10 +703,10 @@ func TestDefaultCommandIsUp(t *testing.T) {
 
 	app.Run([]string{"runp"})
 
-	// Exit code 2 == loadRunpfile could not find the Runpfile.
-	// Any other code (e.g. 0, 3) would mean the default command wasn't 'up'.
-	if capturedCode != 2 {
-		t.Errorf("Expected OsExiter to be called with code 2 (doUp ran, file not found), got %d", capturedCode)
+	// exitCodeLoad == loadRunpfile could not find the Runpfile.
+	// Any other code (e.g. 0, exitCodeArg) would mean the default command wasn't 'up'.
+	if capturedCode != exitCodeLoad {
+		t.Errorf("Expected OsExiter to be called with code %d (doUp ran, file not found), got %d", exitCodeLoad, capturedCode)
 	}
 }
 
@@ -736,8 +736,8 @@ func TestDoConfig(t *testing.T) {
 		if !ok {
 			t.Fatalf("Expected cli.ExitCoder, got %T", err)
 		}
-		if exitErr.ExitCode() != 3 {
-			t.Errorf("Expected exit code 3, got %d", exitErr.ExitCode())
+		if exitErr.ExitCode() != exitCodeArg {
+			t.Errorf("Expected exit code %d, got %d", exitCodeArg, exitErr.ExitCode())
 		}
 	})
 
@@ -751,8 +751,8 @@ func TestDoConfig(t *testing.T) {
 		if !ok {
 			t.Fatalf("Expected cli.ExitCoder, got %T", err)
 		}
-		if exitErr.ExitCode() != 3 {
-			t.Errorf("Expected exit code 3, got %d", exitErr.ExitCode())
+		if exitErr.ExitCode() != exitCodeArg {
+			t.Errorf("Expected exit code %d, got %d", exitCodeArg, exitErr.ExitCode())
 		}
 	})
 
@@ -775,8 +775,8 @@ func TestDoConfig(t *testing.T) {
 		if !ok {
 			t.Fatalf("Expected cli.ExitCoder, got %T", err)
 		}
-		if exitErr.ExitCode() != 3 {
-			t.Errorf("Expected exit code 3, got %d", exitErr.ExitCode())
+		if exitErr.ExitCode() != exitCodeArg {
+			t.Errorf("Expected exit code %d, got %d", exitCodeArg, exitErr.ExitCode())
 		}
 	})
 
@@ -790,8 +790,8 @@ func TestDoConfig(t *testing.T) {
 		if !ok {
 			t.Fatalf("Expected cli.ExitCoder, got %T", err)
 		}
-		if exitErr.ExitCode() != 3 {
-			t.Errorf("Expected exit code 3, got %d", exitErr.ExitCode())
+		if exitErr.ExitCode() != exitCodeArg {
+			t.Errorf("Expected exit code %d, got %d", exitCodeArg, exitErr.ExitCode())
 		}
 	})
 
@@ -842,8 +842,8 @@ func TestDoReload(t *testing.T) {
 		if !ok {
 			t.Fatalf("Expected cli.ExitCoder, got %T", err)
 		}
-		if exitErr.ExitCode() != 3 {
-			t.Errorf("Expected exit code 3, got %d", exitErr.ExitCode())
+		if exitErr.ExitCode() != exitCodeArg {
+			t.Errorf("Expected exit code %d, got %d", exitCodeArg, exitErr.ExitCode())
 		}
 	})
 
@@ -857,8 +857,8 @@ func TestDoReload(t *testing.T) {
 		if !ok {
 			t.Fatalf("Expected cli.ExitCoder, got %T", err)
 		}
-		if exitErr.ExitCode() != 2 {
-			t.Errorf("Expected exit code 2, got %d", exitErr.ExitCode())
+		if exitErr.ExitCode() != exitCodeLoad {
+			t.Errorf("Expected exit code %d, got %d", exitCodeLoad, exitErr.ExitCode())
 		}
 	})
 
@@ -872,8 +872,8 @@ func TestDoReload(t *testing.T) {
 		if !ok {
 			t.Fatalf("Expected cli.ExitCoder, got %T", err)
 		}
-		if exitErr.ExitCode() != 3 {
-			t.Errorf("Expected exit code 3, got %d", exitErr.ExitCode())
+		if exitErr.ExitCode() != exitCodeArg {
+			t.Errorf("Expected exit code %d, got %d", exitCodeArg, exitErr.ExitCode())
 		}
 	})
 }
@@ -911,8 +911,8 @@ func TestDoValidate(t *testing.T) {
 		if !ok {
 			t.Fatalf("Expected cli.ExitCoder, got %T", err)
 		}
-		if exitErr.ExitCode() != 2 {
-			t.Errorf("Expected exit code 2, got %d", exitErr.ExitCode())
+		if exitErr.ExitCode() != exitCodeLoad {
+			t.Errorf("Expected exit code %d, got %d", exitCodeLoad, exitErr.ExitCode())
 		}
 	})
 
@@ -978,8 +978,8 @@ func TestDoValidate(t *testing.T) {
 		if !ok {
 			t.Fatalf("Expected cli.ExitCoder, got %T", err)
 		}
-		if exitErr.ExitCode() != 2 {
-			t.Errorf("Expected exit code 2, got %d", exitErr.ExitCode())
+		if exitErr.ExitCode() != exitCodeLoad {
+			t.Errorf("Expected exit code %d, got %d", exitCodeLoad, exitErr.ExitCode())
 		}
 	})
 }
