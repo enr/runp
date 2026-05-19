@@ -21,6 +21,7 @@ var commands = []*cli.Command{
 	&commandValidate,
 	&commandReload,
 	&commandConfig,
+	&commandCompletion,
 }
 
 var commandUp = cli.Command{
@@ -141,6 +142,7 @@ var commandReload = cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile (overrides RUNP_FILE env var)`},
 	},
+	BashComplete: completionUnitNames,
 }
 
 var commandList = cli.Command{
