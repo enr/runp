@@ -273,7 +273,7 @@ func (p *ContainerProcess) VerifyPreconditions() PreconditionVerifyResult {
 			Reasons: []string{fmt.Sprintf("Container runner executable not found: %s (%v)", p.environmentSettings.ContainerRunnerExe, err)},
 		}
 	}
-	cmdLine := fmt.Sprintf("%s network ls -q --filter name=runp-network --format '{{ .Name }}'", containerRunner)
+	cmdLine := fmt.Sprintf("%s network ls --filter name=runp-network --format '{{ .Name }}'", containerRunner)
 	ui.Debugf("Checking network precondition: %s", cmdLine)
 	command, err := cmd(cmdLine)
 	if err != nil {
