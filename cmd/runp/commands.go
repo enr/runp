@@ -35,6 +35,7 @@ var commandUp = cli.Command{
 	Action: doUp,
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile (overrides RUNP_FILE env var)`},
+		&cli.BoolFlag{Name: "dry-run", Aliases: []string{"n"}, Usage: "Print what would be executed without starting any process"},
 		&cli.StringSliceFlag{Name: "var", Aliases: []string{"V"}, Usage: `Runtime variables in format "key=value"`},
 		&cli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: `Decryption key (WARNING: visible in 'ps aux' and shell history — prefer --key-env)`},
 		&cli.StringFlag{Name: "key-env", Usage: `Name of the environment variable containing the decryption key (recommended)`},
@@ -210,19 +211,26 @@ func runpfileNotFoundError(resolvedPath string) error {
 
 // resolveRunpfileArg returns the Runpfile path to use for a command,
 // implementing the precedence: --file flag > RUNP_FILE env var > default.
-// A flag value that differs from the compiled-in default is treated as
-// explicitly set (this handles test helpers that inject a path as the
-// flag's default value without going through flag.Parse).
+//
+// It walks the full context lineage (subcommand → global) so that
+// "runp -f path" (flag at global level) and "runp up -f path" (flag at
+// subcommand level) both work when 'up' is the default command.
+//
+// A non-default value that differs from the compiled-in default is treated
+// as explicitly set — this handles test helpers that inject a path as the
+// flag's default value without going through flag.Parse.
 func resolveRunpfileArg(c *cli.Context) string {
-	// Explicit set wins (works for both --file and -f, and for set.Set in tests).
-	if c.IsSet("file") || c.IsSet("f") {
-		if v := c.String("file"); v != "" {
-			return v
+	// Walk innermost → outermost context to find the first explicitly-set value.
+	for _, ctx := range c.Lineage() {
+		if ctx.IsSet("file") {
+			return ctx.String("file")
 		}
-		return c.String("f")
+		if ctx.IsSet("f") {
+			return ctx.String("f")
+		}
 	}
-	// Non-default value in either flag name (covers test helpers that set a
-	// specific path as the flag's default without going through flag.Parse).
+	// Fallback: non-default value in the current context covers test helpers
+	// that set a specific path as the flag default without flag.Parse.
 	if v := c.String("file"); v != "" && v != configFileBaseName {
 		return v
 	}
@@ -233,6 +241,21 @@ func resolveRunpfileArg(c *cli.Context) string {
 		return env
 	}
 	return configFileBaseName
+}
+
+// boolFromLineage returns true if any of the named flags was explicitly set
+// in any context in the lineage (subcommand → global). This is needed when
+// the same bool flag is defined at both global and subcommand level so that
+// "runp --flag" and "runp up --flag" both work correctly.
+func boolFromLineage(c *cli.Context, names ...string) bool {
+	for _, ctx := range c.Lineage() {
+		for _, name := range names {
+			if ctx.IsSet(name) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // resolveLogLevel derives a LogLevel from the --log-level flag and the

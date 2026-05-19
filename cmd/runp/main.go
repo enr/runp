@@ -101,6 +101,7 @@ func main() {
 		&cli.BoolFlag{Name: "debug", Aliases: []string{"d"}, Usage: "Deprecated: use --log-level debug"},
 		&cli.BoolFlag{Name: "quiet", Aliases: []string{"q"}, Usage: "Deprecated: use --log-level warn"},
 		&cli.BoolFlag{Name: "no-color", Aliases: []string{"C"}, Usage: "Disable colored output"},
+		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile — used when running the default 'up' command without an explicit subcommand`},
 		&cli.BoolFlag{Name: "dry-run", Aliases: []string{"n"}, Usage: "Print what would be executed without starting any process"},
 	}
 	app.EnableBashCompletion = true

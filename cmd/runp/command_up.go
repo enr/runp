@@ -46,7 +46,7 @@ func doUp(c *cli.Context) error {
 
 	executor := core.NewExecutor(runpfile)
 
-	if c.Bool("dry-run") {
+	if boolFromLineage(c, "dry-run", "n") {
 		return doDryRun(executor)
 	}
 
