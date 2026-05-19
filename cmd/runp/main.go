@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/enr/runp/lib/core"
 	"github.com/urfave/cli/v2"
@@ -92,7 +93,7 @@ func listenForShutdown(ch <-chan os.Signal) {
 func main() {
 	// manage stop signals
 	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, os.Interrupt)
+	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
 	go listenForShutdown(ch)
 
 	app := cli.NewApp()
