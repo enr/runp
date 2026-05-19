@@ -70,11 +70,19 @@ func (p *ContainerProcess) StartCommand() (RunpCommand, error) {
 	}, nil
 }
 
+func (p *ContainerProcess) lookupContainerRunner() (string, error) {
+	path, err := exec.LookPath(p.environmentSettings.ContainerRunnerExe)
+	if err != nil {
+		return "", fmt.Errorf("container runner %q not found in PATH: %w", p.environmentSettings.ContainerRunnerExe, err)
+	}
+	return path, nil
+}
+
 // StopCommand returns the command stopping the process.
 func (p *ContainerProcess) StopCommand() (RunpCommand, error) {
-	containerRunner, err := exec.LookPath(p.environmentSettings.ContainerRunnerExe)
+	containerRunner, err := p.lookupContainerRunner()
 	if err != nil {
-		return nil, fmt.Errorf("container runner executable not found: %s: %w", p.environmentSettings.ContainerRunnerExe, err)
+		return nil, err
 	}
 	cl := fmt.Sprintf(`%s stop %s`, containerRunner, p.buildContainerName())
 	cmd, err := cmd(cl)
@@ -119,9 +127,9 @@ func (p *ContainerProcess) buildCmdLine() (string, error) {
 	img := p.Image
 	ui.Debugf("Run image '%s'\n", img)
 
-	containerRunner, err := exec.LookPath(p.environmentSettings.ContainerRunnerExe)
+	containerRunner, err := p.lookupContainerRunner()
 	if err != nil {
-		return "", fmt.Errorf("container runner executable not found: %s: %w", p.environmentSettings.ContainerRunnerExe, err)
+		return "", err
 	}
 	cliPreprocessor := newCliPreprocessor(p.vars)
 	var sb strings.Builder
@@ -229,9 +237,9 @@ func (p *ContainerProcess) String() string {
 
 // IsStartable ...
 func (p *ContainerProcess) IsStartable() (bool, error) {
-	containerRunner, err := exec.LookPath(p.environmentSettings.ContainerRunnerExe)
+	containerRunner, err := p.lookupContainerRunner()
 	if err != nil {
-		return false, fmt.Errorf("container runner executable not found: %s: %w", p.environmentSettings.ContainerRunnerExe, err)
+		return false, err
 	}
 	cn := p.buildContainerName()
 	cmdLine := fmt.Sprintf("%s ps -aq -f name=%s", containerRunner, cn)
@@ -265,12 +273,11 @@ func (p *ContainerProcess) VerifyPreconditions() PreconditionVerifyResult {
 	if res.Vote != Proceed {
 		return res
 	}
-	var err error
-	containerRunner, err := exec.LookPath(p.environmentSettings.ContainerRunnerExe)
+	containerRunner, err := p.lookupContainerRunner()
 	if err != nil {
 		return PreconditionVerifyResult{
 			Vote:    Stop,
-			Reasons: []string{fmt.Sprintf("Container runner executable not found: %s (%v)", p.environmentSettings.ContainerRunnerExe, err)},
+			Reasons: []string{err.Error()},
 		}
 	}
 	cmdLine := fmt.Sprintf("%s network ls --filter name=runp-network --format '{{ .Name }}'", containerRunner)
