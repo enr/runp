@@ -17,6 +17,15 @@ type RunpProcess interface {
 	AwaitResource() string
 	AwaitTimeout() string
 	IsStartable() (bool, error)
+	// PreStart is called immediately before the process command is started.
+	// Implementations use it for setup that must happen before execution begins.
+	PreStart() error
+	// OnStarted is called after the process has been successfully started.
+	// The pid parameter is the OS process ID (0 if unavailable).
+	OnStarted(pid int)
+	// PostStop is called after the process command has exited.
+	// Implementations use it for cleanup (e.g. removing a PID file).
+	PostStop()
 }
 
 // StartPlan defines how and when start process.

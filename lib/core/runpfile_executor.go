@@ -134,6 +134,7 @@ func (e *RunpfileExecutor) initializeUnits() {
 			unit.Host.vars = unit.vars
 			unit.Host.secretKey = unit.secretKey
 			unit.Host.stopTimeout = unit.StopTimeout
+			unit.Host.pidDir = e.PIDDir
 			unit.Host.environmentSettings = e.environmentSettings
 		}
 		if unit.Container != nil {
@@ -233,7 +234,7 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit) error {
 	}
 
 	w.Close()
-	e.monitorProcessExit(cmd, unit, process, logger, appContext, &pwg)
+	e.monitorProcessExit(cmd, process, logger, appContext, &pwg)
 	e.readProcessOutput(r, process, logger)
 	pwg.Wait()
 	return nil
@@ -320,6 +321,13 @@ func (e *RunpfileExecutor) verifyProcessStartability(process RunpProcess, logger
 }
 
 func (e *RunpfileExecutor) startProcessCommand(cmd RunpCommand, unit *RunpUnit, process RunpProcess, logger Logger, appContext *ApplicationContext, w *os.File, pwg *sync.WaitGroup) error {
+	if err := process.PreStart(); err != nil {
+		w.Close()
+		logger.WriteLinef("Pre-start hook failed for unit %s: %v", unit.Name, err)
+		appContext.RemoveRunningProcess(process)
+		pwg.Done()
+		return err
+	}
 	err := cmd.Start()
 	if err != nil {
 		w.Close()
@@ -330,17 +338,11 @@ func (e *RunpfileExecutor) startProcessCommand(cmd RunpCommand, unit *RunpUnit, 
 		return err
 	}
 	logger.Debugf("Process %s started successfully", process.ID())
-	if unit.Host != nil && e.PIDDir != "" {
-		if pid := cmd.Pid(); pid > 0 {
-			if werr := WritePIDFile(e.PIDDir, unit.Name, pid); werr != nil {
-				logger.Debugf("Failed to write PID file for unit %s: %v", unit.Name, werr)
-			}
-		}
-	}
+	process.OnStarted(cmd.Pid())
 	return nil
 }
 
-func (e *RunpfileExecutor) monitorProcessExit(cmd RunpCommand, unit *RunpUnit, process RunpProcess, logger Logger, appContext *ApplicationContext, pwg *sync.WaitGroup) {
+func (e *RunpfileExecutor) monitorProcessExit(cmd RunpCommand, process RunpProcess, logger Logger, appContext *ApplicationContext, pwg *sync.WaitGroup) {
 	exit := make(chan error, 1)
 	go func() {
 		exit <- cmd.Wait()
@@ -350,11 +352,7 @@ func (e *RunpfileExecutor) monitorProcessExit(cmd RunpCommand, unit *RunpUnit, p
 	go func() {
 		defer pwg.Done()
 		defer appContext.RemoveRunningProcess(process)
-		defer func() {
-			if unit.Host != nil && e.PIDDir != "" {
-				RemovePIDFile(e.PIDDir, unit.Name)
-			}
-		}()
+		defer process.PostStop()
 
 		err := <-exit
 		if err != nil {

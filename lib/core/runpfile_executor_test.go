@@ -148,6 +148,10 @@ func (m *mockRunpProcess) IsStartable() (bool, error) {
 	return m.startable, m.startableErr
 }
 
+func (m *mockRunpProcess) PreStart() error { return nil }
+func (m *mockRunpProcess) OnStarted(_ int) {}
+func (m *mockRunpProcess) PostStop()       {}
+
 func TestRunpfileExecutor_longestName(t *testing.T) {
 	ConfigureUI(testLogger, LoggerConfig{
 		Debug: false,

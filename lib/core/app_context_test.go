@@ -25,6 +25,9 @@ func (s *stubProcess) ShouldWait() bool                   { return false }
 func (s *stubProcess) AwaitResource() string              { return "" }
 func (s *stubProcess) AwaitTimeout() string               { return "" }
 func (s *stubProcess) IsStartable() (bool, error)         { return true, nil }
+func (s *stubProcess) PreStart() error                    { return nil }
+func (s *stubProcess) OnStarted(_ int)                    {}
+func (s *stubProcess) PostStop()                          {}
 
 func TestGetRunningProcesses(t *testing.T) {
 	ctx := GetApplicationContext()

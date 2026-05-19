@@ -33,7 +33,29 @@ type HostProcess struct {
 	preconditions       Preconditions
 	secretKey           string
 	stopTimeout         string
+	pidDir              string
 	environmentSettings *EnvironmentSettings
+}
+
+// PreStart implements RunpProcess. No-op for host processes.
+func (p *HostProcess) PreStart() error {
+	return nil
+}
+
+// OnStarted writes a PID file when a PID directory is configured.
+func (p *HostProcess) OnStarted(pid int) {
+	if p.pidDir != "" && pid > 0 {
+		if err := WritePIDFile(p.pidDir, p.id, pid); err != nil {
+			ui.Debugf("Failed to write PID file for unit %s: %v", p.id, err)
+		}
+	}
+}
+
+// PostStop removes the PID file written by OnStarted.
+func (p *HostProcess) PostStop() {
+	if p.pidDir != "" {
+		RemovePIDFile(p.pidDir, p.id)
+	}
 }
 
 // ID for the sub process

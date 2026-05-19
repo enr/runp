@@ -50,6 +50,15 @@ func (p *ContainerProcess) SetID(id string) {
 	p.id = id
 }
 
+// PreStart implements RunpProcess. No-op for container processes.
+func (p *ContainerProcess) PreStart() error { return nil }
+
+// OnStarted implements RunpProcess. No-op for container processes.
+func (p *ContainerProcess) OnStarted(_ int) {}
+
+// PostStop implements RunpProcess. No-op for container processes.
+func (p *ContainerProcess) PostStop() {}
+
 // StartCommand returns the command starting the process.
 func (p *ContainerProcess) StartCommand() (RunpCommand, error) {
 	cmd, err := p.buildCmdImage()

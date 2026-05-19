@@ -67,6 +67,15 @@ func (p *SSHTunnelProcess) ID() string {
 	return p.id
 }
 
+// PreStart implements RunpProcess. No-op for SSH tunnel processes.
+func (p *SSHTunnelProcess) PreStart() error { return nil }
+
+// OnStarted implements RunpProcess. No-op for SSH tunnel processes.
+func (p *SSHTunnelProcess) OnStarted(_ int) {}
+
+// PostStop implements RunpProcess. No-op for SSH tunnel processes.
+func (p *SSHTunnelProcess) PostStop() {}
+
 // SetPreconditions set preconditions.
 func (p *SSHTunnelProcess) SetPreconditions(preconditions Preconditions) {
 	p.preconditions = preconditions
