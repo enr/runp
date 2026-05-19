@@ -206,19 +206,21 @@ func TestLoadRunpfile(t *testing.T) {
 
 	// File not found case
 	t.Run("file not found", func(t *testing.T) {
-		_, err := loadRunpfile("non-existent-file.yml", "")
-		if err == nil {
-			t.Fatal("Expected an error for non-existent file, got nil")
-		}
-		exitErr, ok := err.(cli.ExitCoder)
-		if !ok {
-			t.Fatalf("Expected an error implementing cli.ExitCoder, got %T", err)
-		}
-		if exitErr.ExitCode() != exitCodeLoad {
-			t.Errorf("Expected exit code %d, got %d", exitCodeLoad, exitErr.ExitCode())
-		}
-		if !strings.Contains(exitErr.Error(), "not found") {
-			t.Errorf("Expected error message to contain 'not found', got '%s'", exitErr.Error())
+		stdout := captureStdout(t, func() {
+			_, err := loadRunpfile("non-existent-file.yml", "")
+			if err == nil {
+				t.Fatal("Expected an error for non-existent file, got nil")
+			}
+			exitErr, ok := err.(cli.ExitCoder)
+			if !ok {
+				t.Fatalf("Expected an error implementing cli.ExitCoder, got %T", err)
+			}
+			if exitErr.ExitCode() != exitCodeLoad {
+				t.Errorf("Expected exit code %d, got %d", exitCodeLoad, exitErr.ExitCode())
+			}
+		})
+		if !strings.Contains(stdout, "not found") {
+			t.Errorf("Expected stdout to contain 'not found', got %q", stdout)
 		}
 	})
 
@@ -982,4 +984,22 @@ func TestDoValidate(t *testing.T) {
 			t.Errorf("Expected exit code %d, got %d", exitCodeLoad, exitErr.ExitCode())
 		}
 	})
+}
+
+// captureStdout redirects os.Stdout for the duration of fn and returns what
+// was written to it.
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("captureStdout: os.Pipe: %v", err)
+	}
+	os.Stdout = w
+	fn()
+	w.Close()
+	os.Stdout = old
+	var buf strings.Builder
+	io.Copy(&buf, r)
+	return buf.String()
 }

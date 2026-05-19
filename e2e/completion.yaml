@@ -1,0 +1,44 @@
+preconditions:
+  fs:
+    - file: ../bin/runp
+      ext:
+        windows: .exe
+specs:
+  completion_bash:
+    description: completion bash prints bash completion script
+    command:
+      working_dir: ..
+      exe: bin/runp
+      ext:
+        windows: .exe
+      args:
+        - "completion"
+        - "bash"
+    expectations:
+      status:
+        equals_to: 0
+      output:
+        stdout:
+          contains_all:
+            - _runp_bash_completion
+            - runp
+        stderr:
+          is_empty: true
+  completion_invalid_shell:
+    description: completion with unsupported shell name exits 3
+    command:
+      working_dir: ..
+      exe: bin/runp
+      ext:
+        windows: .exe
+      args:
+        - "completion"
+        - "invalid-shell"
+    expectations:
+      status:
+        equals_to: 3
+      output:
+        stderr:
+          contains_all:
+            - bash
+            - zsh

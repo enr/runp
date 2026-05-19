@@ -228,12 +228,14 @@ func exitErrorf(exitCode int, template string, args ...interface{}) error {
 	return cli.NewExitError(fmt.Sprintf(template, args...), exitCode)
 }
 
-// runpfileNotFoundError returns a consistent exit-code-2 error when the
-// Runpfile cannot be found at the given absolute path.
+// runpfileNotFoundError prints the "not found" message to stdout and returns a
+// silent exit-code-2 error. Output goes to stdout (not stderr) so that callers
+// can capture it via combined output or stdout-only redirection.
 func runpfileNotFoundError(resolvedPath string) error {
-	return exitErrorf(exitCodeLoad,
-		"Runpfile not found at %s\n  → Run `runp init` to create one, or use --file to specify a path",
+	fmt.Fprintf(os.Stdout,
+		"Runpfile not found at %s\n  → Run `runp init` to create one, or use --file to specify a path\n",
 		resolvedPath)
+	return cli.Exit("", exitCodeLoad)
 }
 
 // resolveRunpfileArg returns the Runpfile path to use for a command,

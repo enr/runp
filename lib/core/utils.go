@@ -93,25 +93,39 @@ func LoadRunpfileFromPath(runpfilePath string) (*Runpfile, error) {
 		path: runpfilePath,
 	}
 	visited := make(map[string]runpfileSource)
-	return loadRunpfileFromPath(rps, visited)
+	return loadRunpfileFromPath(rps, visited, false)
 }
 
-func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSource) (*Runpfile, error) {
+// LoadRunpfileForValidation loads a Runpfile without failing on units that
+// lack a process block — allowing ValidateRunpfile to report all errors at once.
+func LoadRunpfileForValidation(runpfilePath string) (*Runpfile, error) {
+	rps := runpfileSource{
+		path: runpfilePath,
+	}
+	visited := make(map[string]runpfileSource)
+	return loadRunpfileFromPath(rps, visited, true)
+}
+
+func circularImportError(runpfile runpfileSource) error {
+	cycleStart := -1
+	for i, p := range runpfile.chain {
+		if p == runpfile.path {
+			cycleStart = i
+			break
+		}
+	}
+	var cycleNodes []string
+	if cycleStart >= 0 {
+		cycleNodes = append(runpfile.chain[cycleStart:], runpfile.path)
+	} else {
+		cycleNodes = append(runpfile.chain, runpfile.path)
+	}
+	return fmt.Errorf("circular dependency detected: %s", strings.Join(cycleNodes, " -> "))
+}
+
+func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSource, forValidation bool) (*Runpfile, error) {
 	if _, ok := visited[runpfile.path]; ok {
-		cycleStart := -1
-		for i, p := range runpfile.chain {
-			if p == runpfile.path {
-				cycleStart = i
-				break
-			}
-		}
-		var cycleNodes []string
-		if cycleStart >= 0 {
-			cycleNodes = append(runpfile.chain[cycleStart:], runpfile.path)
-		} else {
-			cycleNodes = append(runpfile.chain, runpfile.path)
-		}
-		return nil, fmt.Errorf("circular dependency detected: %s", strings.Join(cycleNodes, " -> "))
+		return nil, circularImportError(runpfile)
 	}
 	visited[runpfile.path] = runpfile
 	data, err := os.ReadFile(runpfile.path)
@@ -132,7 +146,10 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 			unit.Name = id
 		}
 		if unit.Process() == nil {
-			return nil, fmt.Errorf(ErrFmtCreateProcess, id)
+			if !forValidation {
+				return nil, fmt.Errorf(ErrFmtCreateProcess, id)
+			}
+			continue
 		}
 		wd, fail := resolveWorkingDir(rf, unit)
 		if fail != nil {
@@ -145,7 +162,7 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 		unit.Process().SetID(unit.Name)
 	}
 	for _, inc := range rf.Include {
-		err = merge(runpfile, rf, inc, visited)
+		err = merge(runpfile, rf, inc, visited, forValidation)
 		if err != nil {
 			return nil, err
 		}
@@ -156,7 +173,7 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 	return rf, nil
 }
 
-func merge(runpfile runpfileSource, rf *Runpfile, inc string, visited map[string]runpfileSource) error {
+func merge(runpfile runpfileSource, rf *Runpfile, inc string, visited map[string]runpfileSource, forValidation bool) error {
 	rpp := filepath.ToSlash(filepath.Join(rf.Root, inc))
 	ui.Debugf("Including Runpfile from %s: %s", runpfile.path, rpp)
 	if !files.Exists(rpp) {
@@ -173,7 +190,7 @@ func merge(runpfile runpfileSource, rf *Runpfile, inc string, visited map[string
 	if rf.Units == nil {
 		rf.Units = map[string]*RunpUnit{}
 	}
-	included, err := loadRunpfileFromPath(source, visited)
+	included, err := loadRunpfileFromPath(source, visited, forValidation)
 	if err != nil {
 		return err
 	}

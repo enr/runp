@@ -16,7 +16,7 @@ func doValidate(c *cli.Context) error {
 		return runpfileNotFoundError(localPath)
 	}
 
-	runpfile, err := core.LoadRunpfileFromPath(localPath)
+	runpfile, err := core.LoadRunpfileForValidation(localPath)
 	if err != nil {
 		return exitErrorf(exitCodeLoad, "Failed to load Runpfile %s: %s", displayPath, err.Error())
 	}
@@ -42,5 +42,5 @@ func doValidate(c *cli.Context) error {
 			ui.WriteLinef("    - %s", w)
 		}
 	}
-	return cli.NewExitError("Runpfile validation failed", 1)
+	return cli.NewExitError("", 1)
 }

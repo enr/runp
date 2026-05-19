@@ -120,3 +120,131 @@ specs:
             - this-is-from-windows-unit
         stderr:
           is_empty: true
+  dryrun_table:
+    description: --dry-run prints NAME/KIND/COMMAND table and exits 0
+    command:
+      working_dir: ..
+      exe: bin/runp
+      ext:
+        windows: .exe
+      args:
+        - "up"
+        - "--file"
+        - "examples/Runpfile-dry-run.yml"
+        - "--dry-run"
+    expectations:
+      status:
+        equals_to: 0
+      output:
+        stdout:
+          contains_all:
+            - "[dry-run]"
+            - NAME
+            - KIND
+            - COMMAND
+            - setup
+        stderr:
+          is_empty: true
+  depends_on_all_units_run:
+    description: all units in a depends_on chain are executed
+    command:
+      working_dir: ..
+      exe: bin/runp
+      args:
+        - "up"
+        - "--file"
+        - "examples/Runpfile-depends-on.yml"
+    expectations:
+      status:
+        equals_to: 0
+      output:
+        stdout:
+          contains_all:
+            - "database: started"
+            - "cache: started"
+            - "api: started"
+            - "metrics: started"
+            - "worker: started"
+            - "frontend: started"
+        stderr:
+          is_empty: true
+  dryrun_var_substitution:
+    description: --dry-run with --var shows substituted value in COMMAND column
+    command:
+      working_dir: ..
+      exe: bin/runp
+      args:
+        - "up"
+        - "--file"
+        - "examples/Runpfile-dry-run.yml"
+        - "--dry-run"
+        - "--var"
+        - "env=staging"
+    expectations:
+      status:
+        equals_to: 0
+      output:
+        stdout:
+          contains_all:
+            - staging
+        stderr:
+          is_empty: true
+  include_list_merged_units:
+    description: include composition merges units from all files into list output
+    command:
+      working_dir: ..
+      exe: bin/runp
+      args:
+        - "list"
+        - "--file"
+        - "examples/include-composed/Runpfile.yml"
+    expectations:
+      status:
+        equals_to: 0
+      output:
+        stdout:
+          contains_all:
+            - postgres
+            - redis
+            - api
+            - worker
+            - proxy
+        stderr:
+          is_empty: true
+  include_up_all_units_run:
+    description: include composition runs all units including cross-file depends_on
+    command:
+      working_dir: ..
+      exe: bin/runp
+      args:
+        - "up"
+        - "--file"
+        - "examples/include-composed/Runpfile.yml"
+    expectations:
+      status:
+        equals_to: 0
+      output:
+        stdout:
+          contains_all:
+            - "proxy: routing traffic to api"
+        stderr:
+          is_empty: true
+  implicit_vars_present:
+    description: runp_root and runp_workdir are injected and non-empty
+    command:
+      working_dir: ..
+      exe: bin/runp
+      args:
+        - "up"
+        - "--file"
+        - "examples/Runpfile-implicit-vars.yml"
+    expectations:
+      status:
+        equals_to: 0
+      output:
+        stdout:
+          contains_all:
+            - "runp_workdir="
+            - "runp_root="
+        stderr:
+          is_empty: true

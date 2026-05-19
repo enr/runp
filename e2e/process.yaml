@@ -86,3 +86,90 @@ specs:
             - __.__
         stderr:
           is_empty: true
+  list_json_output:
+    description: list --output json produces a JSON array with name/kind/description fields
+    command:
+      working_dir: ..
+      exe: bin/runp
+      ext:
+        windows: .exe
+      args:
+        - "list"
+        - "--output"
+        - "json"
+        - "--file"
+        - "examples/Runpfile-list-mixed.yml"
+    expectations:
+      status:
+        equals_to: 0
+      output:
+        stdout:
+          contains_all:
+            - '"name"'
+            - '"kind"'
+            - '"description"'
+            - database
+            - remote-db
+        stderr:
+          is_empty: true
+  invalid_log_level:
+    description: unrecognized --log-level value exits with error
+    command:
+      working_dir: ..
+      exe: bin/runp
+      ext:
+        windows: .exe
+      args:
+        - "--log-level"
+        - "totally-bogus"
+        - "up"
+        - "--file"
+        - "testdata/runpfiles/env.yml"
+    expectations:
+      status:
+        equals_to: 3
+      output:
+        stdout:
+          is_empty: false
+  up_file_not_found:
+    description: up with missing --file exits 2 with "not found" message
+    command:
+      working_dir: ..
+      exe: bin/runp
+      ext:
+        windows: .exe
+      args:
+        - "up"
+        - "--file"
+        - "totally-nonexistent-runpfile.yml"
+    expectations:
+      status:
+        equals_to: 2
+      output:
+        stdout:
+          contains_all:
+            - not found
+        stderr:
+          is_empty: true
+  status_table_headers:
+    description: status command prints NAME/KIND/STATE table and exits 0
+    command:
+      working_dir: ..
+      exe: bin/runp
+      ext:
+        windows: .exe
+      args:
+        - "status"
+        - "--file"
+        - "examples/Runpfile-list-mixed.yml"
+    expectations:
+      status:
+        equals_to: 0
+      output:
+        stdout:
+          contains_all:
+            - NAME
+            - KIND
+            - STATE
+        stderr:
+          is_empty: true

@@ -1,0 +1,127 @@
+preconditions:
+  fs:
+    - file: ../bin/runp
+      ext:
+        windows: .exe
+specs:
+  validate_errors:
+    description: Runpfile with structural errors exits 1 and prints "invalid"
+    command:
+      working_dir: ..
+      exe: bin/runp
+      ext:
+        windows: .exe
+      args:
+        - "validate"
+        - "--file"
+        - "examples/Runpfile-validate-errors.yml"
+    expectations:
+      status:
+        equals_to: 1
+      output:
+        stdout:
+          contains_all:
+            - invalid
+            - not declared in vars
+        stderr:
+          is_empty: true
+
+  validate_cycle:
+    description: circular depends_on is detected and reported as exit 1
+    command:
+      working_dir: ..
+      exe: bin/runp
+      ext:
+        windows: .exe
+      args:
+        - "validate"
+        - "--file"
+        - "examples/Runpfile-validate-cycle.yml"
+    expectations:
+      status:
+        equals_to: 1
+      output:
+        stdout:
+          contains_all:
+            - circular
+        stderr:
+          is_empty: true
+
+  validate_unknown_var:
+    description: variable reference not declared in vars section exits 1
+    command:
+      working_dir: ..
+      exe: bin/runp
+      ext:
+        windows: .exe
+      args:
+        - "validate"
+        - "--file"
+        - "testdata/runpfiles/validate-unknown-var.yml"
+    expectations:
+      status:
+        equals_to: 1
+      output:
+        stdout:
+          contains_all:
+            - undefined_var
+            - not declared in vars
+        stderr:
+          is_empty: true
+
+  validate_file_not_found:
+    description: validate with missing file exits 2
+    command:
+      working_dir: ..
+      exe: bin/runp
+      ext:
+        windows: .exe
+      args:
+        - "validate"
+        - "--file"
+        - "totally-nonexistent-runpfile.yml"
+    expectations:
+      status:
+        equals_to: 2
+      output:
+        stderr:
+          is_empty: false
+
+  validate_bad_yaml:
+    description: malformed YAML exits 2
+    command:
+      working_dir: ..
+      exe: bin/runp
+      ext:
+        windows: .exe
+      args:
+        - "validate"
+        - "--file"
+        - "testdata/runpfiles/bad-yaml.yml"
+    expectations:
+      status:
+        equals_to: 2
+      output:
+        stderr:
+          is_empty: false
+
+  validate_valid:
+    description: valid Runpfile exits 0 and prints "valid"
+    command:
+      working_dir: ..
+      exe: bin/runp
+      ext:
+        windows: .exe
+      args:
+        - "validate"
+        - "--file"
+        - "testdata/runpfiles/env.yml"
+    expectations:
+      status:
+        equals_to: 0
+      output:
+        stdout:
+          contains_all:
+            - valid
+        stderr:
+          is_empty: true

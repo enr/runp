@@ -11,7 +11,9 @@ import (
 
 func TestExecutions(t *testing.T) {
 	executions(`./basic.yaml`, t)
+	executions(`./completion.yaml`, t)
 	executions(`./process.yaml`, t)
+	executions(`./validate.yaml`, t)
 	os := runtime.GOOS
 	osTestFile := fmt.Sprintf(`./%s.yaml`, os)
 	if files.Exists(osTestFile) {
