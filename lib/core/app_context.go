@@ -10,6 +10,8 @@ type ApplicationContext struct {
 	runningProcesses map[string]RunpProcess
 	report           []string
 	shuttingDown     bool
+	shutdownOnce     sync.Once
+	shutdownCh       chan struct{}
 }
 
 // RegisterRunningProcess add process to the list of running ones.
@@ -43,6 +45,19 @@ func (c *ApplicationContext) AddReport(message string) {
 	c.report = append(c.report, message)
 }
 
+// TriggerShutdown signals all listeners (via ShutdownChan) that a graceful
+// shutdown has been requested. Safe to call multiple times.
+func (c *ApplicationContext) TriggerShutdown() {
+	c.shutdownOnce.Do(func() {
+		close(c.shutdownCh)
+	})
+}
+
+// ShutdownChan returns a channel that is closed when TriggerShutdown is called.
+func (c *ApplicationContext) ShutdownChan() <-chan struct{} {
+	return c.shutdownCh
+}
+
 // SetShuttingDown sets the shutting down flag to true.
 func (c *ApplicationContext) SetShuttingDown() {
 	c.Lock()
@@ -66,7 +81,9 @@ var (
 func GetApplicationContext() *ApplicationContext {
 	once.Do(func() {
 		instance = &ApplicationContext{
-			runningProcesses: make(map[string]RunpProcess)}
+			runningProcesses: make(map[string]RunpProcess),
+			shutdownCh:       make(chan struct{}),
+		}
 	})
 	return instance
 }

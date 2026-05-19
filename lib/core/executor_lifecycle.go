@@ -12,6 +12,12 @@ import (
 func (e *RunpfileExecutor) monitorProcessExit(cmd RunpCommand, process RunpProcess, logger Logger, appContext *ApplicationContext, pwg *sync.WaitGroup) {
 	exit := make(chan error, 1)
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				ui.WriteLinef("Panic waiting for process %s to finish: %v", process.ID(), r)
+				exit <- fmt.Errorf("panic waiting for process to finish: %v", r)
+			}
+		}()
 		exit <- cmd.Wait()
 		logger.WriteLinef("Process %s finished: %s", process.ID(), cmd)
 	}()
@@ -20,6 +26,13 @@ func (e *RunpfileExecutor) monitorProcessExit(cmd RunpCommand, process RunpProce
 		defer pwg.Done()
 		defer appContext.RemoveRunningProcess(process)
 		defer process.PostStop()
+		defer func() {
+			if r := recover(); r != nil {
+				ui.WriteLinef("Panic in lifecycle handler for process %s: %v", process.ID(), r)
+				appContext.AddReport(fmt.Sprintf("panic in lifecycle handler for process %s: %v", process.ID(), r))
+				appContext.TriggerShutdown()
+			}
+		}()
 
 		err := <-exit
 		if err != nil {

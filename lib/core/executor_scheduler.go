@@ -164,6 +164,15 @@ func (e *RunpfileExecutor) Start() error {
 			wg.Add(1)
 			go func(u *RunpUnit) {
 				defer wg.Done()
+				defer func() {
+					if r := recover(); r != nil {
+						ui.WriteLinef("Panic in goroutine for unit %s: %v", u.Name, r)
+						mu.Lock()
+						errs = append(errs, fmt.Errorf("panic in goroutine for unit %s: %v", u.Name, r))
+						mu.Unlock()
+						GetApplicationContext().TriggerShutdown()
+					}
+				}()
 				if startErr := e.startUnit(u); startErr != nil {
 					mu.Lock()
 					errs = append(errs, startErr)

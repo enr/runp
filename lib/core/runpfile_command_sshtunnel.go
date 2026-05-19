@@ -104,6 +104,12 @@ func (c *SSHTunnelCommandWrapper) Wait() error {
 			return err
 		}
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					ui.WriteLinef("Panic in SSH tunnel forward goroutine: %v", r)
+					GetApplicationContext().TriggerShutdown()
+				}
+			}()
 			err = c.forward()
 			if err != nil {
 				ui.WriteLinef("Error forwarding SSH tunnel connection: %+v", err)
@@ -139,6 +145,11 @@ func (c *SSHTunnelCommandWrapper) forward() error {
 
 	// Copy localConnection.Reader to jumpToTargetConnection.Writer
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				c.pf("Panic copying data from local to target: %v", r)
+			}
+		}()
 		if c.localConnection == nil || c.jumpToTargetConnection == nil {
 			c.pf("Missing connection: local=%v jump=%v", c.localConnection, c.jumpToTargetConnection)
 			return
@@ -151,6 +162,11 @@ func (c *SSHTunnelCommandWrapper) forward() error {
 
 	// Copy jumpToTargetConnection.Reader to localConnection.Writer
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				c.pf("Panic copying data from target to local: %v", r)
+			}
+		}()
 		if c.localConnection == nil || c.jumpToTargetConnection == nil {
 			c.pf("Missing connection: local=%v target=%v", c.localConnection, c.jumpToTargetConnection)
 			return

@@ -177,3 +177,27 @@ func TestIsShuttingDown(t *testing.T) {
 		t.Error("Expected IsShuttingDown to return true after setting")
 	}
 }
+
+func TestTriggerShutdown(t *testing.T) {
+	ctx := &ApplicationContext{
+		runningProcesses: make(map[string]RunpProcess),
+		shutdownCh:       make(chan struct{}),
+	}
+
+	select {
+	case <-ctx.ShutdownChan():
+		t.Error("shutdown channel should not be closed initially")
+	default:
+	}
+
+	ctx.TriggerShutdown()
+
+	select {
+	case <-ctx.ShutdownChan():
+	default:
+		t.Error("shutdown channel should be closed after TriggerShutdown")
+	}
+
+	// calling again must not panic
+	ctx.TriggerShutdown()
+}

@@ -20,7 +20,10 @@ Build date: %s
 )
 
 func listenForShutdown(ch <-chan os.Signal) {
-	<-ch
+	select {
+	case <-ch:
+	case <-appContext.ShutdownChan():
+	}
 	appContext.SetShuttingDown()
 	runningProcesses := appContext.GetRunningProcesses()
 	ui.Debug("Initiating graceful shutdown sequence")
