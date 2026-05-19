@@ -12,7 +12,8 @@ import (
 
 	"github.com/mitchellh/go-homedir"
 
-	"github.com/pkg/errors"
+	"errors"
+
 	yaml "gopkg.in/yaml.v3"
 
 	"github.com/enr/go-files/files"
@@ -131,7 +132,7 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 			unit.Name = id
 		}
 		if unit.Process() == nil {
-			return nil, errors.New(fmt.Sprintf(ErrFmtCreateProcess, id))
+			return nil, fmt.Errorf(ErrFmtCreateProcess, id)
 		}
 		wd, fail := resolveWorkingDir(rf, unit)
 		if fail != nil {

@@ -10,7 +10,6 @@ require (
 	github.com/enr/qac v0.3.0
 	github.com/hashicorp/go-version v1.7.0
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/pkg/errors v0.9.1
 	github.com/urfave/cli/v2 v2.27.7
 	golang.org/x/crypto v0.45.0
 	gopkg.in/yaml.v3 v3.0.1

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/bww/impatient"
-	"github.com/pkg/errors"
 )
 
 // NewExecutor creates new RunpfileExecutor
@@ -247,8 +246,7 @@ func (e *RunpfileExecutor) startProcessCommand(cmd RunpCommand, unit *RunpUnit, 
 	err := cmd.Start()
 	if err != nil {
 		w.Close()
-		ctx := fmt.Sprintf("starting process %s", unit.Name)
-		logger.WriteLinef("Failed to start process %s: %+v", unit.Name, errors.Wrap(err, ctx))
+		logger.WriteLinef("Failed to start process %s: starting process %s: %v", unit.Name, unit.Name, err)
 		appContext.RemoveRunningProcess(process)
 		pwg.Done()
 		return err
@@ -284,8 +282,7 @@ func (e *RunpfileExecutor) handleAwaitResources(process RunpProcess, logger Logg
 		} else {
 			logger.WriteLinef("Error occurred while awaiting resources for process %s: %v", process.ID(), err)
 		}
-		ctx := fmt.Sprintf("awaiting resources for process %s (resource: %s, timeout: %s)", process.ID(), process.AwaitResource(), process.AwaitTimeout())
-		logger.WriteLinef("%+v", errors.Wrap(err, ctx))
+		logger.WriteLinef("awaiting resources for process %s (resource: %s, timeout: %s): %v", process.ID(), process.AwaitResource(), process.AwaitTimeout(), err)
 		appContext.AddReport(err.Error())
 		appContext.RemoveRunningProcess(process)
 		return err

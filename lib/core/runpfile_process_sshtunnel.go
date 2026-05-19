@@ -2,12 +2,12 @@ package core
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/enr/go-files/files"
-	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 )
@@ -154,10 +154,10 @@ func (p *SSHTunnelProcess) StartCommand() (RunpCommand, error) {
 		return nil, err
 	}
 	if p.Jump.Port == 0 {
-		return nil, errors.Errorf("Jump endpoint misconfiguration: port not specified (%s)", p.Jump.String())
+		return nil, fmt.Errorf("jump endpoint misconfiguration: port not specified (%s)", p.Jump.String())
 	}
 	if p.Target.Port == 0 {
-		return nil, errors.Errorf("Target endpoint misconfiguration: port not specified (%s)", p.Target.String())
+		return nil, fmt.Errorf("target endpoint misconfiguration: port not specified (%s)", p.Target.String())
 	}
 	p.cmd = &SSHTunnelCommandWrapper{
 		config:        config,
@@ -178,7 +178,7 @@ func (p *SSHTunnelProcess) resolveSSHCommandConfiguration() (*ssh.ClientConfig, 
 			return nil, err
 		}
 		if !files.IsRegular(identityFile) {
-			return nil, errors.New("Invalid identity file: " + identityFile)
+			return nil, fmt.Errorf("invalid identity file: %s", identityFile)
 		}
 		ui.Debugf("Connecting using SSH identity file: %s", identityFile)
 		am, err := publicKeyFile(identityFile)
@@ -196,7 +196,7 @@ func (p *SSHTunnelProcess) resolveSSHCommandConfiguration() (*ssh.ClientConfig, 
 		key := p.secretKey
 		ui.Debugf("Using encryption key for encrypted secret")
 		if key == "" {
-			return nil, errors.New("Encryption key required for encrypted_secret but not provided")
+			return nil, errors.New("encryption key required for encrypted_secret but not provided")
 		}
 		secretB64 := p.Auth.EncryptedSecret
 		secret, err := DecryptBase64(secretB64, key)
@@ -207,7 +207,7 @@ func (p *SSHTunnelProcess) resolveSSHCommandConfiguration() (*ssh.ClientConfig, 
 		authMethods = append(authMethods, ssh.Password(string(secret)))
 	}
 	if len(authMethods) == 0 {
-		return nil, errors.New("No authentication method configured")
+		return nil, errors.New("no authentication method configured")
 	}
 	var hostKeyCallback ssh.HostKeyCallback
 	if p.InsecureIgnoreHostKey {
@@ -221,11 +221,11 @@ func (p *SSHTunnelProcess) resolveSSHCommandConfiguration() (*ssh.ClientConfig, 
 		knownHostsPath = cliPreprocessor.process(knownHostsPath)
 		resolved, err := resolvePath(knownHostsPath, "")
 		if err != nil {
-			return nil, errors.Wrap(err, "cannot resolve known_hosts path")
+			return nil, fmt.Errorf("cannot resolve known_hosts path: %w", err)
 		}
 		cb, err := knownhosts.New(resolved)
 		if err != nil {
-			return nil, errors.Wrapf(err, "cannot load known_hosts from %s — add the host key or set insecure_ignore_host_key: true", resolved)
+			return nil, fmt.Errorf("cannot load known_hosts from %s — add the host key or set insecure_ignore_host_key: true: %w", resolved, err)
 		}
 		hostKeyCallback = cb
 	}
@@ -302,11 +302,11 @@ func (p *SSHTunnelProcess) resolveEnvironment() []string {
 func publicKeyFile(file string) (ssh.AuthMethod, error) {
 	buffer, err := os.ReadFile(file)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to read SSH private key file: %s", file)
+		return nil, fmt.Errorf("failed to read SSH private key file %s: %w", file, err)
 	}
 	key, err := ssh.ParsePrivateKey(buffer)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to parse SSH private key file: %s", file)
+		return nil, fmt.Errorf("failed to parse SSH private key file %s: %w", file, err)
 	}
 	return ssh.PublicKeys(key), nil
 }

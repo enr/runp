@@ -7,8 +7,6 @@ import (
 	"os/exec"
 	"sync"
 	"syscall"
-
-	"github.com/pkg/errors"
 )
 
 func (e *RunpfileExecutor) monitorProcessExit(cmd RunpCommand, process RunpProcess, logger Logger, appContext *ApplicationContext, pwg *sync.WaitGroup) {
@@ -38,7 +36,7 @@ func (e *RunpfileExecutor) monitorProcessExit(cmd RunpCommand, process RunpProce
 func (e *RunpfileExecutor) verifyProcessStartability(process RunpProcess, logger Logger, appContext *ApplicationContext) error {
 	startable, err := process.IsStartable()
 	if err != nil {
-		logger.WriteLinef("Failed to verify startability for process %s: %+v", process.ID(), errors.Wrap(err, "startability check"))
+		logger.WriteLinef("Failed to verify startability for process %s: %v (startability check)", process.ID(), err)
 		appContext.RemoveRunningProcess(process)
 		return err
 	}
@@ -76,7 +74,6 @@ func (e *RunpfileExecutor) isGracefulShutdown(err error, process RunpProcess, lo
 	// If shutting down, consider all *exec.ExitError as graceful shutdown.
 	appContext := GetApplicationContext()
 	if appContext.IsShuttingDown() {
-		// Application is shutting down, so this is likely a graceful shutdown
 		logger.Debugf("Process %s terminated during application shutdown (graceful shutdown), exit code: %d", process.ID(), exitCode)
 		return true
 	}
@@ -92,8 +89,7 @@ func (e *RunpfileExecutor) handleProcessError(err error, process RunpProcess, lo
 		logger.WriteLinef("Unexpected error type in process %s: %T", process.ID(), err)
 	}
 
-	ctx := fmt.Sprintf("running process %s", process.ID())
-	logger.WriteLinef("Error occurred while running process %s: %+v", process.ID(), errors.Wrap(err, ctx))
+	logger.WriteLinef("Error occurred while running process %s: running process %s: %v", process.ID(), process.ID(), err)
 
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "Error type %T occurred in process %s: %s", err, process.ID(), err.Error())
