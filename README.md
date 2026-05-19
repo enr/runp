@@ -117,6 +117,47 @@ circular dependency detected: a.yml → b.yml → c.yml → b.yml
 Includes can be nested to any depth as long as there are no cycles and no duplicate unit names.
 
 
+## Podman Compatibility
+
+### `volumes_from` on rootless Podman
+
+When running Podman in rootless mode, `--volumes-from` can fail with a "container not found" error if the source container has not finished its startup sequence before the dependent container starts. This is a timing issue specific to rootless Podman; Docker is not affected.
+
+**Workaround:** add an `await:` condition to the source unit so that runp waits for it to be ready before starting any dependent container.
+
+```yaml
+units:
+  data:
+    container:
+      image: myapp/data:latest
+      await:
+        resource: tcp4://localhost:8080/
+        timeout: 0h0m30s
+
+  app:
+    depends_on:
+      - data
+    container:
+      image: myapp/app:latest
+      volumes_from:
+        - data   # resolved to runp-data at runtime
+```
+
+With `await:` on the `data` unit, runp blocks until the container is accepting connections before launching `app`, eliminating the race condition.
+
+If the source container does not expose a TCP port you can await on, use a short fixed timeout:
+
+```yaml
+  data:
+    container:
+      image: myapp/data:latest
+      await:
+        resource: tcp4://localhost:9999/
+        timeout: 0h0m5s
+```
+
+The 5-second wait is enough for Podman's rootless networking to register the container before `--volumes-from` is resolved.
+
 ## Development
 
 Clone or download the repository.
