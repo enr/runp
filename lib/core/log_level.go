@@ -12,10 +12,15 @@ type LogLevel int
 const (
 	// LogLevelUnset is the zero value; callers treat it as LogLevelInfo.
 	LogLevelUnset LogLevel = 0
+	// LogLevelError logs only error messages.
 	LogLevelError LogLevel = 1
-	LogLevelWarn  LogLevel = 2
-	LogLevelInfo  LogLevel = 3
+	// LogLevelWarn logs warnings and errors.
+	LogLevelWarn LogLevel = 2
+	// LogLevelInfo logs informational messages, warnings, and errors.
+	LogLevelInfo LogLevel = 3
+	// LogLevelDebug logs debug output and everything above.
 	LogLevelDebug LogLevel = 4
+	// LogLevelTrace logs the most verbose output.
 	LogLevelTrace LogLevel = 5
 )
 

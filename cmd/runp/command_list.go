@@ -37,6 +37,7 @@ func printListTable(entries []core.UnitListEntry) {
 
 	nameW := len("NAME")
 	kindW := len("KIND")
+	cmdW := len("COMMAND")
 	descW := len("DESCRIPTION")
 	precW := len("PRECONDITIONS")
 	for _, e := range entries {
@@ -46,6 +47,9 @@ func printListTable(entries []core.UnitListEntry) {
 		if len(e.Kind) > kindW {
 			kindW = len(e.Kind)
 		}
+		if len(e.Command) > cmdW {
+			cmdW = len(e.Command)
+		}
 		if len(e.Description) > descW {
 			descW = len(e.Description)
 		}
@@ -54,15 +58,15 @@ func printListTable(entries []core.UnitListEntry) {
 		}
 	}
 
-	rowFmt := fmt.Sprintf("  %%-%ds  %%-%ds  %%-%ds  %%s\n", nameW, kindW, descW)
-	header := fmt.Sprintf(rowFmt, "NAME", "KIND", "DESCRIPTION", "PRECONDITIONS")
-	sepLen := 2 + nameW + 2 + kindW + 2 + descW + 2 + precW
+	rowFmt := fmt.Sprintf("  %%-%ds  %%-%ds  %%-%ds  %%-%ds  %%s\n", nameW, kindW, cmdW, descW)
+	header := fmt.Sprintf(rowFmt, "NAME", "KIND", "COMMAND", "DESCRIPTION", "PRECONDITIONS")
+	sepLen := 2 + nameW + 2 + kindW + 2 + cmdW + 2 + descW + 2 + precW
 	sep := strings.Repeat("-", sepLen)
 
 	fmt.Fprint(os.Stdout, header)
 	fmt.Fprintln(os.Stdout, sep)
 	for _, e := range entries {
-		fmt.Fprintf(os.Stdout, rowFmt, e.Name, e.Kind, e.Description, e.Preconditions)
+		fmt.Fprintf(os.Stdout, rowFmt, e.Name, e.Kind, e.Command, e.Description, e.Preconditions)
 	}
 }
 

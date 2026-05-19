@@ -8,9 +8,10 @@ import (
 
 // UnitListEntry is a row in the list output.
 type UnitListEntry struct {
-	Name         string `json:"name"`
-	Kind         string `json:"kind"`
-	Description  string `json:"description"`
+	Name          string `json:"name"`
+	Kind          string `json:"kind"`
+	Command       string `json:"command"`
+	Description   string `json:"description"`
 	Preconditions string `json:"preconditions"`
 }
 
@@ -19,9 +20,10 @@ func ListEntries(rf *Runpfile) []UnitListEntry {
 	entries := make([]UnitListEntry, 0, len(rf.Units))
 	for _, unit := range rf.Units {
 		entries = append(entries, UnitListEntry{
-			Name:         unit.Name,
-			Kind:         unitKind(unit),
-			Description:  unit.Description,
+			Name:          unit.Name,
+			Kind:          unitKind(unit),
+			Command:       unitCommandSummary(unit),
+			Description:   unit.Description,
 			Preconditions: preconditionSummary(unit.Preconditions),
 		})
 	}

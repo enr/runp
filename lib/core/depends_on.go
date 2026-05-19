@@ -16,31 +16,9 @@ import (
 // Returns an error when a depends_on entry names an unknown unit or when
 // the dependency graph contains a cycle.
 func TopologicalLayers(units map[string]*RunpUnit, skipped map[string]bool) ([][]string, error) {
-	// in-degree counts unresolved active dependencies for each active unit.
-	inDegree := make(map[string]int, len(units))
-	// dependents[dep] = slice of active unit names that list dep in depends_on.
-	dependents := make(map[string][]string)
-
-	for name := range units {
-		if !skipped[name] {
-			inDegree[name] = 0
-		}
-	}
-
-	for name, unit := range units {
-		if skipped[name] {
-			continue
-		}
-		for _, dep := range unit.DependsOn {
-			if _, exists := units[dep]; !exists {
-				return nil, fmt.Errorf("unit %q: depends_on references unknown unit %q", name, dep)
-			}
-			if skipped[dep] {
-				continue // treat skipped dependency as already satisfied
-			}
-			inDegree[name]++
-			dependents[dep] = append(dependents[dep], name)
-		}
+	inDegree, dependents, err := buildDependencyGraph(units, skipped)
+	if err != nil {
+		return nil, err
 	}
 
 	remaining := make(map[string]struct{}, len(inDegree))
@@ -57,13 +35,7 @@ func TopologicalLayers(units map[string]*RunpUnit, skipped map[string]bool) ([][
 			}
 		}
 		if len(layer) == 0 {
-			names := make([]string, 0, len(remaining))
-			for name := range remaining {
-				names = append(names, name)
-			}
-			sort.Strings(names)
-			return nil, fmt.Errorf("circular dependency detected among units: %s",
-				strings.Join(names, ", "))
+			return nil, cycleError(remaining)
 		}
 		sort.Strings(layer)
 		layers = append(layers, layer)
@@ -76,6 +48,46 @@ func TopologicalLayers(units map[string]*RunpUnit, skipped map[string]bool) ([][
 	}
 
 	return layers, nil
+}
+
+// buildDependencyGraph computes in-degree counts and reverse-dependency edges
+// for all active (non-skipped) units.
+func buildDependencyGraph(units map[string]*RunpUnit, skipped map[string]bool) (map[string]int, map[string][]string, error) {
+	inDegree := make(map[string]int, len(units))
+	dependents := make(map[string][]string)
+
+	for name := range units {
+		if !skipped[name] {
+			inDegree[name] = 0
+		}
+	}
+
+	for name, unit := range units {
+		if skipped[name] {
+			continue
+		}
+		for _, dep := range unit.DependsOn {
+			if _, exists := units[dep]; !exists {
+				return nil, nil, fmt.Errorf("unit %q: depends_on references unknown unit %q", name, dep)
+			}
+			if skipped[dep] {
+				continue
+			}
+			inDegree[name]++
+			dependents[dep] = append(dependents[dep], name)
+		}
+	}
+
+	return inDegree, dependents, nil
+}
+
+func cycleError(remaining map[string]struct{}) error {
+	names := make([]string, 0, len(remaining))
+	for name := range remaining {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return fmt.Errorf("circular dependency detected among units: %s", strings.Join(names, ", "))
 }
 
 // validateDependsOn checks all depends_on references and detects cycles.

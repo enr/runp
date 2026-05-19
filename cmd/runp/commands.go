@@ -24,8 +24,8 @@ var commands = []*cli.Command{
 }
 
 var commandUp = cli.Command{
-	Name:  "up",
-	Usage: "up [--var K=V] [--key KEY] [--key-env KEYENV] [--file RUNPFILE]",
+	Name:        "up",
+	Usage:       "up [--var K=V] [--key KEY] [--key-env KEYENV] [--file RUNPFILE]",
 	Description: `Start all processes defined in the Runpfile. This is the default command: invoking runp without a subcommand is equivalent to runp up.`,
 	UsageText: `runp up
    runp up --file ./infra/Runpfile

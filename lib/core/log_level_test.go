@@ -16,7 +16,7 @@ func TestParseLogLevel(t *testing.T) {
 		{"info", LogLevelInfo, false},
 		{"debug", LogLevelDebug, false},
 		{"trace", LogLevelTrace, false},
-		{"INFO", LogLevelInfo, false},  // case-insensitive
+		{"INFO", LogLevelInfo, false}, // case-insensitive
 		{"DEBUG", LogLevelDebug, false},
 		{"", LogLevelUnset, true},
 		{"verbose", LogLevelUnset, true},
@@ -41,7 +41,10 @@ func TestParseLogLevel(t *testing.T) {
 }
 
 func TestLogLevelString(t *testing.T) {
-	tests := []struct{ level LogLevel; want string }{
+	tests := []struct {
+		level LogLevel
+		want  string
+	}{
 		{LogLevelError, "error"},
 		{LogLevelWarn, "warn"},
 		{LogLevelInfo, "info"},

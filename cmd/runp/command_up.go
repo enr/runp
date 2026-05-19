@@ -11,6 +11,9 @@ import (
 )
 
 func doUp(c *cli.Context) error {
+	if len(os.Args) == 1 {
+		return cli.ShowAppHelp(c)
+	}
 	runpfile, err := loadRunpfile(resolveRunpfileArg(c))
 	if err != nil {
 		return err

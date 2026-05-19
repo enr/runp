@@ -12,8 +12,11 @@ import (
 type UnitState string
 
 const (
+	// UnitStateRunning indicates the unit process is active.
 	UnitStateRunning UnitState = "running"
+	// UnitStateStopped indicates the unit process has exited.
 	UnitStateStopped UnitState = "stopped"
+	// UnitStateUnknown indicates the unit state could not be determined.
 	UnitStateUnknown UnitState = "unknown"
 )
 
@@ -95,7 +98,7 @@ func probeSSHTunnelStatus(t *SSHTunnelProcess) (UnitState, string) {
 	if host == "" {
 		host = "localhost"
 	}
-	addr := fmt.Sprintf("%s:%d", host, t.Local.Port)
+	addr := net.JoinHostPort(host, fmt.Sprintf("%d", t.Local.Port))
 	conn, err := net.DialTimeout("tcp", addr, 500*time.Millisecond)
 	if err != nil {
 		return UnitStateStopped, fmt.Sprintf("port %d not listening", t.Local.Port)
