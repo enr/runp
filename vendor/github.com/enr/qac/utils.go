@@ -1,6 +1,7 @@
 package qac
 
 import (
+	"fmt"
 	"path"
 	"path/filepath"
 	"strings"
@@ -16,7 +17,7 @@ func resolvePath(declared string, context planContext) (string, error) {
 	if strings.HasPrefix(declared, "~") {
 		home, err := homedir.Dir()
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("expanding home in path %q: %w", declared, err)
 		}
 		relpath := strings.TrimPrefix(declared, "~")
 		return filepath.FromSlash(path.Join(home, relpath)), nil

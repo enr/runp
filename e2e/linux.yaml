@@ -81,7 +81,6 @@ specs:
             - __foo-env-is-bar__
         stderr:
           is_empty: true
-          is_empty: true
   vars_in_env:
     description: vars are used for env values
     command:

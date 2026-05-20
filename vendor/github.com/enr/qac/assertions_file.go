@@ -4,7 +4,6 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -25,7 +24,7 @@ func (a *FileAssertion) verify(context planContext) AssertionResult {
 	}
 	actualPath, err := resolvePath(fp, context)
 	if err != nil {
-		result.addError(err)
+		result.addInfraError(fmt.Errorf("resolving file path %q: %w", fp, err))
 		return result
 	}
 	fileExists := files.Exists(actualPath)
@@ -41,8 +40,7 @@ func (a *FileAssertion) verify(context planContext) AssertionResult {
 	if a.EqualsTo != "" {
 		other, err := resolvePath(a.EqualsTo, context)
 		if err != nil {
-			result.addError(err)
-			// block
+			result.addInfraError(fmt.Errorf("resolving equals_to path %q: %w", a.EqualsTo, err))
 			return result
 		}
 		if !files.Exists(other) {
@@ -61,8 +59,7 @@ func (a *FileAssertion) verify(context planContext) AssertionResult {
 	if a.TextEqualsTo != "" {
 		exp, err := resolvePath(a.TextEqualsTo, context)
 		if err != nil {
-			result.addError(err)
-			// block
+			result.addInfraError(fmt.Errorf("resolving text_equals_to path %q: %w", a.TextEqualsTo, err))
 			return result
 		}
 		if !files.Exists(exp) {
@@ -74,34 +71,27 @@ func (a *FileAssertion) verify(context planContext) AssertionResult {
 	}
 
 	if len(a.ContainsAll) > 0 {
-		content, err := ioutil.ReadFile(actualPath)
+		content, err := os.ReadFile(actualPath)
 		if err != nil {
-			result.addError(err)
+			result.addInfraError(fmt.Errorf("reading %q: %w", actualPath, err))
 			return result
 		}
 		cf := string(content)
 		for _, t := range a.ContainsAll {
 			if !strings.Contains(cf, t) {
-				result.addError(fmt.Errorf("%s file\n%s\ndoes not contain:\n%s", actualPath, cf, t))
+				result.addError(fmt.Errorf("%s file\n%s\ndoes not contain:\n%s", actualPath, snippet(cf), t))
 			}
 		}
 	}
 	if len(a.ContainsAny) > 0 {
-		content, err := ioutil.ReadFile(actualPath)
+		content, err := os.ReadFile(actualPath)
 		if err != nil {
-			result.addError(err)
+			result.addInfraError(fmt.Errorf("reading %q: %w", actualPath, err))
 			return result
 		}
 		cf := string(content)
-		// fail := true
-		// for _, t := range a.ContainsAny {
-		// 	if strings.Contains(cf, t) {
-		// 		fail = false
-		// 		break
-		// 	}
-		// }
 		if a.failContainsAny(cf) {
-			result.addError(fmt.Errorf("%s file\n%s\ndoes not contain any of :\n%q", actualPath, cf, a.ContainsAny))
+			result.addError(fmt.Errorf("%s file\n%s\ndoes not contain any of:\n%q", actualPath, snippet(cf), a.ContainsAny))
 		}
 	}
 
@@ -127,37 +117,45 @@ func verifyFilesEqual(actualPath string, other string) []error {
 }
 
 func verifyFilesEqualHash(actualPath string, other string) []error {
-	errs := []error{}
-	hash1, _ := hash(actualPath)
-	hash2, _ := hash(other)
-	if hash1 != hash2 {
-		errs = append(errs, fmt.Errorf("File %s [%s] differs from\n%s [%s]", actualPath, hash1, other, hash2))
+	hash1, err := hash(actualPath)
+	if err != nil {
+		return []error{asInfraError(fmt.Errorf("hashing actual file %q: %w", actualPath, err))}
 	}
-	return errs
+	hash2, err := hash(other)
+	if err != nil {
+		return []error{asInfraError(fmt.Errorf("hashing expected file %q: %w", other, err))}
+	}
+	if hash1 != hash2 {
+		return []error{&Error{
+			Kind: KindAssertionFailure,
+			msg:  fmt.Sprintf("File %s [%s] differs from\n%s [%s]", actualPath, hash1, other, hash2),
+		}}
+	}
+	return nil
 }
 
 func verifyFilesEqualText(actualPath string, exp string) []error {
-	errs := []error{}
 	filelines := []string{}
-	files.EachLine(actualPath, func(line string) error {
+	if err := files.EachLine(actualPath, func(line string) error {
 		filelines = append(filelines, line)
 		return nil
-	})
+	}); err != nil {
+		return []error{asInfraError(fmt.Errorf("reading %q: %w", actualPath, err))}
+	}
 	expectedlines := []string{}
-	files.EachLine(exp, func(line string) error {
+	if err := files.EachLine(exp, func(line string) error {
 		expectedlines = append(expectedlines, line)
 		return nil
-	})
+	}); err != nil {
+		return []error{asInfraError(fmt.Errorf("reading %q: %w", exp, err))}
+	}
+	errs := []error{}
 	if len(filelines) != len(expectedlines) {
 		errs = append(errs, fmt.Errorf("EachLine(%s), expected %d lines but got %d", actualPath, len(expectedlines), len(filelines)))
 	}
-	if len(filelines) == 0 || len(expectedlines) == 0 {
-		// probably a missing/unexpected file
-		return errs
-	}
 	for index, actual := range filelines {
 		if len(expectedlines) <= index {
-			errs = append(errs, fmt.Errorf(`unexpected line %d in file %s`, (index+1), actual))
+			errs = append(errs, fmt.Errorf(`unexpected extra line %d in %s: %q`, index+1, actualPath, actual))
 			continue
 		}
 		expected := expectedlines[index]
@@ -170,25 +168,29 @@ func verifyFilesEqualText(actualPath string, exp string) []error {
 
 func hash(fullpath string) (string, error) {
 	fh, err := os.Open(fullpath)
-	defer fh.Close()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("opening %q: %w", fullpath, err)
 	}
+	defer fh.Close()
 	h := sha1.New()
-	io.Copy(h, fh)
+	if _, err := io.Copy(h, fh); err != nil {
+		return "", fmt.Errorf("reading %q: %w", fullpath, err)
+	}
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
 func isBinary(path string) bool {
-	file, _ := os.Open(path)
+	file, err := os.Open(path)
+	if err != nil {
+		return false
+	}
 	defer file.Close()
 	return isBinaryFile(file)
 }
 
-// isBinary guesses whether a file is binary by reading the first X bytes and seeing if there are any nulls.
-// Assumes the file starts seeked the beginning.
+// isBinaryFile guesses whether a file is binary by reading the first X bytes and seeing if there are any nulls.
+// Assumes the file is seeked to the beginning by the caller.
 func isBinaryFile(file *os.File) bool {
-	defer file.Seek(0, 0)
 	buf := make([]byte, binaryDetectionBytes)
 	for {
 		n, err := file.Read(buf)

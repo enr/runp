@@ -1,15 +1,74 @@
 package qac
 
 import (
+	"bytes"
 	"fmt"
 	"runtime"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 // TestPlan represents the full set of tests on a program.
 type TestPlan struct {
 	Preconditions Preconditions   `yaml:"preconditions"`
 	Specs         map[string]Spec `yaml:"specs"`
+	specOrder     []string
+}
+
+// UnmarshalYAML preserves the declaration order of specs from the YAML source
+// and rejects unknown fields.
+func (tp *TestPlan) UnmarshalYAML(value *yaml.Node) error {
+	if value.Kind != yaml.MappingNode {
+		return fmt.Errorf("line %d: expected mapping for plan", value.Line)
+	}
+	known := map[string]bool{"preconditions": true, "specs": true}
+	for i := 0; i < len(value.Content)-1; i += 2 {
+		k := value.Content[i].Value
+		if !known[k] {
+			return fmt.Errorf("line %d: unknown field %q in plan", value.Content[i].Line, k)
+		}
+	}
+	for i := 0; i < len(value.Content)-1; i += 2 {
+		keyNode := value.Content[i]
+		valNode := value.Content[i+1]
+		switch keyNode.Value {
+		case "preconditions":
+			if err := strictDecodeNode(valNode, &tp.Preconditions); err != nil {
+				return err
+			}
+		case "specs":
+			if valNode.Kind != yaml.MappingNode {
+				return fmt.Errorf("line %d: specs must be a mapping", valNode.Line)
+			}
+			tp.Specs = make(map[string]Spec, len(valNode.Content)/2)
+			for j := 0; j < len(valNode.Content)-1; j += 2 {
+				specKeyNode := valNode.Content[j]
+				specValNode := valNode.Content[j+1]
+				key := specKeyNode.Value
+				var spec Spec
+				if err := strictDecodeNode(specValNode, &spec); err != nil {
+					return fmt.Errorf("spec %q: %w", key, err)
+				}
+				tp.Specs[key] = spec
+				tp.specOrder = append(tp.specOrder, key)
+			}
+		}
+	}
+	return nil
+}
+
+// strictDecodeNode decodes a YAML node into v, rejecting unknown fields.
+func strictDecodeNode(node *yaml.Node, v interface{}) error {
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	if err := enc.Encode(node); err != nil {
+		return err
+	}
+	enc.Close()
+	dec := yaml.NewDecoder(&buf)
+	dec.KnownFields(true)
+	return dec.Decode(v)
 }
 
 // Spec is the single test.
@@ -21,15 +80,14 @@ type Spec struct {
 	Expectations  Expectations  `yaml:"expectations"`
 }
 
-// ID returns the dinamically created identifier for a spec.
+// ID returns the dynamically created identifier for a spec.
 func (s Spec) ID() string {
 	return s.id
 }
 
 // FileSystemAssertion is an assertion on files and directories.
 type FileSystemAssertion struct {
-	File string `yaml:"file"`
-	// aggiunta a file
+	File      string        `yaml:"file"`
 	Extension FileExtension `yaml:"ext"`
 	Directory string        `yaml:"directory"`
 	Exists    *bool         `yaml:"exists"`
@@ -60,8 +118,7 @@ func (e FileExtension) get() string {
 
 // FileAssertion is an assertion on a given file.
 type FileAssertion struct {
-	Path string `yaml:"path"`
-	// aggiunta a path
+	Path         string        `yaml:"path"`
 	Extension    FileExtension `yaml:"ext"`
 	Exists       bool          `yaml:"exists"`
 	EqualsTo     string        `yaml:"equals_to"`
@@ -87,10 +144,10 @@ type Preconditions struct {
 
 // Command represents the command under test.
 type Command struct {
-	WorkingDir string `yaml:"working_dir"`
-	Cli        string `yaml:"cli"`
-	Exe        string `yaml:"exe"`
-	Env        map[string]string
+	WorkingDir string            `yaml:"working_dir"`
+	Cli        string            `yaml:"cli"`
+	Exe        string            `yaml:"exe"`
+	Env        map[string]string `yaml:"env"`
 	// added to exe
 	Extension FileExtension `yaml:"ext"`
 	Args      []string      `yaml:"args"`
@@ -106,9 +163,9 @@ func (c Command) String() string {
 
 // StatusAssertion represents an assertion on the status code returned from a command.
 type StatusAssertion struct {
-	EqualsTo    string `yaml:"equals_to"`
-	GreaterThan string `yaml:"greater_than"`
-	LesserThan  string `yaml:"lesser_than"`
+	EqualsTo    *int `yaml:"equals_to"`
+	GreaterThan *int `yaml:"greater_than"`
+	LesserThan  *int `yaml:"lesser_than"`
 }
 
 // OutputAssertion is an assertion on the output of a command: namely standard output and standard error.

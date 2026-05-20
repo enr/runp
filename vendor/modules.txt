@@ -16,16 +16,16 @@ github.com/daviddengcn/go-colortext
 # github.com/enr/go-files v0.3.0
 ## explicit; go 1.15
 github.com/enr/go-files/files
-# github.com/enr/qac v0.3.0
-## explicit; go 1.15
+# github.com/enr/qac v0.4.0
+## explicit; go 1.25.0
 github.com/enr/qac
-# github.com/enr/runcmd v0.5.0
-## explicit; go 1.13
+# github.com/enr/runcmd v0.6.1
+## explicit; go 1.22
 github.com/enr/runcmd
 # github.com/extemporalgenome/slug v0.0.0-20150414033109-0320c85e32e0
 ## explicit
 github.com/extemporalgenome/slug
-# github.com/hashicorp/go-version v1.7.0
+# github.com/hashicorp/go-version v1.9.0
 ## explicit
 github.com/hashicorp/go-version
 # github.com/kr/pty v1.1.8
@@ -46,8 +46,8 @@ github.com/urfave/cli/v2
 # github.com/xrash/smetrics v0.0.0-20250705151800-55b8f293f342
 ## explicit; go 1.15
 github.com/xrash/smetrics
-# golang.org/x/crypto v0.45.0
-## explicit; go 1.24.0
+# golang.org/x/crypto v0.51.0
+## explicit; go 1.25.0
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/chacha20
 golang.org/x/crypto/curve25519
@@ -57,17 +57,14 @@ golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 golang.org/x/crypto/ssh/knownhosts
-# golang.org/x/sys v0.38.0
-## explicit; go 1.24.0
+# golang.org/x/sys v0.44.0
+## explicit; go 1.25.0
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
-# golang.org/x/text v0.31.0
-## explicit; go 1.24.0
+# golang.org/x/text v0.37.0
+## explicit; go 1.25.0
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm
-# gopkg.in/yaml.v2 v2.3.0
-## explicit
-gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3

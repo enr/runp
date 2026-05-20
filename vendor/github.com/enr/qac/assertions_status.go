@@ -2,7 +2,6 @@ package qac
 
 import (
 	"fmt"
-	"strconv"
 )
 
 func (a *StatusAssertion) verify(context planContext) AssertionResult {
@@ -11,41 +10,23 @@ func (a *StatusAssertion) verify(context planContext) AssertionResult {
 	}
 	commandErrorIsAcceptable := false
 	commandResult := context.commandResult
-	if a.GreaterThan != "" {
-		i, err := strconv.Atoi(a.GreaterThan)
-		if err != nil {
-			result.addError(err)
-			// block
-			return result
-		}
-		if commandResult.exitCode <= i {
-			result.addErrorf(`exit code expected GT %d got %d`, i, commandResult.exitCode)
+	if a.GreaterThan != nil {
+		if commandResult.exitCode <= *a.GreaterThan {
+			result.addErrorf(`exit code expected GT %d got %d`, *a.GreaterThan, commandResult.exitCode)
 		}
 		commandErrorIsAcceptable = true
 	}
-	if a.LesserThan != "" {
-		i, err := strconv.Atoi(a.LesserThan)
-		if err != nil {
-			result.addError(err)
-			// block
-			return result
-		}
-		if commandResult.exitCode >= i {
-			result.addErrorf(`exit code expected LT %d got %d`, i, commandResult.exitCode)
+	if a.LesserThan != nil {
+		if commandResult.exitCode >= *a.LesserThan {
+			result.addErrorf(`exit code expected LT %d got %d`, *a.LesserThan, commandResult.exitCode)
 		}
 		commandErrorIsAcceptable = true
 	}
-	if a.EqualsTo != "" {
-		i, err := strconv.Atoi(a.EqualsTo)
-		if err != nil {
-			result.addError(err)
-			// block
-			return result
+	if a.EqualsTo != nil {
+		if commandResult.exitCode != *a.EqualsTo {
+			result.addErrorf(`exit code expected EQUALS %d got %d`, *a.EqualsTo, commandResult.exitCode)
 		}
-		if commandResult.exitCode != i {
-			result.addErrorf(`exit code expected EQUALS %d got %d`, i, commandResult.exitCode)
-		}
-		commandErrorIsAcceptable = i > 0
+		commandErrorIsAcceptable = commandErrorIsAcceptable || *a.EqualsTo > 0
 	}
 	if commandResult.err != nil && !commandErrorIsAcceptable {
 		result.addErrorf(`command execution error: %v`, commandResult.err)

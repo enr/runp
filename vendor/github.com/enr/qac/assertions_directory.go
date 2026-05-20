@@ -15,7 +15,7 @@ func (a *DirectoryAssertion) verify(context planContext) AssertionResult {
 	}
 	actualPath, err := resolvePath(a.Path, context)
 	if err != nil {
-		result.addError(err)
+		result.addInfraError(fmt.Errorf("resolving directory path %q: %w", a.Path, err))
 		return result
 	}
 	fileExists := files.Exists(actualPath)
@@ -40,8 +40,16 @@ func (a *DirectoryAssertion) verify(context planContext) AssertionResult {
 	var f1 string
 	var f2 string
 	if a.EqualsTo != "" {
-		eq, _ := resolvePath(a.EqualsTo, context)
-		otherFiles, _ := a.files(eq)
+		eq, err := resolvePath(a.EqualsTo, context)
+		if err != nil {
+			result.addInfraError(fmt.Errorf("resolving equals_to directory %q: %w", a.EqualsTo, err))
+			return result
+		}
+		otherFiles, err := a.files(eq)
+		if err != nil {
+			result.addInfraError(fmt.Errorf("listing files in equals_to directory %q: %w", eq, err))
+			return result
+		}
 		if len(files) != len(otherFiles) {
 			result.addErrorf("directory %s differs from %s: it contains %d files, expected %d", actualPath, eq, len(files), len(otherFiles))
 		}
@@ -61,50 +69,18 @@ func (a *DirectoryAssertion) verify(context planContext) AssertionResult {
 		}
 	}
 	if len(a.ContainsExactly) > 0 {
-		// if len(files) != len(a.ContainsExactly) {
-		// 	result.addErrorf("expected %s contains %d files but got %d\n%v%v", actualPath, len(a.ContainsExactly), len(files),
-		// 		a.ContainsExactly, files)
-		// }
-		// for _, f := range files {
-		// 	if !sliceContains(a.ContainsExactly, f) {
-		// 		result.addErrorf(`file %s not in expected %q`, f, a.ContainsExactly)
-		// 	}
-		// }
-		// for _, f := range a.ContainsExactly {
-		// 	if !sliceContains(files, f) {
-		// 		result.addErrorf(`file %s not found in actual dir content %q`, f, files)
-		// 	}
-		// }
-		a.verifyContainsExactly(actualPath, files, result)
+		a.verifyContainsExactly(actualPath, files, &result)
 	}
 	if len(a.ContainsAny) > 0 {
-		// miss := true
-		// for _, f := range a.ContainsAny {
-		// 	if sliceContains(files, f) {
-		// 		miss = false
-		// 	}
-		// }
-		// if miss {
-		// 	result.addErrorf(`directory does not contain any of %q`, files)
-		// }
-		a.verifyContainsAny(actualPath, files, result)
+		a.verifyContainsAny(actualPath, files, &result)
 	}
 	if len(a.ContainsAll) > 0 {
-		// missing := []string{}
-		// for _, f := range a.ContainsAll {
-		// 	if !sliceContains(files, f) {
-		// 		missing = append(missing, f)
-		// 	}
-		// }
-		// if len(missing) > 0 {
-		// 	result.addErrorf(`missing files: %q`, missing)
-		// }
-		a.verifyContainsAll(actualPath, files, result)
+		a.verifyContainsAll(actualPath, files, &result)
 	}
 	return result
 }
 
-func (a *DirectoryAssertion) verifyContainsAll(actualPath string, files []string, result AssertionResult) {
+func (a *DirectoryAssertion) verifyContainsAll(actualPath string, files []string, result *AssertionResult) {
 	missing := []string{}
 	for _, f := range a.ContainsAll {
 		if !sliceContains(files, f) {
@@ -116,7 +92,7 @@ func (a *DirectoryAssertion) verifyContainsAll(actualPath string, files []string
 	}
 }
 
-func (a *DirectoryAssertion) verifyContainsAny(actualPath string, files []string, result AssertionResult) {
+func (a *DirectoryAssertion) verifyContainsAny(actualPath string, files []string, result *AssertionResult) {
 	miss := true
 	for _, f := range a.ContainsAny {
 		if sliceContains(files, f) {
@@ -124,11 +100,11 @@ func (a *DirectoryAssertion) verifyContainsAny(actualPath string, files []string
 		}
 	}
 	if miss {
-		result.addErrorf(`directory does not contain any of %q`, files)
+		result.addErrorf(`directory %s does not contain any of %q`, actualPath, a.ContainsAny)
 	}
 }
 
-func (a *DirectoryAssertion) verifyContainsExactly(actualPath string, files []string, result AssertionResult) {
+func (a *DirectoryAssertion) verifyContainsExactly(actualPath string, files []string, result *AssertionResult) {
 	if len(files) != len(a.ContainsExactly) {
 		result.addErrorf("expected %s contains %d files but got %d\n%v%v", actualPath, len(a.ContainsExactly), len(files),
 			a.ContainsExactly, files)
@@ -148,6 +124,9 @@ func (a *DirectoryAssertion) verifyContainsExactly(actualPath string, files []st
 func (a *DirectoryAssertion) files(dir string) ([]string, error) {
 	aa := []string{}
 	err := filepath.Walk(dir, func(path string, f os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 		if f.IsDir() {
 			return nil
 		}
