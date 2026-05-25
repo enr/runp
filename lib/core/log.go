@@ -30,6 +30,7 @@ type Logger interface {
 
 type clogger struct {
 	idx     int
+	bold    bool
 	proc    string
 	longest int
 	format  string
@@ -80,7 +81,7 @@ func (l *clogger) doWriteLine(line string) (int, error) {
 	}
 	mutex.Lock()
 	if l.colors {
-		ct.ChangeColor(labelColors[l.idx].foreground, false, labelColors[l.idx].background, false)
+		ct.ChangeColor(labelColors[l.idx].foreground, l.bold, labelColors[l.idx].background, false)
 	}
 	fmt.Printf(l.format, l.proc)
 	if l.colors {
@@ -111,7 +112,7 @@ func (l *clogger) Write(p []byte) (int, error) {
 				ct.ResetColor()
 			}
 			if l.colors {
-				ct.ChangeColor(labelColors[l.idx].foreground, false, labelColors[l.idx].background, false)
+				ct.ChangeColor(labelColors[l.idx].foreground, l.bold, labelColors[l.idx].background, false)
 			}
 			fmt.Printf(l.format, l.proc)
 			if l.colors {
@@ -163,13 +164,11 @@ func CreateMainLoggerWithLevel(proc string, longest int, format string, level Lo
 	}
 	f := "\r" + format
 	mutex.Lock()
-	idx := ci
+	idx := ci % len(labelColors)
+	bold := (ci/len(labelColors))%2 == 1
 	ci++
-	if ci >= len(labelColors) {
-		ci = 0
-	}
 	mutex.Unlock()
-	return &clogger{idx: idx, proc: n, longest: longest, format: f, level: level, colors: colorize}
+	return &clogger{idx: idx, bold: bold, proc: n, longest: longest, format: f, level: level, colors: colorize}
 }
 
 // ResetColor resets the foreground and background to original colors
