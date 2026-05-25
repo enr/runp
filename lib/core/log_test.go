@@ -303,6 +303,7 @@ func TestWriteLineCarriageReturnPassesThrough(t *testing.T) {
 // TestWriteDestructiveAnsiPassesThrough demonstrates that ANSI sequences that
 // clear the screen or switch to the alternate buffer are forwarded as-is,
 // destroying all visible terminal output.
+// NOTE: this test was written when the bug existed; it now documents correct behaviour.
 func TestWriteDestructiveAnsiPassesThrough(t *testing.T) {
 	longest := 4
 	format := fmt.Sprintf(`%%%ds | `, longest)
@@ -336,6 +337,26 @@ func TestWriteBlankLinesDropped(t *testing.T) {
 	}
 	if strings.Contains(out, "\n\n") {
 		t.Errorf("blank lines from process output should be dropped in multiplexed stream, got %q", out)
+	}
+}
+
+// TestWriteCursorUpStripped verifies that cursor-up sequences (\x1b[nA) emitted
+// by a child process are stripped. In a multiplexed stream they would move the
+// cursor into output belonging to other units, overwriting arbitrary lines.
+func TestWriteCursorUpStripped(t *testing.T) {
+	longest := 4
+	format := fmt.Sprintf(`%%%ds | `, longest)
+	sut := &clogger{idx: 0, proc: "test", longest: longest, format: format, level: LogLevelDebug, colors: false}
+
+	out := captureOutput(func() {
+		sut.Write([]byte("\x1b[50AUpward shift\n"))
+	}, t)
+
+	if strings.Contains(out, "\x1b[50A") {
+		t.Errorf("cursor-up sequence \\x1b[50A was not stripped from output: %q", out)
+	}
+	if !strings.Contains(out, "Upward shift") {
+		t.Errorf("text after cursor-up sequence should be preserved, got: %q", out)
 	}
 }
 

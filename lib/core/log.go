@@ -15,7 +15,7 @@ import (
 // toggles (alternate buffer, cursor visibility), DEC save/restore, and OSC
 // sequences (window title, etc.). Color and attribute sequences are left intact.
 var destructiveAnsiRe = regexp.MustCompile(
-	`\x1b\[[\d;]*[JH]` + // erase display (J) / absolute cursor position (H)
+	`\x1b\[[\d;]*[AaFfJH]` + // cursor up (A/a), cursor prev-line (F/f), erase display (J), cursor position (H)
 		`|\x1b\[\?[\d;]*[hl]` + // private modes: alternate screen, cursor visibility, …
 		`|\x1b[78]` + // DEC save-cursor (ESC 7) / restore-cursor (ESC 8)
 		`|\x1b\][^\x07\x1b]*\x07`, // OSC: window title, icon name, …
