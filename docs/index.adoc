@@ -598,6 +598,86 @@ units:
         - "8000:8000"
 ----
 
+**Unit readiness conditions**
+
+By default, runp considers a unit "done" (and starts its dependents) when its
+process exits. For long-running services this is undesirable — dependents should
+start as soon as the service is up, not when it eventually stops.
+
+The `ready` block configures a readiness condition that tells runp when a unit
+is ready for its dependents to proceed. Three condition types are supported; at
+most one should be set per unit. If multiple fields are set, `output` takes
+priority, then `cmd`, then `delay`.
+
+_ready.delay_ — wait a fixed duration after the process starts:
+
+[source,yaml]
+----
+units:
+  db:
+    description: Database (ready after 3s warm-up)
+    ready:
+      delay: 3s
+      timeout: 30s   # how long to wait before giving up (default: 30s)
+    host:
+      command: postgres -D /var/lib/pgsql/data
+  api:
+    description: App server (starts after db is ready)
+    depends_on: [db]
+    host:
+      command: node server.js
+----
+
+_ready.output_ — match a substring in the process stdout/stderr:
+
+[source,yaml]
+----
+units:
+  api:
+    description: App server (ready when "listening" appears in output)
+    ready:
+      output: "listening"
+      timeout: 30s
+    host:
+      command: node server.js
+  worker:
+    description: Background worker (starts after api is ready)
+    depends_on: [api]
+    host:
+      command: node worker.js
+----
+
+_ready.cmd_ — poll a shell command every second; ready when it exits 0:
+
+[source,yaml]
+----
+units:
+  api:
+    description: App server (ready when health endpoint responds)
+    ready:
+      cmd: "curl -sf http://localhost:8080/health"
+      timeout: 60s
+    host:
+      command: ./api-server
+  consumer:
+    description: Consumer (starts after api health check passes)
+    depends_on: [api]
+    host:
+      command: ./consumer
+----
+
+[NOTE]
+====
+`ready` and `await` serve complementary roles:
+
+* `await` waits for an *external* resource before *this* unit's process starts
+  (e.g. "wait for the DB port to be open before launching the app").
+* `ready` determines when *this* unit signals to its *dependents* that they may
+  proceed (e.g. "dependents start when this service prints 'listening'").
+
+Both can be used together on the same unit.
+====
+
 **Containers**
 
 You can set the container engine using the settings file (key: `container_runner`).

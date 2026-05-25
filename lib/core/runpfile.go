@@ -22,6 +22,7 @@ type RunpUnit struct {
 	StopTimeout   string   `yaml:"stop_timeout"`
 	DependsOn     []string `yaml:"depends_on"`
 	Preconditions Preconditions
+	Ready         ReadyCondition
 
 	Host      *HostProcess
 	Container *ContainerProcess

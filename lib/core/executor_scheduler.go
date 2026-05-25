@@ -228,6 +228,21 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit) error {
 
 	w.Close()
 	e.monitorProcessExit(cmd, process, logger, appContext, &pwg)
+
+	rc := unit.Ready
+	if rc.IsSet() {
+		// Non-blocking path: output is read in a background goroutine so that
+		// AwaitReady can scan it for the ready pattern. startUnit returns as
+		// soon as readiness is signalled; the process keeps running via the
+		// goroutines launched by monitorProcessExit.
+		lineCh := make(chan string, 128)
+		go e.readProcessOutputToChannel(r, process, logger, lineCh)
+		if err := AwaitReady(rc, lineCh, logger); err != nil {
+			logger.WriteLinef("Readiness check failed for unit %s: %v", unit.Name, err)
+		}
+		return nil
+	}
+
 	e.readProcessOutput(r, process, logger)
 	pwg.Wait()
 	return nil

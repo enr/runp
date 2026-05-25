@@ -1,0 +1,88 @@
+name: ready conditions example
+description: |
+  Demonstrates the three ready_* conditions that control when a unit is
+  considered "ready" for its dependents to start.
+
+  Unlike `await` (which waits for an *external* resource before the unit's
+  own process starts), `ready` determines when *this* unit signals to its
+  dependents that they may proceed.
+
+  Three condition types are supported — at most one should be set per unit;
+  if multiple are set, Output takes priority, then Cmd, then Delay.
+
+  Manual test commands:
+    runp up   --file examples/Runpfile-ready.yml
+    runp up   --file examples/Runpfile-ready.yml --dry-run
+    runp list --file examples/Runpfile-ready.yml
+
+units:
+
+  # ---------------------------------------------------------------------------
+  # ready.delay: wait a fixed duration after the process starts.
+  #
+  # Useful when a service has no reliable readiness signal and a known warm-up
+  # time is acceptable (e.g. a legacy database that takes ~3 seconds to bind
+  # its port).
+  # ---------------------------------------------------------------------------
+  database:
+    description: Simulated DB — ready after a 2s delay
+    ready:
+      delay: 2s
+      timeout: 30s
+    host:
+      command: >
+        echo "[database] starting..." &&
+        sleep 60
+
+  # ---------------------------------------------------------------------------
+  # ready.output: match a substring in the process stdout/stderr.
+  #
+  # The unit is considered ready as soon as a line containing the pattern
+  # appears. This is the most reliable check for modern services that
+  # explicitly announce when they are ready (e.g. Node.js, FastAPI, Spring).
+  # ---------------------------------------------------------------------------
+  api:
+    description: App server — ready when "listening" appears in stdout
+    depends_on: [database]
+    ready:
+      output: "listening"
+      timeout: 30s
+    host:
+      command: >
+        echo "[api] booting..." &&
+        sleep 1 &&
+        echo "[api] listening on port 8080" &&
+        sleep 60
+
+  # ---------------------------------------------------------------------------
+  # ready.cmd: poll a shell command every second; ready when it exits with 0.
+  #
+  # Ideal for services that expose a health endpoint or require an external
+  # check (pg_isready, redis-cli PING, curl). The command is retried until it
+  # succeeds or the timeout is reached.
+  # ---------------------------------------------------------------------------
+  worker:
+    description: Background worker — ready when health endpoint responds
+    depends_on: [api]
+    ready:
+      cmd: "curl -sf http://localhost:8080/health"
+      timeout: 60s
+    host:
+      command: >
+        echo "[worker] starting background jobs..." &&
+        sleep 60
+
+  # ---------------------------------------------------------------------------
+  # No ready condition (default behaviour).
+  #
+  # startUnit blocks until the process exits. This is the existing behaviour
+  # and is appropriate for one-shot tasks or units with no dependents.
+  # ---------------------------------------------------------------------------
+  migrate:
+    description: DB migration — runs to completion before the stack is up
+    depends_on: [database]
+    host:
+      command: >
+        echo "[migrate] running migrations..." &&
+        sleep 0.5 &&
+        echo "[migrate] done"
