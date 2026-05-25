@@ -251,6 +251,139 @@ func TestCreateMainLoggerConcurrentRace(t *testing.T) {
 	wg.Wait()
 }
 
+// --- Bug-demonstration tests --------------------------------------------------
+// Each test below is expected to FAIL on the current implementation.
+// It documents a known defect and will pass once the defect is fixed.
+
+// TestWriteCarriageReturnPassesThrough demonstrates that a \r inside process
+// output is forwarded as-is by Write. In a real terminal the cursor jumps to
+// column 0, so subsequent characters overwrite the label prefix.
+func TestWriteCarriageReturnPassesThrough(t *testing.T) {
+	longest := 4
+	format := fmt.Sprintf(`%%%ds | `, longest)
+	sut := &clogger{idx: 0, proc: "test", longest: longest, format: format, level: LogLevelDebug, colors: false}
+
+	out := captureOutput(func() {
+		sut.Write([]byte("before\rafter\n"))
+	}, t)
+
+	sep := " | "
+	sepIdx := strings.Index(out, sep)
+	if sepIdx < 0 {
+		t.Fatalf("separator %q not found in output %q", sep, out)
+	}
+	content := strings.TrimRight(out[sepIdx+len(sep):], "\r\n")
+	if strings.ContainsRune(content, '\r') {
+		t.Errorf("bug: content %q contains \\r; in a real terminal this overwrites the label prefix", content)
+	}
+}
+
+// TestWriteLineCarriageReturnPassesThrough is the same bug via WriteLine.
+func TestWriteLineCarriageReturnPassesThrough(t *testing.T) {
+	longest := 4
+	format := fmt.Sprintf(`%%%ds | `, longest)
+	sut := &clogger{idx: 0, proc: "test", longest: longest, format: format, level: LogLevelDebug, colors: false}
+
+	out := captureOutput(func() {
+		sut.WriteLine("before\rafter")
+	}, t)
+
+	sep := " | "
+	sepIdx := strings.Index(out, sep)
+	if sepIdx < 0 {
+		t.Fatalf("separator %q not found in output %q", sep, out)
+	}
+	// Strip the trailing \r\n added by the logger before checking for mid-content \r.
+	content := strings.TrimRight(out[sepIdx+len(sep):], "\r\n")
+	if strings.ContainsRune(content, '\r') {
+		t.Errorf("bug: content %q contains \\r; in a real terminal this overwrites the label prefix", content)
+	}
+}
+
+// TestWriteDestructiveAnsiPassesThrough demonstrates that ANSI sequences that
+// clear the screen or switch to the alternate buffer are forwarded as-is,
+// destroying all visible terminal output.
+func TestWriteDestructiveAnsiPassesThrough(t *testing.T) {
+	longest := 4
+	format := fmt.Sprintf(`%%%ds | `, longest)
+	sut := &clogger{idx: 0, proc: "test", longest: longest, format: format, level: LogLevelDebug, colors: false}
+
+	clearScreen := "\x1b[2J\x1b[H"
+	out := captureOutput(func() {
+		sut.Write([]byte(clearScreen + "content\n"))
+	}, t)
+
+	if strings.Contains(out, "\x1b[2J") {
+		t.Errorf("bug: destructive ANSI sequence %q forwarded to terminal as-is", clearScreen)
+	}
+}
+
+// TestWriteBlankLinesDropped documents that bare \n lines in process output are
+// intentionally discarded. In a multiplexed stream a label-less blank line is
+// visually ambiguous (which process emitted it?), so dropping them is correct.
+func TestWriteBlankLinesDropped(t *testing.T) {
+	longest := 4
+	format := fmt.Sprintf(`%%%ds | `, longest)
+	sut := &clogger{idx: 0, proc: "test", longest: longest, format: format, level: LogLevelDebug, colors: false}
+
+	out := captureOutput(func() {
+		sut.Write([]byte("line1\n\nline2\n"))
+	}, t)
+
+	// Both content lines must appear; no bare blank line between them.
+	if !strings.Contains(out, "test | line1") || !strings.Contains(out, "test | line2") {
+		t.Errorf("expected both content lines in output, got %q", out)
+	}
+	if strings.Contains(out, "\n\n") {
+		t.Errorf("blank lines from process output should be dropped in multiplexed stream, got %q", out)
+	}
+}
+
+// --- Correctness tests for the new color-cycling behaviour -------------------
+
+// TestColorPaletteCycling verifies that units beyond len(labelColors) receive
+// bold=true and that the cycle repeats correctly on the third pass.
+func TestColorPaletteCycling(t *testing.T) {
+	mutex.Lock()
+	savedCi := ci
+	ci = 0
+	mutex.Unlock()
+	defer func() {
+		mutex.Lock()
+		ci = savedCi
+		mutex.Unlock()
+	}()
+
+	n := len(labelColors)
+
+	for i := 0; i < n; i++ {
+		l := CreateMainLogger("p", 1, "%s", false, false).(*clogger)
+		if l.bold {
+			t.Errorf("unit %d (first cycle): want bold=false, got bold=true", i)
+		}
+		if l.idx != i {
+			t.Errorf("unit %d (first cycle): want idx=%d, got %d", i, i, l.idx)
+		}
+	}
+
+	for i := 0; i < n; i++ {
+		l := CreateMainLogger("p", 1, "%s", false, false).(*clogger)
+		if !l.bold {
+			t.Errorf("unit %d (second cycle): want bold=true, got bold=false", n+i)
+		}
+		if l.idx != i {
+			t.Errorf("unit %d (second cycle): want idx=%d, got %d", n+i, i, l.idx)
+		}
+	}
+
+	l := CreateMainLogger("p", 1, "%s", false, false).(*clogger)
+	if l.bold {
+		t.Errorf("unit %d (third cycle): want bold=false, got bold=true", 2*n)
+	}
+}
+
+// --- Fine bug-demonstration tests --------------------------------------------
+
 func TestCreateProcessLogger(t *testing.T) {
 	// Test createProcessLogger.
 	logger := createProcessLogger("testproc", 10, LoggerConfig{

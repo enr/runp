@@ -3,10 +3,30 @@ package core
 import (
 	"bytes"
 	"fmt"
+	"regexp"
+	"strings"
 	"sync"
 
 	ct "github.com/daviddengcn/go-colortext"
 )
+
+// destructiveAnsiRe matches ANSI/VT sequences that modify screen state rather
+// than text attributes: erase-display, absolute cursor positioning, private-mode
+// toggles (alternate buffer, cursor visibility), DEC save/restore, and OSC
+// sequences (window title, etc.). Color and attribute sequences are left intact.
+var destructiveAnsiRe = regexp.MustCompile(
+	`\x1b\[[\d;]*[JH]` + // erase display (J) / absolute cursor position (H)
+		`|\x1b\[\?[\d;]*[hl]` + // private modes: alternate screen, cursor visibility, …
+		`|\x1b[78]` + // DEC save-cursor (ESC 7) / restore-cursor (ESC 8)
+		`|\x1b\][^\x07\x1b]*\x07`, // OSC: window title, icon name, …
+)
+
+// sanitizeLine removes content that would corrupt the terminal when forwarded
+// from a child process: destructive ANSI sequences and bare carriage returns.
+func sanitizeLine(s string) string {
+	s = destructiveAnsiRe.ReplaceAllString(s, "")
+	return strings.ReplaceAll(s, "\r", "")
+}
 
 // LoggerConfig contains configuration for a logger.
 type LoggerConfig struct {
@@ -79,16 +99,21 @@ func (l *clogger) doWriteLine(line string) (int, error) {
 	if len(line) == 0 {
 		return 0, nil
 	}
+	sanitized := sanitizeLine(line)
+	if len(sanitized) == 0 {
+		return 0, nil
+	}
 	mutex.Lock()
 	if l.colors {
+		ct.ResetColor()
 		ct.ChangeColor(labelColors[l.idx].foreground, l.bold, labelColors[l.idx].background, false)
 	}
 	fmt.Printf(l.format, l.proc)
 	if l.colors {
 		ct.ResetColor()
 	}
-	fmt.Print(line)
-	if line[len(line)-1] != '\n' {
+	fmt.Print(sanitized)
+	if sanitized[len(sanitized)-1] != '\n' {
 		fmt.Print("\r\n")
 	}
 	mutex.Unlock()
@@ -105,26 +130,30 @@ func (l *clogger) Write(p []byte) (int, error) {
 	for {
 		line, err := buf.ReadBytes('\n')
 		if len(line) > 1 {
-			s := string(line)
-
-			mutex.Lock()
-			if l.colors {
-				ct.ResetColor()
+			s := sanitizeLine(string(line))
+			// Blank lines (and lines that reduce to empty after sanitization) are
+			// dropped: in a multiplexed stream a label-less blank line is ambiguous.
+			if s == "" || s == "\n" {
+				wrote += len(line)
+			} else {
+				mutex.Lock()
+				if l.colors {
+					ct.ResetColor()
+				}
+				if l.colors {
+					ct.ChangeColor(labelColors[l.idx].foreground, l.bold, labelColors[l.idx].background, false)
+				}
+				fmt.Printf(l.format, l.proc)
+				if l.colors {
+					ct.ResetColor()
+				}
+				fmt.Print(s)
+				if s[len(s)-1] != '\n' {
+					fmt.Print("\r\n")
+				}
+				mutex.Unlock()
+				wrote += len(line)
 			}
-			if l.colors {
-				ct.ChangeColor(labelColors[l.idx].foreground, l.bold, labelColors[l.idx].background, false)
-			}
-			fmt.Printf(l.format, l.proc)
-			if l.colors {
-				ct.ResetColor()
-			}
-			fmt.Print(s)
-			if s[len(s)-1] != '\n' {
-				fmt.Print("\r\n")
-			}
-			mutex.Unlock()
-
-			wrote += len(line)
 		}
 		if err != nil {
 			break
