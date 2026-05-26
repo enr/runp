@@ -7,7 +7,7 @@ require (
 	github.com/bww/impatient v0.0.0-20190416152716-e20197d6286d
 	github.com/daviddengcn/go-colortext v1.0.0
 	github.com/enr/go-files v0.3.0
-	github.com/enr/qac v0.4.0
+	github.com/enr/qac v0.5.0
 	github.com/hashicorp/go-version v1.9.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/urfave/cli/v2 v2.27.7

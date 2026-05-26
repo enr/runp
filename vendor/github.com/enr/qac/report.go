@@ -19,6 +19,8 @@ const (
 	SuccessType
 	// SkippedType means the spec was not executed because preconditions were not met
 	SkippedType
+	// TimedOutType means the command exceeded its configured timeout
+	TimedOutType
 )
 
 // ReportEntry is a single unit of information in a report.
@@ -40,6 +42,24 @@ func (r *ReportEntry) Description() string {
 // Errors returns the errors list in a report entry.
 func (r *ReportEntry) Errors() []error {
 	return r.errors
+}
+
+// String returns a human-readable name for the entry type.
+func (t ReportEntryType) String() string {
+	switch t {
+	case ErrorType:
+		return "ERROR"
+	case InfoType:
+		return "INFO"
+	case SuccessType:
+		return "OK"
+	case SkippedType:
+		return "SKIP"
+	case TimedOutType:
+		return "TIMEOUT"
+	default:
+		return "UNKNOWN"
+	}
 }
 
 // Kind returns the type of a report entry: error, info, success, skipped...
@@ -75,6 +95,39 @@ func (r *ReportBlock) StartedAt() time.Time { return r.startedAt }
 // Duration returns how long this block took to execute.
 func (r *ReportBlock) Duration() time.Duration { return r.duration }
 
+// TimedOut returns true if the command in this block exceeded its configured timeout.
+func (r *ReportBlock) TimedOut() bool {
+	for _, e := range r.entries {
+		if e.Kind() == TimedOutType {
+			return true
+		}
+	}
+	return false
+}
+
+// Failed returns true if this block contains at least one error or timeout entry.
+func (r *ReportBlock) Failed() bool {
+	for _, e := range r.entries {
+		if e.Kind() == ErrorType || e.Kind() == TimedOutType {
+			return true
+		}
+	}
+	return false
+}
+
+// Skipped returns true if this spec block was skipped (by skip field, skip_if, or tag filter).
+func (r *ReportBlock) Skipped() bool {
+	if len(r.entries) == 0 && r.index > 0 {
+		return true
+	}
+	for _, e := range r.entries {
+		if e.Kind() == SkippedType {
+			return true
+		}
+	}
+	return false
+}
+
 func newReportEntryFromAssertionResult(ar AssertionResult) ReportEntry {
 	k := ErrorType
 	if ar.Success() {
@@ -93,6 +146,11 @@ func newReportEntryInfo(msg string) ReportEntry {
 
 func newReportEntrySkipped(reason string) ReportEntry {
 	return ReportEntry{description: reason, kind: SkippedType, errors: []error{}}
+}
+
+func newReportEntryTimedOut(timeout string) ReportEntry {
+	msg := fmt.Sprintf("command timed out after %s", timeout)
+	return ReportEntry{description: msg, kind: TimedOutType, errors: []error{fmt.Errorf("%s", msg)}}
 }
 
 // TestExecutionReport is the full report on a test execution
@@ -122,6 +180,11 @@ func (r *TestExecutionReport) addEntryInfo(phase string, msg string) {
 
 func (r *TestExecutionReport) addEntrySkipped(phase string, reason string) {
 	entry := newReportEntrySkipped(reason)
+	r.addEntry(phase, entry)
+}
+
+func (r *TestExecutionReport) addEntryTimedOut(phase string, timeout string) {
+	entry := newReportEntryTimedOut(timeout)
 	r.addEntry(phase, entry)
 }
 
@@ -181,6 +244,60 @@ func (r *TestExecutionReport) AllErrors() []error {
 	return errors
 }
 
+// Success returns true when no block recorded an error or timeout.
+func (r *TestExecutionReport) Success() bool {
+	return len(r.AllErrors()) == 0
+}
+
+// FailedSpecs returns the phase names of spec blocks that failed.
+func (r *TestExecutionReport) FailedSpecs() []string {
+	var names []string
+	for _, b := range r.blocks {
+		if b.Index() > 0 && b.Failed() {
+			names = append(names, b.Phase())
+		}
+	}
+	return names
+}
+
+// Summary returns a one-line human-readable description of the execution
+// result, e.g. "3/5 specs passed" or "5/5 specs passed (2 skipped)".
+func (r *TestExecutionReport) Summary() string {
+	total, passed, skipped := 0, 0, 0
+	for _, b := range r.blocks {
+		if b.Index() == 0 {
+			continue
+		}
+		total++
+		if b.Skipped() {
+			skipped++
+		} else if !b.Failed() {
+			passed++
+		}
+	}
+	s := fmt.Sprintf("%d/%d specs passed", passed, total)
+	if skipped > 0 {
+		s += fmt.Sprintf(" (%d skipped)", skipped)
+	}
+	return s
+}
+
+// FailWith calls t.Errorf for every error in the report, prefixed with the
+// block phase so failures are easy to locate. It is the idiomatic one-liner
+// to fail a Go test when a qac plan has errors:
+//
+//	report.FailWith(t)
+func (r *TestExecutionReport) FailWith(t *testing.T) {
+	t.Helper()
+	for _, block := range r.blocks {
+		for _, entry := range block.Entries() {
+			for _, err := range entry.Errors() {
+				t.Errorf("[%s] %v", block.Phase(), err)
+			}
+		}
+	}
+}
+
 // Reporter is the interface for components publishing the report.
 type Reporter interface {
 	Publish(report *TestExecutionReport) error
@@ -218,6 +335,8 @@ func (r *testLogsReporter) Publish(report *TestExecutionReport) error {
 				r.t.Logf("  | SKIP %s", entry.Description())
 			case InfoType:
 				r.t.Logf("  | INFO %s", entry.Description())
+			case TimedOutType:
+				r.t.Logf("  | TIMEOUT %s", entry.Description())
 			}
 		}
 	}
@@ -254,6 +373,8 @@ func (r *consoleReporter) Publish(report *TestExecutionReport) error {
 				fmt.Printf("  | SKIP %s\n", entry.Description())
 			case InfoType:
 				fmt.Printf("  | INFO %s\n", entry.Description())
+			case TimedOutType:
+				fmt.Printf("  | TIMEOUT %s\n", entry.Description())
 			}
 		}
 	}
@@ -262,7 +383,7 @@ func (r *consoleReporter) Publish(report *TestExecutionReport) error {
 
 func blockStatus(block *ReportBlock) string {
 	for _, entry := range block.Entries() {
-		if entry.Kind() == ErrorType {
+		if entry.Kind() == ErrorType || entry.Kind() == TimedOutType {
 			return "KO"
 		}
 	}

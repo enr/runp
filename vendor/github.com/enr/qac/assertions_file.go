@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/enr/go-files/files"
@@ -28,10 +29,13 @@ func (a *FileAssertion) verify(context planContext) AssertionResult {
 		return result
 	}
 	fileExists := files.Exists(actualPath)
-	shouldExist := a.Exists
+	shouldExist := a.Exists == nil || *a.Exists
 	if shouldExist != fileExists {
-		err := fmt.Errorf(`file %s exist expected %t but got %t`, actualPath, shouldExist, fileExists)
-		result.addError(err)
+		if shouldExist {
+			result.addErrorf("file %s should exist but does not", actualPath)
+		} else {
+			result.addErrorf("file %s should not exist but does", actualPath)
+		}
 		return result
 	}
 	if !shouldExist {
@@ -79,7 +83,7 @@ func (a *FileAssertion) verify(context planContext) AssertionResult {
 		cf := string(content)
 		for _, t := range a.ContainsAll {
 			if !strings.Contains(cf, t) {
-				result.addError(fmt.Errorf("%s file\n%s\ndoes not contain:\n%s", actualPath, snippet(cf), t))
+				result.addErrorf("file %s does not contain: %q\n%s", actualPath, t, contextHint(cf, t))
 			}
 		}
 	}
@@ -91,7 +95,22 @@ func (a *FileAssertion) verify(context planContext) AssertionResult {
 		}
 		cf := string(content)
 		if a.failContainsAny(cf) {
-			result.addError(fmt.Errorf("%s file\n%s\ndoes not contain any of:\n%q", actualPath, snippet(cf), a.ContainsAny))
+			result.addErrorf("file %s does not contain any of: %q\n%s", actualPath, a.ContainsAny, contextHint(cf, ""))
+		}
+	}
+	if a.ContainsMatching != "" {
+		re, err := regexp.Compile(a.ContainsMatching)
+		if err != nil {
+			result.addConfigError(fmt.Errorf("invalid regex in contains_matching %q: %w", a.ContainsMatching, err))
+		} else {
+			content, err := os.ReadFile(actualPath)
+			if err != nil {
+				result.addInfraError(fmt.Errorf("reading %q: %w", actualPath, err))
+				return result
+			}
+			if !re.Match(content) {
+				result.addErrorf("%s: file does not contain any match for:\n%s", actualPath, a.ContainsMatching)
+			}
 		}
 	}
 

@@ -19,9 +19,13 @@ func (a *DirectoryAssertion) verify(context planContext) AssertionResult {
 		return result
 	}
 	fileExists := files.Exists(actualPath)
-	shouldExist := a.Exists
+	shouldExist := a.Exists == nil || *a.Exists
 	if shouldExist != fileExists {
-		result.addErrorf(`directory %s exist expected %t but got %t`, actualPath, shouldExist, fileExists)
+		if shouldExist {
+			result.addErrorf("directory %s should exist but does not", actualPath)
+		} else {
+			result.addErrorf("directory %s should not exist but does", actualPath)
+		}
 		return result
 	}
 	if !shouldExist {
@@ -88,7 +92,7 @@ func (a *DirectoryAssertion) verifyContainsAll(actualPath string, files []string
 		}
 	}
 	if len(missing) > 0 {
-		result.addErrorf(`missing files: %q`, missing)
+		result.addErrorf("directory %s missing files: %q\n  actual contents: %q", actualPath, missing, files)
 	}
 }
 
@@ -100,23 +104,23 @@ func (a *DirectoryAssertion) verifyContainsAny(actualPath string, files []string
 		}
 	}
 	if miss {
-		result.addErrorf(`directory %s does not contain any of %q`, actualPath, a.ContainsAny)
+		result.addErrorf("directory %s does not contain any of: %q\n  actual contents: %q", actualPath, a.ContainsAny, files)
 	}
 }
 
 func (a *DirectoryAssertion) verifyContainsExactly(actualPath string, files []string, result *AssertionResult) {
 	if len(files) != len(a.ContainsExactly) {
-		result.addErrorf("expected %s contains %d files but got %d\n%v%v", actualPath, len(a.ContainsExactly), len(files),
-			a.ContainsExactly, files)
+		result.addErrorf("directory %s: expected %d files but got %d\n  expected: %q\n  actual:   %q",
+			actualPath, len(a.ContainsExactly), len(files), a.ContainsExactly, files)
 	}
 	for _, f := range files {
 		if !sliceContains(a.ContainsExactly, f) {
-			result.addErrorf(`file %s not in expected %q`, f, a.ContainsExactly)
+			result.addErrorf("unexpected file in %s: %q", actualPath, f)
 		}
 	}
 	for _, f := range a.ContainsExactly {
 		if !sliceContains(files, f) {
-			result.addErrorf(`file %s not found in actual dir content %q`, f, files)
+			result.addErrorf("expected file not found in %s: %q", actualPath, f)
 		}
 	}
 }

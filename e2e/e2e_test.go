@@ -23,7 +23,10 @@ func TestExecutions(t *testing.T) {
 
 func executions(f string, t *testing.T) {
 	launcher := qac.NewLauncher()
-	report := launcher.ExecuteFile(f)
+	report, err := launcher.ExecuteFile(f)
+	if err != nil {
+		t.Fatalf("ExecuteFile %s: %v", f, err)
+	}
 	reporter := qac.NewTestLogsReporter(t)
 	reporter.Publish(report)
 

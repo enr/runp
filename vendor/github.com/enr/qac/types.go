@@ -11,8 +11,12 @@ import (
 
 // TestPlan represents the full set of tests on a program.
 type TestPlan struct {
-	Preconditions Preconditions   `yaml:"preconditions"`
-	Specs         map[string]Spec `yaml:"specs"`
+	Include       []string          `yaml:"include"`
+	Vars          map[string]string `yaml:"vars"`
+	Setup         []Command         `yaml:"setup"`
+	Teardown      []Command         `yaml:"teardown"`
+	Preconditions Preconditions     `yaml:"preconditions"`
+	Specs         map[string]Spec   `yaml:"specs"`
 	specOrder     []string
 }
 
@@ -22,7 +26,7 @@ func (tp *TestPlan) UnmarshalYAML(value *yaml.Node) error {
 	if value.Kind != yaml.MappingNode {
 		return fmt.Errorf("line %d: expected mapping for plan", value.Line)
 	}
-	known := map[string]bool{"preconditions": true, "specs": true}
+	known := map[string]bool{"include": true, "preconditions": true, "specs": true, "vars": true, "setup": true, "teardown": true}
 	for i := 0; i < len(value.Content)-1; i += 2 {
 		k := value.Content[i].Value
 		if !known[k] {
@@ -33,6 +37,22 @@ func (tp *TestPlan) UnmarshalYAML(value *yaml.Node) error {
 		keyNode := value.Content[i]
 		valNode := value.Content[i+1]
 		switch keyNode.Value {
+		case "include":
+			if err := strictDecodeNode(valNode, &tp.Include); err != nil {
+				return err
+			}
+		case "vars":
+			if err := strictDecodeNode(valNode, &tp.Vars); err != nil {
+				return err
+			}
+		case "setup":
+			if err := strictDecodeNode(valNode, &tp.Setup); err != nil {
+				return err
+			}
+		case "teardown":
+			if err := strictDecodeNode(valNode, &tp.Teardown); err != nil {
+				return err
+			}
 		case "preconditions":
 			if err := strictDecodeNode(valNode, &tp.Preconditions); err != nil {
 				return err
@@ -71,10 +91,27 @@ func strictDecodeNode(node *yaml.Node, v interface{}) error {
 	return dec.Decode(v)
 }
 
+// SkipCondition holds the conditions under which a spec is skipped.
+type SkipCondition struct {
+	// EnvSet skips the spec when the named environment variable is defined (regardless of its value).
+	EnvSet string `yaml:"env_set"`
+	// EnvValue skips the spec when any named variable equals its specified value.
+	EnvValue map[string]string `yaml:"env_value"`
+}
+
 // Spec is the single test.
 type Spec struct {
-	id            string
-	Description   string        `yaml:"description"`
+	id          string
+	Description string        `yaml:"description"`
+	Tags        []string      `yaml:"tags"`
+	Skip        bool          `yaml:"skip"`
+	SkipIf      SkipCondition `yaml:"skip_if"`
+	// Retries is the number of additional attempts after the first failure.
+	// Zero (default) means no retry.
+	Retries       int           `yaml:"retries"`
+	RetryDelay    string        `yaml:"retry_delay"`
+	Setup         []Command     `yaml:"setup"`
+	Teardown      []Command     `yaml:"teardown"`
 	Preconditions Preconditions `yaml:"preconditions"`
 	Command       Command       `yaml:"command"`
 	Expectations  Expectations  `yaml:"expectations"`
@@ -90,13 +127,16 @@ type FileSystemAssertion struct {
 	File      string        `yaml:"file"`
 	Extension FileExtension `yaml:"ext"`
 	Directory string        `yaml:"directory"`
-	Exists    *bool         `yaml:"exists"`
-	EqualsTo  string        `yaml:"equals_to"`
+	// Exists defaults to true when omitted (nil): the assertion checks the path exists.
+	// Set explicitly to false to assert the path must not exist.
+	Exists   *bool  `yaml:"exists"`
+	EqualsTo string `yaml:"equals_to"`
 	// Only for files
-	TextEqualsTo    string   `yaml:"text_equals_to"`
-	ContainsAny     []string `yaml:"contains_any"`
-	ContainsAll     []string `yaml:"contains_all"`
-	ContainsExactly []string `yaml:"contains_exactly"`
+	TextEqualsTo     string   `yaml:"text_equals_to"`
+	ContainsAny      []string `yaml:"contains_any"`
+	ContainsAll      []string `yaml:"contains_all"`
+	ContainsExactly  []string `yaml:"contains_exactly"`
+	ContainsMatching string   `yaml:"contains_matching"`
 }
 
 // FileExtension is added as suffix to file assertions' path and command's exe values
@@ -118,19 +158,24 @@ func (e FileExtension) get() string {
 
 // FileAssertion is an assertion on a given file.
 type FileAssertion struct {
-	Path         string        `yaml:"path"`
-	Extension    FileExtension `yaml:"ext"`
-	Exists       bool          `yaml:"exists"`
-	EqualsTo     string        `yaml:"equals_to"`
-	TextEqualsTo string        `yaml:"text_equals_to"`
-	ContainsAny  []string      `yaml:"contains_any"`
-	ContainsAll  []string      `yaml:"contains_all"`
+	Path      string        `yaml:"path"`
+	Extension FileExtension `yaml:"ext"`
+	// Exists defaults to true (nil): check that the file exists.
+	// Set to false to assert the file must not exist.
+	Exists           *bool    `yaml:"exists"`
+	EqualsTo         string   `yaml:"equals_to"`
+	TextEqualsTo     string   `yaml:"text_equals_to"`
+	ContainsAny      []string `yaml:"contains_any"`
+	ContainsAll      []string `yaml:"contains_all"`
+	ContainsMatching string   `yaml:"contains_matching"`
 }
 
 // DirectoryAssertion is an assertion on a given directory.
 type DirectoryAssertion struct {
-	Path            string   `yaml:"path"`
-	Exists          bool     `yaml:"exists"`
+	Path string `yaml:"path"`
+	// Exists defaults to true (nil): check that the directory exists.
+	// Set to false to assert the directory must not exist.
+	Exists          *bool    `yaml:"exists"`
 	EqualsTo        string   `yaml:"equals_to"`
 	ContainsAny     []string `yaml:"contains_any"`
 	ContainsAll     []string `yaml:"contains_all"`
@@ -143,14 +188,39 @@ type Preconditions struct {
 }
 
 // Command represents the command under test.
+//
+// Use either cli or exe+args — setting both is a configuration error.
+//
+//   - cli runs the value through the system shell ($SHELL -c on Unix, cmd /C on
+//     Windows). Shell features such as pipes (|), redirects (>), globs (*), and
+//     variable expansion are available. Convenient for simple one-liners.
+//     Avoid when any part of the command line comes from untrusted input:
+//     shell injection is possible.
+//
+//   - exe + args starts the process directly without a shell. Arguments are
+//     passed verbatim to the OS; no quoting, globbing, or expansion occurs.
+//     Prefer this form when shell features are not needed, especially with
+//     values that originate from user input or external data.
 type Command struct {
-	WorkingDir string            `yaml:"working_dir"`
-	Cli        string            `yaml:"cli"`
-	Exe        string            `yaml:"exe"`
-	Env        map[string]string `yaml:"env"`
-	// added to exe
+	WorkingDir string `yaml:"working_dir"`
+	// Cli is a shell command line. The system shell interprets it, so pipes,
+	// redirects, and globs work. Mutually exclusive with exe.
+	Cli string `yaml:"cli"`
+	// Exe is the path or name of the executable. The process is started
+	// directly without a shell. Mutually exclusive with cli.
+	Exe string            `yaml:"exe"`
+	Env map[string]string `yaml:"env"`
+	// Extension is appended to Exe based on the runtime OS (e.g. ".exe" on Windows).
 	Extension FileExtension `yaml:"ext"`
-	Args      []string      `yaml:"args"`
+	// Args holds arguments passed directly to Exe. Only meaningful when Exe is set.
+	Args []string `yaml:"args"`
+	// Timeout is the maximum wall-clock time to wait; parsed by time.ParseDuration
+	// (e.g. "30s", "1m"). Zero or empty means no timeout.
+	Timeout string `yaml:"timeout"`
+	// Stdin is an inline string piped to the command's standard input.
+	Stdin string `yaml:"stdin"`
+	// StdinFile is a path to a file whose contents are piped to standard input.
+	StdinFile string `yaml:"stdin_file"`
 }
 
 func (c Command) String() string {
@@ -165,7 +235,7 @@ func (c Command) String() string {
 type StatusAssertion struct {
 	EqualsTo    *int `yaml:"equals_to"`
 	GreaterThan *int `yaml:"greater_than"`
-	LesserThan  *int `yaml:"lesser_than"`
+	LessThan    *int `yaml:"less_than"`
 }
 
 // OutputAssertion is an assertion on the output of a command: namely standard output and standard error.
@@ -182,6 +252,16 @@ type OutputAssertion struct {
 	ContainsAny  []string `yaml:"contains_any"`
 	ContainsAll  []string `yaml:"contains_all"`
 	ContainsNone []string `yaml:"contains_none"`
+	// ContainsLine requires at least one line to equal the given string exactly (after trimming).
+	ContainsLine string `yaml:"contains_line"`
+	// LineCount requires the output to have exactly N non-empty lines.
+	LineCount *int `yaml:"line_count"`
+	// LineCountGte requires the output to have at least N non-empty lines.
+	LineCountGte *int `yaml:"line_count_gte"`
+	// Matches requires the entire trimmed output to match the regular expression.
+	Matches string `yaml:"matches"`
+	// NotMatches requires the entire trimmed output NOT to match the regular expression.
+	NotMatches string `yaml:"not_matches"`
 }
 
 // OutputAssertions is the aggregate of stdout and stderr assertions.
@@ -190,9 +270,18 @@ type OutputAssertions struct {
 	Stderr OutputAssertion `yaml:"stderr"`
 }
 
+// DurationAssertion asserts that the command's wall-clock execution time is
+// within the specified bounds.  Both fields accept any string accepted by
+// time.ParseDuration (e.g. "2s", "500ms", "1m30s").
+type DurationAssertion struct {
+	Max string `yaml:"max"`
+	Min string `yaml:"min"`
+}
+
 // Expectations is the aggregate of the final assertions on the command executed.
 type Expectations struct {
 	StatusAssertion      StatusAssertion       `yaml:"status"`
 	OutputAssertions     OutputAssertions      `yaml:"output"`
 	FileSystemAssertions []FileSystemAssertion `yaml:"fs"`
+	DurationAssertion    DurationAssertion     `yaml:"duration"`
 }

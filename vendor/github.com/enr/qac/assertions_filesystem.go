@@ -14,21 +14,25 @@ func (a *FileSystemAssertion) actualAssertion(context planContext) (assertion, e
 			return nil, asConfigError(fmt.Errorf("field contains_exactly is not valid for file assertion %q", a.File))
 		}
 		return &FileAssertion{
-			Path:         a.File,
-			Extension:    a.Extension,
-			Exists:       shouldExists,
-			ContainsAll:  a.ContainsAll,
-			ContainsAny:  a.ContainsAny,
-			EqualsTo:     a.EqualsTo,
-			TextEqualsTo: a.TextEqualsTo,
+			Path:             a.File,
+			Extension:        a.Extension,
+			Exists:           &shouldExists,
+			ContainsAll:      a.ContainsAll,
+			ContainsAny:      a.ContainsAny,
+			EqualsTo:         a.EqualsTo,
+			TextEqualsTo:     a.TextEqualsTo,
+			ContainsMatching: a.ContainsMatching,
 		}, nil
 	}
 	if a.TextEqualsTo != "" {
 		return nil, asConfigError(fmt.Errorf("field text_equals_to is not valid for directory assertion %q", a.Directory))
 	}
+	if a.ContainsMatching != "" {
+		return nil, asConfigError(fmt.Errorf("field contains_matching is not valid for directory assertion %q", a.Directory))
+	}
 	return &DirectoryAssertion{
 		Path:            a.Directory,
-		Exists:          shouldExists,
+		Exists:          &shouldExists,
 		ContainsAll:     a.ContainsAll,
 		ContainsAny:     a.ContainsAny,
 		EqualsTo:        a.EqualsTo,

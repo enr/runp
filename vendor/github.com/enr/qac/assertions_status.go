@@ -16,9 +16,9 @@ func (a *StatusAssertion) verify(context planContext) AssertionResult {
 		}
 		commandErrorIsAcceptable = true
 	}
-	if a.LesserThan != nil {
-		if commandResult.exitCode >= *a.LesserThan {
-			result.addErrorf(`exit code expected LT %d got %d`, *a.LesserThan, commandResult.exitCode)
+	if a.LessThan != nil {
+		if commandResult.exitCode >= *a.LessThan {
+			result.addErrorf(`exit code expected LT %d got %d`, *a.LessThan, commandResult.exitCode)
 		}
 		commandErrorIsAcceptable = true
 	}

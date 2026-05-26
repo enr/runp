@@ -13,8 +13,8 @@ github.com/daviddengcn/go-colortext v1.0.0 h1:ANqDyC0ys6qCSvuEK7l3g5RaehL/Xck9EX
 github.com/daviddengcn/go-colortext v1.0.0/go.mod h1:zDqEI5NVUop5QPpVJUxE9UO10hRnmkD5G4Pmri9+m4c=
 github.com/enr/go-files v0.3.0 h1:xVzR9Tjxg/HuyERmCojiafeO8qH2737oTBt8JRKC3DE=
 github.com/enr/go-files v0.3.0/go.mod h1:kYv8CX8pWp8qu+fPDek6y19C5Lo2BnD49eLiueAjvgo=
-github.com/enr/qac v0.4.0 h1:VtfaWu81pGDqBAmTW/qqVDxzcG3+2CJYScUqY5HyNns=
-github.com/enr/qac v0.4.0/go.mod h1:91+iQ7GLNbj9Y/N3gBQJODi5fOae7qjb55fxwtjo6YE=
+github.com/enr/qac v0.5.0 h1:7gYEO2b/l4mKePxJvO+wi4s19e74cXgZqpEDpiqyaXA=
+github.com/enr/qac v0.5.0/go.mod h1:91+iQ7GLNbj9Y/N3gBQJODi5fOae7qjb55fxwtjo6YE=
 github.com/enr/runcmd v0.6.1 h1:5N5StAK3gdeRIojTGgvst5qxc0BPUgWei+W3SF2r5n0=
 github.com/enr/runcmd v0.6.1/go.mod h1:kTAS2cwONOftvMsNIdLLDln4F25FOk8ZeGGOIUtLF3o=
 github.com/extemporalgenome/slug v0.0.0-20150414033109-0320c85e32e0 h1:0A9+8DBvlpto0mr+SD1NadV5liSIAZkWnvyshwk88Bc=
