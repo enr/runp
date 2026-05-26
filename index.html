@@ -331,7 +331,7 @@ pre.rouge {
 <h1>Runp</h1>
 <div class="details">
 <span id="author" class="author">runp contributors</span><br>
-<span id="revnumber">version 0.10.0</span>
+<span id="revnumber">version 0.11.0</span>
 </div>
 </div>
 <div id="content">
@@ -352,7 +352,7 @@ pre.rouge {
 <p><a href="https://github.com/enr/runp/releases/latest">Download last artifacts</a> |
  <a href="https://enr.github.io/runp/pdf/runp_manual.pdf">This manual as PDF</a> |
  <a href="https://github.com/enr/runp">Source code</a> |
- Build revision <code>49f68ed70a3d730c9664cfcbef5e913fb5623c48</code></p>
+ Build revision <code>c88c6c2d5e5e638ecbb3cca8e24e1738c8f35a40</code></p>
 </div>
 </div>
 </div>
@@ -406,6 +406,9 @@ running all needed processes in parallel (like Docker compose, Foreman et simili
 </li>
 <li>
 <p>processes dependency: a process can wait for a given condition to start, e.g. a file appearing or another process being ready</p>
+</li>
+<li>
+<p>explicit startup ordering via <code>depends_on</code></p>
 </li>
 <li>
 <p>not only <em>long running</em> processes but <em>one shot commands</em> too</p>
@@ -465,6 +468,305 @@ running all needed processes in parallel (like Docker compose, Foreman et simili
 </div>
 </div>
 <div class="sect1">
+<h2 id="_commands">Commands</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_runp_up">runp up</h3>
+<div class="paragraph">
+<p>Start all units defined in the Runpfile. This is the <strong>default command</strong>: running <code>runp</code> with no
+subcommand is equivalent to <code>runp up</code>.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>runp up
+runp up --file ./infra/Runpfile
+runp up --var DB_HOST=localhost --var DB_PORT=5432
+runp up --key-env RUNP_SECRET_KEY
+runp up --dry-run</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Flags:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Flag</th>
+<th class="tableblock halign-left valign-top">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>--file</code> / <code>-f</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Path to the Runpfile. Overrides the <code>RUNP_FILE</code> environment variable. Default: <code>./Runpfile</code>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>--var</code> / <code>-V</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Set a runtime variable declared in the <code>vars:</code> section, e.g. <code>--var DB_HOST=localhost</code>. Can be repeated.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>--key-env</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Name of the environment variable that holds the decryption key for <code>encrypted_secret</code> fields (recommended).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>--key</code> / <code>-k</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Decryption key as a plain-text argument. <strong>Visible in <code>ps aux</code> and shell history — prefer <code>--key-env</code>.</strong></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>--dry-run</code> / <code>-n</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Print the units that would be started (name, kind, resolved command) without actually starting any process.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect2">
+<h3 id="_runp_status_ps">runp status (ps)</h3>
+<div class="paragraph">
+<p>Show the runtime state of all units.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>runp status
+runp ps
+runp status --file ./infra/Runpfile</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Prints a table with columns NAME, KIND, STATE, and DETAIL.
+The <code>ps</code> alias is provided for convenience.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_runp_list_ls">runp list (ls)</h3>
+<div class="paragraph">
+<p>List all units defined in the Runpfile.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>runp list
+runp ls
+runp list --output json
+runp list --output json | jq '.[].name'
+runp list --file ./infra/Runpfile</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Flags:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Flag</th>
+<th class="tableblock halign-left valign-top">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>--output</code> / <code>-o</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Output format. <code>table</code> (default) prints an aligned table with NAME, KIND, DESCRIPTION, PRECONDITIONS columns.
+  <code>json</code> emits a JSON array suitable for piping to <code>jq</code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect2">
+<h3 id="_runp_validate">runp validate</h3>
+<div class="paragraph">
+<p>Validate the Runpfile without starting any process.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>runp validate
+runp validate --file ./infra/Runpfile</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Exit codes:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>0</code> — file is valid</p>
+</li>
+<li>
+<p><code>1</code> — validation errors found (missing process type, undefined variable, unknown <code>depends_on</code> reference, cycle)</p>
+</li>
+<li>
+<p><code>2</code> — file cannot be loaded (not found or invalid YAML)</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_runp_reload">runp reload</h3>
+<div class="paragraph">
+<p>Stop and restart a single unit by name while the rest of the stack keeps running.
+Run this in a separate shell while <code>runp up</code> is active.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>runp reload web
+runp reload api --file ./infra/Runpfile</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>SSH tunnel units are not supported by <code>reload</code>.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_runp_encrypt">runp encrypt</h3>
+<div class="paragraph">
+<p>Encrypt a secret value for use as <code>encrypted_secret</code> in a Runpfile.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>runp encrypt --key-env RUNP_SECRET_KEY mysecretvalue
+echo mysecretvalue | runp encrypt --key-env RUNP_SECRET_KEY
+runp encrypt mysecretvalue        # generates and prints a random key</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The secret can be supplied as a positional argument or piped via stdin.
+When neither is provided and stdin is a terminal, the command exits with an error.</p>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Warning</div>
+</td>
+<td class="content">
+<div class="paragraph">
+<p>Avoid <code>--key</code> with a literal value — the key will be visible in <code>ps aux</code> output and recorded
+in your shell history. Use <code>--key-env</code> instead:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>export RUNP_SECRET_KEY=my-encryption-key
+runp encrypt --key-env RUNP_SECRET_KEY mysecretvalue</pre>
+</div>
+</div>
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_runp_config">runp config</h3>
+<div class="paragraph">
+<p>Manage user settings stored in <code>~/.runp/settings.yaml</code>.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Subcommand</th>
+<th class="tableblock halign-left valign-top">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>runp config show</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Print the full contents of <code>~/.runp/settings.yaml</code> and its path.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>runp config get &lt;key&gt;</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Print the current value of a setting key (returns the default when not explicitly set).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>runp config set &lt;key&gt; &lt;value&gt;</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Write a setting key. Creates <code>~/.runp/settings.yaml</code> if it does not exist.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Example:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>runp config show
+runp config get container_runner
+runp config set container_runner podman</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Supported keys:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 20%;">
+<col style="width: 20%;">
+<col style="width: 60%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Key</th>
+<th class="tableblock halign-left valign-top">Default</th>
+<th class="tableblock halign-left valign-top">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>container_runner</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>docker</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Container runtime executable used for container units.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_global_flags">Global flags</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Flag</th>
+<th class="tableblock halign-left valign-top">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>--log-level</code> / <code>-l</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Log verbosity. Accepted values: <code>trace</code>, <code>debug</code>, <code>info</code> (default), <code>warn</code>, <code>error</code>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>--no-color</code> / <code>-C</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Disable colored output. Also honoured via the <code>NO_COLOR</code> environment variable.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>--dry-run</code> / <code>-n</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Preview units without starting them (equivalent to <code>runp up --dry-run</code>).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>--debug</code> / <code>-d</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Deprecated.</strong> Equivalent to <code>--log-level debug</code>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>--quiet</code> / <code>-q</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Deprecated.</strong> Equivalent to <code>--log-level warn</code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
 <h2 id="_usage">Usage</h2>
 <div class="sectionbody">
 <div class="paragraph">
@@ -475,13 +777,43 @@ running all needed processes in parallel (like Docker compose, Foreman et simili
 </div>
 <div class="listingblock">
 <div class="content">
-<pre>runp --help                          # generic help
-runp help up                         # describes the command "up"
-runp up                              # run the runpfile in the current directory
-runp -d up -f /path/to/runpfile.yaml # run in debug mode processes in the given Runpfile
-runp encrypt --key test secret       # encrypt "secret" using the key "test" and print
-                                     # out the value to use in a Runpfile
-runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
+<pre>runp --help                               # generic help
+runp help up                              # describes the command "up"
+runp up                                   # run the Runpfile in the current directory (default command)
+runp --log-level debug up -f /path/to/runpfile.yaml
+runp encrypt --key-env RUNP_KEY secret    # encrypt "secret" using the key from $RUNP_KEY
+runp ls -f /path/to/runpfile.yaml         # list units in Runpfile
+runp validate -f /path/to/runpfile.yaml   # validate Runpfile without starting
+runp status                               # show runtime status of all units</pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Selecting the Runpfile</strong></p>
+</div>
+<div class="paragraph">
+<p>The Runpfile path is resolved in the following order of precedence:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><code>--file</code> / <code>-f</code> flag</p>
+</li>
+<li>
+<p><code>RUNP_FILE</code> environment variable</p>
+</li>
+<li>
+<p><code>./Runpfile</code> (default)</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>Example using the environment variable:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>export RUNP_FILE=/path/to/my/Runpfile
+runp up
+runp validate</pre>
 </div>
 </div>
 <div class="paragraph">
@@ -499,10 +831,30 @@ runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
 </div>
 </div>
 <div class="paragraph">
+<p>Use <code>runp config</code> to read or update settings without editing the file directly:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>runp config set container_runner podman
+runp config get container_runner
+runp config show</pre>
+</div>
+</div>
+<div class="paragraph">
 <p><strong>Preconditions</strong></p>
 </div>
 <div class="paragraph">
-<p>Any unit is ran if all its preconditions are satisfied.</p>
+<p>Preconditions can be defined at two levels: at the root of the <code>Runpfile</code> or within a specific <code>unit</code>.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Root-level preconditions</strong>: These are checked before any unit is executed. If any of these preconditions are not met, <code>runp</code> will exit and no units will be started. This is useful for ensuring that the environment is correctly set up before attempting to run any part of the system.</p>
+</li>
+<li>
+<p><strong>Unit-level preconditions</strong>: These are checked before the specific unit is executed. If the preconditions for a unit are not met, that unit is skipped, but other units in the <code>Runpfile</code> will still be executed.</p>
+</li>
+</ul>
 </div>
 <div class="paragraph">
 <p>Available preconditions:</p>
@@ -510,33 +862,269 @@ runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
 <div class="ulist">
 <ul>
 <li>
-<p>OS: unit is ran if OS is the specified one.</p>
+<p><strong>os</strong>: This precondition checks if the operating system matches one of the specified values.</p>
 </li>
 <li>
-<p>Runp version: unit is ran if Runp version is in range.</p>
+<p><strong>runp</strong>: This precondition checks if the <code>runp</code> version satisfies the specified constraint.</p>
 </li>
 <li>
-<p>Hosts: unit is ran if <code>/etc/hosts</code> contains the given mapping.</p>
+<p><strong>hosts</strong>: This precondition checks if <code>/etc/hosts</code> contains the given mapping.</p>
+</li>
+<li>
+<p><strong>env_vars</strong>: This precondition checks environment variables.</p>
 </li>
 </ul>
 </div>
 <div class="paragraph">
-<p><strong>Runpfile composition</strong></p>
+<p><strong><strong>os</strong></strong></p>
 </div>
 <div class="paragraph">
-<p>Runpfile can include other Runpfiles:</p>
+<p>The <code>os</code> precondition checks if the operating system is one of the specified <code>inclusions</code>.</p>
+</div>
+<div class="paragraph">
+<p>Example:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="rouge highlight"><code data-lang="yaml"><span class="na">name</span><span class="pi">:</span> <span class="s">Test Runpfile</span>
-<span class="na">description</span><span class="pi">:</span> <span class="s">This is Runpfile</span>
-<span class="na">include</span><span class="pi">:</span>
-  <span class="pi">-</span> <span class="s">Runpfile-env.yml</span>
-  <span class="pi">-</span> <span class="s">Runpfile-vars.yml</span></code></pre>
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">preconditions</span><span class="pi">:</span>
+  <span class="na">os</span><span class="pi">:</span>
+    <span class="na">inclusions</span><span class="pi">:</span>
+      <span class="pi">-</span> <span class="s">linux</span>
+      <span class="pi">-</span> <span class="s">darwin</span></code></pre>
 </div>
 </div>
 <div class="paragraph">
-<p><strong>App waiting for DB</strong></p>
+<p>In this example, the execution will only proceed if the operating system is Linux or macOS.</p>
+</div>
+<div class="paragraph">
+<p><strong><strong>runp</strong></strong></p>
+</div>
+<div class="paragraph">
+<p>The <code>runp</code> precondition checks if the <code>runp</code> version satisfies the specified constraint. The available operators are: <code>LessThan</code>, <code>LessThanOrEqual</code>, <code>Equal</code>, <code>GreaterThanOrEqual</code>, <code>GreaterThan</code>.</p>
+</div>
+<div class="paragraph">
+<p>Example:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">preconditions</span><span class="pi">:</span>
+  <span class="na">runp</span><span class="pi">:</span>
+    <span class="na">operator</span><span class="pi">:</span> <span class="s">GreaterThanOrEqual</span>
+    <span class="na">version</span><span class="pi">:</span> <span class="s">0.10.0</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This will ensure that <code>runp</code> version is at least <code>0.10.0</code>.</p>
+</div>
+<div class="paragraph">
+<p><strong><strong>hosts</strong></strong></p>
+</div>
+<div class="paragraph">
+<p>The <code>hosts</code> precondition checks for the presence of specific entries in the <code>/etc/hosts</code> file.</p>
+</div>
+<div class="paragraph">
+<p>Example:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">preconditions</span><span class="pi">:</span>
+  <span class="na">hosts</span><span class="pi">:</span>
+    <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">my.special.host</span>
+      <span class="na">ip</span><span class="pi">:</span> <span class="s">127.0.0.1</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This precondition is satisfied if <code>my.special.host</code> resolves to <code>127.0.0.1</code>.</p>
+</div>
+<div class="paragraph">
+<p><strong><strong>env_vars</strong></strong></p>
+</div>
+<div class="paragraph">
+<p>The <code>env_vars</code> precondition checks for the presence or value of environment variables. The available conditions are <code>is_set</code>, <code>is_not_set</code>, <code>equals</code>, <code>not_equals</code>, <code>contains</code>, <code>not_contains</code>.</p>
+</div>
+<div class="paragraph">
+<p>Example of a root-level precondition:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">preconditions</span><span class="pi">:</span>
+  <span class="na">env_vars</span><span class="pi">:</span>
+    <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">DATABASE_URL</span>
+      <span class="na">condition</span><span class="pi">:</span> <span class="s">is_set</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>In this case, <code>runp</code> will exit if the <code>DATABASE_URL</code> environment variable is not set.</p>
+</div>
+<div class="paragraph">
+<p>Example of a unit-level precondition:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">units</span><span class="pi">:</span>
+  <span class="na">my-service</span><span class="pi">:</span>
+    <span class="na">preconditions</span><span class="pi">:</span>
+      <span class="na">env_vars</span><span class="pi">:</span>
+        <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">MY_SERVICE_ENABLED</span>
+          <span class="na">condition</span><span class="pi">:</span> <span class="s">equals</span>
+          <span class="na">value</span><span class="pi">:</span> <span class="s2">"</span><span class="s">true"</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s2">"</span><span class="s">echo</span><span class="nv"> </span><span class="s">'My</span><span class="nv"> </span><span class="s">service</span><span class="nv"> </span><span class="s">is</span><span class="nv"> </span><span class="s">enabled'"</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>In this example, the <code>my-service</code> unit will only be executed if the <code>MY_SERVICE_ENABLED</code> environment variable is set to <code>"true"</code>.</p>
+</div>
+<div class="paragraph">
+<p><strong>Runpfile composition with <code>include:</code></strong></p>
+</div>
+<div class="paragraph">
+<p>A Runpfile can include other Runpfiles using the <code>include:</code> key.
+Each entry is a path <strong>relative to the directory of the file that declares it</strong>.
+All units from included files are merged into the root Runpfile before startup.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">name</span><span class="pi">:</span> <span class="s">My Project</span>
+<span class="na">include</span><span class="pi">:</span>
+  <span class="pi">-</span> <span class="s">infra/Runpfile</span>      <span class="c1"># defines units: db, redis</span>
+  <span class="pi">-</span> <span class="s">services/Runpfile</span>   <span class="c1"># defines units: api, worker</span>
+<span class="na">units</span><span class="pi">:</span>
+  <span class="na">proxy</span><span class="pi">:</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">nginx -g "daemon off;"</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>After loading, <code>runp up</code> starts all units from all included files together.</p>
+</div>
+<div class="paragraph">
+<p>Includes can be nested to any depth.</p>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Warning</div>
+</td>
+<td class="content">
+<div class="paragraph">
+<p><strong>Duplicate unit names</strong> across any two files are an error — loading fails with:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>duplicate unit identifier: &lt;name&gt;</pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Circular includes</strong> are detected and reported with the full import chain:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>circular dependency detected: a.yml → b.yml → c.yml → b.yml</pre>
+</div>
+</div>
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p><strong>Startup ordering with <code>depends_on</code></strong></p>
+</div>
+<div class="paragraph">
+<p>By default all units start concurrently. Use <code>depends_on</code> to declare explicit
+ordering when one unit must be fully running before another begins.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">units</span><span class="pi">:</span>
+  <span class="na">db</span><span class="pi">:</span>
+    <span class="na">container</span><span class="pi">:</span>
+      <span class="na">image</span><span class="pi">:</span> <span class="s">postgres:15</span>
+      <span class="na">ports</span><span class="pi">:</span> <span class="pi">[</span><span class="s2">"</span><span class="s">5432:5432"</span><span class="pi">]</span>
+  <span class="na">redis</span><span class="pi">:</span>
+    <span class="na">container</span><span class="pi">:</span>
+      <span class="na">image</span><span class="pi">:</span> <span class="s">redis:7</span>
+  <span class="na">api</span><span class="pi">:</span>
+    <span class="na">depends_on</span><span class="pi">:</span> <span class="pi">[</span><span class="nv">db</span><span class="pi">,</span> <span class="nv">redis</span><span class="pi">]</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">./api-server</span>
+  <span class="na">worker</span><span class="pi">:</span>
+    <span class="na">depends_on</span><span class="pi">:</span> <span class="pi">[</span><span class="nv">api</span><span class="pi">]</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">./worker</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Runp groups units into <strong>dependency layers</strong> and starts each layer concurrently,
+waiting for it to complete before starting the next:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Layer 0: <code>db</code>, <code>redis</code> (no dependencies)</p>
+</li>
+<li>
+<p>Layer 1: <code>api</code> (depends on <code>db</code> and <code>redis</code>)</p>
+</li>
+<li>
+<p>Layer 2: <code>worker</code> (depends on <code>api</code>)</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p><code>runp validate</code> reports unknown references and circular dependencies as errors.</p>
+</div>
+<div class="paragraph">
+<p>Units that are skipped due to unsatisfied preconditions are excluded from the
+graph; their dependents are treated as if the dependency is already satisfied.</p>
+</div>
+<div class="paragraph">
+<p><strong>Stop timeout</strong></p>
+</div>
+<div class="paragraph">
+<p>For every unit, you can specify a timeout to wait for the process to stop gracefully.
+If the process does not stop within the timeout, it will be killed.
+The default value is 5 seconds.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">units</span><span class="pi">:</span>
+  <span class="na">zookeeper</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">Zookeeper</span>
+    <span class="na">stop_timeout</span><span class="pi">:</span> <span class="s">0h0m15s</span>
+    <span class="na">container</span><span class="pi">:</span>
+      <span class="na">name</span><span class="pi">:</span> <span class="s">zookeeper</span>
+      <span class="na">image</span><span class="pi">:</span> <span class="s">strimzi/kafka:0.19.0-kafka-2.5.0</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s2">"</span><span class="s">bin/zookeeper-server-start.sh</span><span class="nv"> </span><span class="s">config/zookeeper.properties"</span>
+      <span class="na">ports</span><span class="pi">:</span>
+        <span class="pi">-</span> <span class="s2">"</span><span class="s">2181:2181"</span>
+      <span class="na">env</span><span class="pi">:</span>
+        <span class="na">LOG_DIR</span><span class="pi">:</span> <span class="s">/tmp/logs</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>App waiting for another resource</strong></p>
+</div>
+<div class="paragraph">
+<p>A unit can wait for a resource to be available before starting.
+The <code>await</code> block can be used to specify a <code>resource</code> and a <code>timeout</code>.</p>
+</div>
+<div class="paragraph">
+<p>If the <code>resource</code> is not specified, the unit will wait for the given <code>timeout</code>.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">units</span><span class="pi">:</span>
+  <span class="na">app</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">app</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">echo hi</span>
+      <span class="na">env</span><span class="pi">:</span>
+        <span class="na">PATH</span><span class="pi">:</span> <span class="s">$PATH</span>
+      <span class="na">await</span><span class="pi">:</span>
+        <span class="na">timeout</span><span class="pi">:</span> <span class="s">0h0m03s</span></code></pre>
+</div>
 </div>
 <div class="paragraph">
 <p>A backend app running on host waiting for a DB running in a container to be available:</p>
@@ -568,6 +1156,148 @@ runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
 </div>
 </div>
 <div class="paragraph">
+<p>Wait for a file to be available:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">units</span><span class="pi">:</span>
+  <span class="na">await</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">command</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">env</span>
+      <span class="na">await</span><span class="pi">:</span>
+        <span class="na">resource</span><span class="pi">:</span> <span class="s">file:///tmp/some_file.txt</span>
+        <span class="na">timeout</span><span class="pi">:</span> <span class="s">0h0m9s</span>
+      <span class="na">env</span><span class="pi">:</span>
+        <span class="na">MYHOME</span><span class="pi">:</span> <span class="s">${HOME}</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Wait for an HTTP resource to be available:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">units</span><span class="pi">:</span>
+  <span class="na">run</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">docker from shell</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">docker run -t --rm hello-world</span>
+      <span class="na">workdir</span><span class="pi">:</span> <span class="s">/tmp</span>
+      <span class="na">await</span><span class="pi">:</span>
+        <span class="na">resource</span><span class="pi">:</span> <span class="s">http://localhost:8000</span>
+        <span class="na">timeout</span><span class="pi">:</span> <span class="s">0h0m25s</span>
+  <span class="na">hello-web</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">crccheck/hello-world</span>
+    <span class="na">container</span><span class="pi">:</span>
+      <span class="na">image</span><span class="pi">:</span> <span class="s">crccheck/hello-world</span>
+      <span class="na">ports</span><span class="pi">:</span>
+        <span class="pi">-</span> <span class="s2">"</span><span class="s">8000:8000"</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Unit readiness conditions</strong></p>
+</div>
+<div class="paragraph">
+<p>By default, runp considers a unit "done" (and starts its dependents) when its
+process exits. For long-running services this is undesirable — dependents should
+start as soon as the service is up, not when it eventually stops.</p>
+</div>
+<div class="paragraph">
+<p>The <code>ready</code> block configures a readiness condition that tells runp when a unit
+is ready for its dependents to proceed. Three condition types are supported; at
+most one should be set per unit. If multiple fields are set, <code>output</code> takes
+priority, then <code>cmd</code>, then <code>delay</code>.</p>
+</div>
+<div class="paragraph">
+<p><em>ready.delay</em> — wait a fixed duration after the process starts:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">units</span><span class="pi">:</span>
+  <span class="na">db</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">Database (ready after 3s warm-up)</span>
+    <span class="na">ready</span><span class="pi">:</span>
+      <span class="na">delay</span><span class="pi">:</span> <span class="s">3s</span>
+      <span class="na">timeout</span><span class="pi">:</span> <span class="s">30s</span>   <span class="c1"># how long to wait before giving up (default: 30s)</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">postgres -D /var/lib/pgsql/data</span>
+  <span class="na">api</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">App server (starts after db is ready)</span>
+    <span class="na">depends_on</span><span class="pi">:</span> <span class="pi">[</span><span class="nv">db</span><span class="pi">]</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">node server.js</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><em>ready.output</em> — match a substring in the process stdout/stderr:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">units</span><span class="pi">:</span>
+  <span class="na">api</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">App server (ready when "listening" appears in output)</span>
+    <span class="na">ready</span><span class="pi">:</span>
+      <span class="na">output</span><span class="pi">:</span> <span class="s2">"</span><span class="s">listening"</span>
+      <span class="na">timeout</span><span class="pi">:</span> <span class="s">30s</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">node server.js</span>
+  <span class="na">worker</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">Background worker (starts after api is ready)</span>
+    <span class="na">depends_on</span><span class="pi">:</span> <span class="pi">[</span><span class="nv">api</span><span class="pi">]</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">node worker.js</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><em>ready.cmd</em> — poll a shell command every second; ready when it exits 0:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">units</span><span class="pi">:</span>
+  <span class="na">api</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">App server (ready when health endpoint responds)</span>
+    <span class="na">ready</span><span class="pi">:</span>
+      <span class="na">cmd</span><span class="pi">:</span> <span class="s2">"</span><span class="s">curl</span><span class="nv"> </span><span class="s">-sf</span><span class="nv"> </span><span class="s">http://localhost:8080/health"</span>
+      <span class="na">timeout</span><span class="pi">:</span> <span class="s">60s</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">./api-server</span>
+  <span class="na">consumer</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">Consumer (starts after api health check passes)</span>
+    <span class="na">depends_on</span><span class="pi">:</span> <span class="pi">[</span><span class="nv">api</span><span class="pi">]</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s">./consumer</span></code></pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+<div class="paragraph">
+<p><code>ready</code> and <code>await</code> serve complementary roles:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>await</code> waits for an <strong>external</strong> resource before <strong>this</strong> unit&#8217;s process starts
+(e.g. "wait for the DB port to be open before launching the app").</p>
+</li>
+<li>
+<p><code>ready</code> determines when <strong>this</strong> unit signals to its <strong>dependents</strong> that they may
+proceed (e.g. "dependents start when this service prints 'listening'").</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Both can be used together on the same unit.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
 <p><strong>Containers</strong></p>
 </div>
 <div class="paragraph">
@@ -588,7 +1318,9 @@ runp ls -f /path/to/runpfile.yaml    # list units in Runpfile</pre>
 <div class="title">Warning</div>
 </td>
 <td class="content">
-Only Docker and Podman (as they use the same command line flags) are supported.
+<div class="paragraph">
+<p>Only Docker and Podman (as they use the same command line flags) are supported.</p>
+</div>
 </td>
 </tr>
 </table>
@@ -745,6 +1477,26 @@ Only Docker and Podman (as they use the same command line flags) are supported.
 </div>
 </div>
 <div class="paragraph">
+<p><strong>Specify a shell for host processes</strong></p>
+</div>
+<div class="paragraph">
+<p>For host processes, you can specify a shell to execute the command.
+By default, <code>runp</code> uses the default shell of the operating system.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">units</span><span class="pi">:</span>
+  <span class="na">bash-process</span><span class="pi">:</span>
+    <span class="na">description</span><span class="pi">:</span> <span class="s">a process that runs with bash</span>
+    <span class="na">host</span><span class="pi">:</span>
+      <span class="na">command</span><span class="pi">:</span> <span class="s2">"</span><span class="s">echo</span><span class="nv"> </span><span class="s">$BASH_VERSION"</span>
+      <span class="na">shell</span><span class="pi">:</span>
+        <span class="na">path</span><span class="pi">:</span> <span class="s">/bin/bash</span>
+        <span class="na">args</span><span class="pi">:</span>
+          <span class="pi">-</span> <span class="s">-c</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
 <p><strong>Run a different command on different operative systems</strong></p>
 </div>
 <div class="paragraph">
@@ -824,6 +1576,31 @@ Only Docker and Podman (as they use the same command line flags) are supported.
         <span class="na">port</span><span class="pi">:</span> <span class="s">389</span></code></pre>
 </div>
 </div>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Warning</div>
+</td>
+<td class="content">
+<div class="paragraph">
+<p>Setting <code>insecure_ignore_host_key: true</code> on an SSH tunnel unit disables host key
+verification and makes the connection vulnerable to man-in-the-middle attacks.
+Runp always prints a warning to stderr when this option is active, regardless of
+the <code>--log-level</code> setting. Use it only in controlled environments and never in
+production.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="yaml"><span class="na">ssh_tunnel</span><span class="pi">:</span>
+  <span class="na">insecure_ignore_host_key</span><span class="pi">:</span> <span class="no">true</span>   <span class="c1"># WARNING: MITM risk</span>
+  <span class="s">...</span></code></pre>
+</div>
+</div>
+</td>
+</tr>
+</table>
+</div>
 <div class="paragraph">
 <p><strong>Use secrets</strong></p>
 </div>
@@ -835,34 +1612,64 @@ Only Docker and Podman (as they use the same command line flags) are supported.
 </div>
 <div class="listingblock">
 <div class="content">
-<pre>runp encrypt -k thekey SECRET</pre>
+<pre>export RUNP_SECRET_KEY=thekey
+runp encrypt --key-env RUNP_SECRET_KEY SECRET</pre>
 </div>
 </div>
 <div class="paragraph">
-<p>The above command will encrypt the string <code>SECRET</code> using the password <code>thekey</code>.</p>
+<p>The above command will encrypt the string <code>SECRET</code> using the key stored in <code>$RUNP_SECRET_KEY</code>.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+<div class="paragraph">
+<p>You can also pipe the secret from stdin to avoid it appearing in your shell history:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>echo SECRET | runp encrypt --key-env RUNP_SECRET_KEY</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>If no key is provided at all, <code>runp encrypt</code> generates a random key and prints it
+alongside the encrypted value.</p>
+</div>
+</td>
+</tr>
+</table>
 </div>
 <div class="paragraph">
 <p>To run a Runpfile containing an <code>encrypted_secret</code> you have to pass the key to the
 <code>up</code> command (the key must coincide with the one used to encrypt).</p>
 </div>
 <div class="paragraph">
-<p>You can pass the key on command line using the options <code>--key</code> or <code>--key-env</code></p>
-</div>
-<div class="paragraph">
-<p>Using the <code>-k</code>/<code>--key</code> argument the key is in plain text on the command line:</p>
+<p>Use <code>--key-env</code> to pass the key through an environment variable (recommended):</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre>runp up -k thekey</pre>
+<pre>export RUNP_SECRET_KEY=thekey
+runp up --key-env RUNP_SECRET_KEY</pre>
 </div>
 </div>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Warning</div>
+</td>
+<td class="content">
 <div class="paragraph">
-<p>Use the <code>--key-env</code> argument Runp looks up for that environment variable and use its value as key:</p>
+<p>The <code>--key</code> / <code>-k</code> flag passes the key as a plain-text command-line argument.
+It will be visible in <code>ps aux</code> output and recorded in your shell history.
+Always prefer <code>--key-env</code>.</p>
 </div>
-<div class="listingblock">
-<div class="content">
-<pre>runp up --key-env RUNP_SECRET</pre>
-</div>
+</td>
+</tr>
+</table>
 </div>
 <div class="paragraph">
 <p><strong>Use environment variables</strong></p>
@@ -903,7 +1710,7 @@ Only Docker and Podman (as they use the same command line flags) are supported.
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="rouge highlight"><code>$ bin/runp --debug up -f examples/Runpfile-vars.yml --var foo=bar</code></pre>
+<pre class="rouge highlight"><code data-lang="bash"><span class="nv">$ </span>bin/runp <span class="nt">--log-level</span> debug up <span class="nt">-f</span> examples/Runpfile-vars.yml <span class="nt">--var</span> <span class="nv">foo</span><span class="o">=</span>bar</code></pre>
 </div>
 </div>
 <div class="paragraph">
@@ -945,7 +1752,7 @@ Only Docker and Podman (as they use the same command line flags) are supported.
 </div>
 <div class="listingblock">
 <div class="content">
-<pre>NO_COLOR=1 ./bin/runp -d up -f examples/Runpfile-many-units.yml</pre>
+<pre>NO_COLOR=1 ./bin/runp --log-level debug up -f examples/Runpfile-many-units.yml</pre>
 </div>
 </div>
 <div class="paragraph">
@@ -953,7 +1760,7 @@ Only Docker and Podman (as they use the same command line flags) are supported.
 </div>
 <div class="listingblock">
 <div class="content">
-<pre>./bin/runp -d --no-color up -f examples/Runpfile-many-units.yml</pre>
+<pre>./bin/runp --log-level debug --no-color up -f examples/Runpfile-many-units.yml</pre>
 </div>
 </div>
 <div class="paragraph">
@@ -1014,8 +1821,8 @@ Only Docker and Podman (as they use the same command line flags) are supported.
 </div>
 <div id="footer">
 <div id="footer-text">
-Version 0.10.0<br>
-Last updated 2025-11-21 21:03:04 UTC
+Version 0.11.0<br>
+Last updated 2026-05-26 15:06:58 UTC
 </div>
 </div>
 </body>
