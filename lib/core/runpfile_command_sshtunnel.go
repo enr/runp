@@ -1,14 +1,20 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
+	"sync"
 
 	"golang.org/x/crypto/ssh"
 )
 
-// SSHTunnelCommandWrapper ...
+// SSHTunnelCommandWrapper forwards connections accepted on localAddress to
+// targetAddress through an SSH connection to jumpAddress.
+//
+// Every accepted connection is handled with its own local and remote sockets;
+// the SSH client is shared across connections and re-dialled when it breaks.
 type SSHTunnelCommandWrapper struct {
 	config *ssh.ClientConfig
 
@@ -16,12 +22,12 @@ type SSHTunnelCommandWrapper struct {
 	jumpAddress   string
 	targetAddress string
 
-	// internal connection on local port
-	localConnection net.Conn
-	// ssh connection between localhost and ssh server
-	localToJumpConnection *ssh.Client
-	// connection between ssh server and target
-	jumpToTargetConnection net.Conn
+	// mu guards every field below.
+	mu       sync.Mutex
+	listener net.Listener
+	client   *ssh.Client
+	conns    map[net.Conn]struct{}
+	stopped  bool
 
 	stdout io.Writer
 	stderr io.Writer
@@ -53,68 +59,69 @@ func (c *SSHTunnelCommandWrapper) Run() error {
 	return nil
 }
 
-// Stop ...
+// Stop closes the local listener, every open forwarded connection and the
+// SSH client. It makes a running Wait return.
 func (c *SSHTunnelCommandWrapper) Stop() error {
 	c.pf("Stopping SSH tunnel")
-	var err error
-	var errors multiError
-	c.pf("Closing SSH connection to target: %v", c.jumpToTargetConnection)
-	if c.jumpToTargetConnection != nil {
-		err := c.jumpToTargetConnection.Close()
-		if err != nil {
-			c.pf("Error closing connection to target: %s", err)
-			errors = append(errors, err)
-		}
+	c.mu.Lock()
+	c.stopped = true
+	listener, client := c.listener, c.client
+	c.listener, c.client = nil, nil
+	conns := make([]net.Conn, 0, len(c.conns))
+	for conn := range c.conns {
+		conns = append(conns, conn)
+	}
+	c.conns = nil
+	c.mu.Unlock()
 
-	}
-	c.pf("Closing SSH connection to jump server: %v", c.localToJumpConnection)
-	if c.localToJumpConnection != nil {
-		err = c.localToJumpConnection.Close()
-		if err != nil {
-			c.pf("Error closing connection to jump server: %s", err)
-			errors = append(errors, err)
+	var errs multiError
+	closeAll := func(what string, cl io.Closer) {
+		if err := cl.Close(); err != nil && !errors.Is(err, net.ErrClosed) && !errors.Is(err, io.EOF) {
+			c.pf("Error closing %s: %s", what, err)
+			errs = append(errs, err)
 		}
 	}
-	c.pf("Closing local connection: %v", c.localConnection)
-	if c.localConnection != nil {
-		err = c.localConnection.Close()
-		if err != nil {
-			c.pf("Error closing local connection: %s", err)
-			errors = append(errors, err)
-		}
+	if listener != nil {
+		closeAll("local listener", listener)
 	}
-	if len(errors) > 0 {
-		return errors
+	for _, conn := range conns {
+		closeAll("forwarded connection", conn)
+	}
+	if client != nil {
+		closeAll("SSH connection to jump server", client)
+	}
+	if len(errs) > 0 {
+		return errs
 	}
 	return nil
 }
 
-// Wait ...
+// Wait listens on the local address and forwards connections until Stop is called.
 func (c *SSHTunnelCommandWrapper) Wait() error {
-	localListener, err := net.Listen("tcp", c.localAddress)
+	listener, err := net.Listen("tcp", c.localAddress)
 	if err != nil {
 		c.pf("Failed to start local listener on %s: %v", c.localAddress, err)
 		return err
 	}
+	c.mu.Lock()
+	if c.stopped {
+		c.mu.Unlock()
+		listener.Close()
+		return nil
+	}
+	c.listener = listener
+	c.mu.Unlock()
 
 	for {
-		c.localConnection, err = localListener.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
+			if c.isStopped() {
+				return nil
+			}
 			c.pf("Failed to accept connection on local listener: %v", err)
 			return err
 		}
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					ui.WriteLinef("Panic in SSH tunnel forward goroutine: %v", r)
-					GetApplicationContext().TriggerShutdown()
-				}
-			}()
-			err = c.forward()
-			if err != nil {
-				ui.WriteLinef("Error forwarding SSH tunnel connection: %+v", err)
-			}
-		}()
+		go c.handle(conn)
 	}
 }
 
@@ -126,57 +133,124 @@ func (c *SSHTunnelCommandWrapper) pf(format string, a ...interface{}) {
 	if c.stdout == nil {
 		return
 	}
-	fmt.Fprintf(c.stdout, format, a...)
+	fmt.Fprintf(c.stdout, format+"\n", a...)
 }
 
-func (c *SSHTunnelCommandWrapper) forward() error {
-	var err error
-	c.localToJumpConnection, err = ssh.Dial("tcp", c.jumpAddress, c.config)
+func (c *SSHTunnelCommandWrapper) isStopped() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.stopped
+}
+
+// track registers conn so Stop can close it. It returns false when the tunnel
+// is already stopped; the caller must then close conn itself.
+func (c *SSHTunnelCommandWrapper) track(conn net.Conn) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.stopped {
+		return false
+	}
+	if c.conns == nil {
+		c.conns = make(map[net.Conn]struct{})
+	}
+	c.conns[conn] = struct{}{}
+	return true
+}
+
+func (c *SSHTunnelCommandWrapper) untrack(conn net.Conn) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.conns, conn)
+}
+
+// sshClient returns the shared SSH client, dialling the jump server if needed.
+func (c *SSHTunnelCommandWrapper) sshClient() (*ssh.Client, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.stopped {
+		return nil, errors.New("SSH tunnel stopped")
+	}
+	if c.client != nil {
+		return c.client, nil
+	}
+	client, err := ssh.Dial("tcp", c.jumpAddress, c.config)
+	if err != nil {
+		return nil, err
+	}
+	c.client = client
+	return client, nil
+}
+
+// dropClient closes client and forgets it, so the next connection re-dials.
+func (c *SSHTunnelCommandWrapper) dropClient(client *ssh.Client) {
+	c.mu.Lock()
+	if c.client == client {
+		c.client = nil
+	}
+	c.mu.Unlock()
+	client.Close()
+}
+
+// handle forwards a single accepted local connection to the target.
+func (c *SSHTunnelCommandWrapper) handle(local net.Conn) {
+	defer func() {
+		if r := recover(); r != nil {
+			ui.WriteLinef("Panic in SSH tunnel forward goroutine: %v", r)
+			local.Close()
+		}
+	}()
+	if !c.track(local) {
+		local.Close()
+		return
+	}
+	defer c.untrack(local)
+
+	client, err := c.sshClient()
 	if err != nil {
 		c.pf("Failed to connect to jump server %s: %v", c.jumpAddress, err)
-		return err
+		local.Close()
+		return
 	}
-
-	c.jumpToTargetConnection, err = c.localToJumpConnection.Dial("tcp", c.targetAddress)
+	remote, err := client.Dial("tcp", c.targetAddress)
 	if err != nil {
-		c.pf("Failed to connect to target from jump server: %v", err)
-		return err
+		c.pf("Failed to connect to target %s from jump server: %v", c.targetAddress, err)
+		local.Close()
+		// The client may be broken (e.g. jump server restarted): re-dial next time.
+		c.dropClient(client)
+		return
 	}
+	if !c.track(remote) {
+		remote.Close()
+		local.Close()
+		return
+	}
+	defer c.untrack(remote)
 
-	// Copy localConnection.Reader to jumpToTargetConnection.Writer
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				c.pf("Panic copying data from local to target: %v", r)
-			}
-		}()
-		if c.localConnection == nil || c.jumpToTargetConnection == nil {
-			c.pf("Missing connection: local=%v jump=%v", c.localConnection, c.jumpToTargetConnection)
-			return
-		}
-		_, err = io.Copy(c.jumpToTargetConnection, c.localConnection)
-		if err != nil {
-			c.pf("Error copying data from local to target: %v", err)
-		}
-	}()
+	pipe(local, remote, c.pf)
+}
 
-	// Copy jumpToTargetConnection.Reader to localConnection.Writer
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				c.pf("Panic copying data from target to local: %v", r)
-			}
-		}()
-		if c.localConnection == nil || c.jumpToTargetConnection == nil {
-			c.pf("Missing connection: local=%v target=%v", c.localConnection, c.jumpToTargetConnection)
-			return
+// pipe copies data in both directions between a and b. When either direction
+// ends, both connections are closed so the other copy returns as well.
+func pipe(a, b net.Conn, pf func(string, ...interface{})) {
+	var once sync.Once
+	closeBoth := func() {
+		once.Do(func() {
+			a.Close()
+			b.Close()
+		})
+	}
+	var wg sync.WaitGroup
+	wg.Add(2)
+	cp := func(dst, src net.Conn, dir string) {
+		defer wg.Done()
+		defer closeBoth()
+		if _, err := io.Copy(dst, src); err != nil && !errors.Is(err, net.ErrClosed) {
+			pf("Error copying data %s: %v", dir, err)
 		}
-		_, err = io.Copy(c.localConnection, c.jumpToTargetConnection)
-		if err != nil {
-			c.pf("Error copying data from target to local: %v", err)
-		}
-	}()
-	return nil
+	}
+	go cp(b, a, "from local to target")
+	go cp(a, b, "from target to local")
+	wg.Wait()
 }
 
 // SSHTunnelCommandStopper is the component calling the actual command stopping the process.

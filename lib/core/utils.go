@@ -281,3 +281,74 @@ func cmd(commandLine string) (*exec.Cmd, error) {
 	args = append(args, commandLine)
 	return exec.Command(exe, args...), nil
 }
+
+// splitCommandLine splits s into words following POSIX shell quoting rules
+// (single quotes, double quotes, backslash escapes) without performing any
+// expansion. It is used to turn a command string into an argument list that
+// can be executed without a shell.
+func splitCommandLine(s string) ([]string, error) {
+	var words []string
+	var cur strings.Builder
+	inWord := false
+	const (
+		none = iota
+		single
+		double
+	)
+	quote := none
+	runes := []rune(s)
+	for i := 0; i < len(runes); i++ {
+		r := runes[i]
+		switch quote {
+		case single:
+			if r == '\'' {
+				quote = none
+			} else {
+				cur.WriteRune(r)
+			}
+		case double:
+			switch {
+			case r == '"':
+				quote = none
+			case r == '\\' && i+1 < len(runes) && strings.ContainsRune("\"\\$`\n", runes[i+1]):
+				i++
+				if runes[i] != '\n' {
+					cur.WriteRune(runes[i])
+				}
+			default:
+				cur.WriteRune(r)
+			}
+		default:
+			switch {
+			case r == ' ' || r == '\t' || r == '\n' || r == '\r':
+				if inWord {
+					words = append(words, cur.String())
+					cur.Reset()
+					inWord = false
+				}
+			case r == '\'':
+				quote, inWord = single, true
+			case r == '"':
+				quote, inWord = double, true
+			case r == '\\':
+				inWord = true
+				if i+1 < len(runes) {
+					i++
+					if runes[i] != '\n' {
+						cur.WriteRune(runes[i])
+					}
+				}
+			default:
+				inWord = true
+				cur.WriteRune(r)
+			}
+		}
+	}
+	if quote != none {
+		return nil, errors.New("unterminated quote in command")
+	}
+	if inWord {
+		words = append(words, cur.String())
+	}
+	return words, nil
+}

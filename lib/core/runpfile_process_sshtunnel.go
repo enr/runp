@@ -117,6 +117,7 @@ func (p *SSHTunnelProcess) executeCmd(command string) (*bytes.Buffer, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer conn.Close()
 	session, err := conn.NewSession()
 	if err != nil {
 		return nil, err

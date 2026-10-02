@@ -4,7 +4,7 @@
 package core
 
 import (
-	"os/exec"
+	"os"
 	"syscall"
 	"time"
 )
@@ -23,14 +23,6 @@ const (
 	ERROR_INVALID_PARAMETER   = 87
 	ERROR_ACCESS_DENIED       = 5
 )
-
-// stopWithGracefulShutdown implements graceful shutdown for Windows:
-// On Windows, SIGTERM is not available, so we use Kill() directly.
-// For bash scripts running in Git Bash or WSL, Kill() will still allow
-// the process to handle termination gracefully.
-func stopWithGracefulShutdown(cmd *exec.Cmd, timeout time.Duration) error {
-	return stopWithGracefulShutdownWithID(cmd, timeout, "")
-}
 
 // processStatus represents the status of a process check
 type processStatus int
@@ -143,15 +135,15 @@ func handleKillError(pid int, killErr error, id string, afterTimeout bool) error
 }
 
 // pollProcessUntilExit polls the process state until it exits or the timeout expires
-func pollProcessUntilExit(cmd *exec.Cmd, timeout time.Duration) bool {
+func pollProcessUntilExit(exited func() bool, timeout time.Duration) bool {
 	ticker := time.NewTicker(50 * time.Millisecond)
 	defer ticker.Stop()
 	deadline := time.Now().Add(timeout)
 
 	for time.Now().Before(deadline) {
 		<-ticker.C
-		// Check if process has exited by polling ProcessState
-		if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
+		// Check if the executor has reaped the process
+		if exited() {
 			// Process exited
 			return true
 		}
@@ -160,25 +152,23 @@ func pollProcessUntilExit(cmd *exec.Cmd, timeout time.Duration) bool {
 }
 
 // attemptFinalKill attempts to kill the process after timeout, handling errors appropriately
-func attemptFinalKill(cmd *exec.Cmd, pid int, id string) error {
+func attemptFinalKill(p *os.Process, pid int, id string) error {
 	// Check if process is still running before attempting to kill it again
 	if !isProcessRunning(pid) {
 		return nil
 	}
-	err := cmd.Process.Kill()
+	err := p.Kill()
 	if err != nil {
 		return handleKillError(pid, err, id, true)
 	}
 	return nil
 }
 
-// stopWithGracefulShutdownWithID implements graceful shutdown for Windows with process ID logging
-func stopWithGracefulShutdownWithID(cmd *exec.Cmd, timeout time.Duration, id string) error {
-	p := cmd.Process
-	if p == nil {
-		return nil
-	}
-	if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
+// stopProcess implements graceful shutdown for Windows: SIGTERM is not
+// available, so Kill() is used directly. exited reports whether the executor
+// has already reaped the process.
+func stopProcess(p *os.Process, exited func() bool, timeout time.Duration, id string) error {
+	if p == nil || exited() {
 		return nil
 	}
 
@@ -209,7 +199,7 @@ func stopWithGracefulShutdownWithID(cmd *exec.Cmd, timeout time.Duration, id str
 
 	// Poll process state instead of calling Wait() to avoid conflicts
 	// The executor's main goroutine will handle Wait() when the process exits
-	if pollProcessUntilExit(cmd, timeout) {
+	if pollProcessUntilExit(exited, timeout) {
 		return nil
 	}
 
@@ -219,8 +209,8 @@ func stopWithGracefulShutdownWithID(cmd *exec.Cmd, timeout time.Duration, id str
 	}
 
 	// Try killing again if still running
-	if cmd.ProcessState == nil || !cmd.ProcessState.Exited() {
-		return attemptFinalKill(cmd, p.Pid, id)
+	if !exited() {
+		return attemptFinalKill(p, p.Pid, id)
 	}
 
 	return nil

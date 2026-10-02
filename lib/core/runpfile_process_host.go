@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -27,8 +28,10 @@ type HostProcess struct {
 	Env        map[string]string
 	Await      AwaitCondition
 
-	id                  string
-	cmd                 *exec.Cmd
+	id string
+	// mu guards cmd, written when the unit starts and read on shutdown.
+	mu                  sync.Mutex
+	cmd                 *ExecCommandWrapper
 	vars                map[string]string
 	preconditions       Preconditions
 	secretKey           string
@@ -105,17 +108,24 @@ func (p *HostProcess) StartCommand() (RunpCommand, error) {
 	cmd.Dir = p.resolveWorkingDir()
 	// Configure process attributes for proper signal handling
 	configureProcessAttributes(cmd)
-	p.cmd = cmd
-	return &ExecCommandWrapper{
-		cmd: cmd,
-	}, nil
+	wrapper := &ExecCommandWrapper{cmd: cmd}
+	p.mu.Lock()
+	p.cmd = wrapper
+	p.mu.Unlock()
+	return wrapper, nil
 }
 
 // StopCommand returns the command stopping the process.
 func (p *HostProcess) StopCommand() (RunpCommand, error) {
+	p.mu.Lock()
+	wrapper := p.cmd
+	p.mu.Unlock()
+	if wrapper == nil {
+		return &ExecCommandStopper{id: p.id, timeout: p.StopTimeout()}, nil
+	}
 	return &ExecCommandStopper{
 		id:      p.id,
-		cmd:     p.cmd,
+		wrapper: wrapper,
 		timeout: p.StopTimeout(),
 	}, nil
 }

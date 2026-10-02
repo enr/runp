@@ -25,7 +25,19 @@ func NewExecutor(rf *Runpfile) *RunpfileExecutor {
 		environmentSettings: loadEnvironmentSettings(),
 		newPipe:             os.Pipe,
 		PIDDir:              pidDir,
+		longest:             longestUnitName(rf),
+		aborted:             make(chan struct{}),
 	}
+}
+
+func longestUnitName(rf *Runpfile) int {
+	ln := 0
+	for _, unit := range rf.Units {
+		if len(unit.Name) > ln {
+			ln = len(unit.Name)
+		}
+	}
+	return ln
 }
 
 // RunpfileExecutor Executor implementation for Runpfile.
@@ -36,23 +48,29 @@ type RunpfileExecutor struct {
 	environmentSettings *EnvironmentSettings
 	newPipe             func() (*os.File, *os.File, error)
 	PIDDir              string
+
+	// running tracks every started process until it has exited, so that
+	// Start does not return while children are still alive.
+	running sync.WaitGroup
+	// aborted is closed when a unit fails to start; units not yet started
+	// are then skipped.
+	aborted   chan struct{}
+	abortOnce sync.Once
 }
 
+// longestName returns the longest unit name length. It is computed before any
+// unit goroutine starts and never written afterwards, so reads are race-free.
 func (e *RunpfileExecutor) longestName() int {
-	if e.longest > 0 {
-		return e.longest
-	}
-	ln := 0
-	for _, process := range e.rf.Units {
-		if len(process.Name) > ln {
-			ln = len(process.Name)
-		}
-	}
-	e.longest = ln
 	return e.longest
 }
 
 func (e *RunpfileExecutor) initializeUnits() {
+	if e.longest == 0 {
+		e.longest = longestUnitName(e.rf)
+	}
+	if e.aborted == nil {
+		e.aborted = make(chan struct{})
+	}
 	for _, unit := range e.rf.Units {
 		unit.vars = e.rf.Vars
 		unit.secretKey = e.rf.SecretKey
@@ -126,7 +144,41 @@ func (e *RunpfileExecutor) StartSingleUnit(unitName string) error {
 		return fmt.Errorf("preconditions not satisfied for unit %q: %v", unitName, pr.Reasons)
 	}
 	warnInsecureSSHTunnels(e.rf.Units, map[string]bool{})
-	return e.startUnit(unit)
+	err := e.startUnit(unit)
+	// A unit with a ready condition returns from startUnit while still
+	// running: wait for it so the caller does not leave it orphaned.
+	e.running.Wait()
+	return err
+}
+
+// abort stops the running processes of this Runpfile and prevents units not
+// yet started from starting. It is called when a unit fails to start, so that
+// runp does not exit leaving the units already started orphaned.
+func (e *RunpfileExecutor) abort() {
+	e.abortOnce.Do(func() {
+		close(e.aborted)
+		running := GetApplicationContext().GetRunningProcesses()
+		own := make(map[string]RunpProcess)
+		for _, unit := range e.rf.Units {
+			p := unit.Process()
+			if p == nil {
+				continue
+			}
+			if rp, ok := running[p.ID()]; ok && rp == p {
+				own[p.ID()] = p
+			}
+		}
+		stopProcesses(own)
+	})
+}
+
+func (e *RunpfileExecutor) isAborted() bool {
+	select {
+	case <-e.aborted:
+		return true
+	default:
+		return false
+	}
 }
 
 // Start call start on all processes.
@@ -177,15 +229,19 @@ func (e *RunpfileExecutor) Start() error {
 					mu.Lock()
 					errs = append(errs, startErr)
 					mu.Unlock()
+					e.abort()
 				}
 			}(unit)
 		}
 		wg.Wait()
 		if len(errs) > 0 {
+			e.running.Wait()
 			return fmt.Errorf("%d unit(s) failed to start", len(errs))
 		}
 	}
 
+	// Units with a ready condition return from startUnit while still running.
+	e.running.Wait()
 	return nil
 }
 
@@ -212,8 +268,14 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit) error {
 		return err
 	}
 
+	if e.isAborted() {
+		appContext.RemoveRunningProcess(process)
+		return fmt.Errorf("unit %s not started: runp is shutting down", unit.Name)
+	}
+
 	r, w, err := e.newPipe()
 	if err != nil {
+		appContext.RemoveRunningProcess(process)
 		return fmt.Errorf("os.Pipe: %w", err)
 	}
 	cmd.Stdout(w)
@@ -223,11 +285,23 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit) error {
 	pwg.Add(1)
 
 	if err := e.startProcessCommand(cmd, unit, process, logger, appContext, w, &pwg); err != nil {
+		r.Close()
 		return err
 	}
 
 	w.Close()
+	e.running.Add(1)
 	e.monitorProcessExit(cmd, process, logger, appContext, &pwg)
+	go func() {
+		pwg.Wait()
+		e.running.Done()
+	}()
+	if e.isAborted() {
+		// abort ran between the check above and the start: stop this unit too.
+		stopRunningProcess(process)
+		e.readProcessOutput(r, process, logger)
+		return fmt.Errorf("unit %s stopped: runp is shutting down", unit.Name)
+	}
 
 	rc := unit.Ready
 	if rc.IsSet() {

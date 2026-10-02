@@ -25,38 +25,8 @@ func listenForShutdown(ch <-chan os.Signal) {
 	case <-ch:
 	case <-appContext.ShutdownChan():
 	}
-	appContext.SetShuttingDown()
-	runningProcesses := appContext.GetRunningProcesses()
 	ui.Debug("Initiating graceful shutdown sequence")
-	if len(runningProcesses) == 0 {
-		ui.Debug("No active processes to terminate")
-		os.Exit(0)
-	}
-	ui.Debugf("Active processes detected: %d", len(runningProcesses))
-	for _, process := range runningProcesses {
-		ui.Debugf("  - %s", process.ID())
-	}
-
-	for _, process := range runningProcesses {
-		ui.WriteLinef("Terminating process: %s", process.ID())
-		cmd, err := process.StopCommand()
-		if err != nil {
-			ui.WriteLinef("Failed to load stop command for process %s: %v\n", process.ID(), err)
-			continue
-		}
-		// Start() calls Stop() which implements graceful shutdown internally
-		if err := cmd.Start(); err != nil {
-			ui.WriteLinef("Failed to execute stop command for process %s: %v\n", process.ID(), err)
-			continue
-		}
-		// Wait for the stop command to complete (Stop() already handles timeout internally)
-		err = cmd.Wait()
-		if err != nil {
-			ui.WriteLinef("Process %s stopped with error: %v\n", process.ID(), err)
-		} else {
-			ui.Debugf("Process %s stopped successfully\n", process.ID())
-		}
-	}
+	appContext.StopRunningProcesses()
 
 	// Universal ANSI sequences (compatible with Windows 10+ and Linux)
 	// Block 1: Reset colors and attributes

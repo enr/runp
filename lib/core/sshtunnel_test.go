@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -119,6 +120,20 @@ func TestSSHTunnelHappyPath(t *testing.T) {
 
 	var testClient = &http.Client{
 		Timeout: time.Second * 2,
+	}
+
+	// Wait listens in the background: wait for the local port to accept.
+	waitDeadline := time.Now().Add(2 * time.Second)
+	for {
+		c, dialErr := net.Dial("tcp", local.String())
+		if dialErr == nil {
+			c.Close()
+			break
+		}
+		if time.Now().After(waitDeadline) {
+			t.Fatalf("tunnel not listening on %s: %v", local.String(), dialErr)
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 
 	testURL := fmt.Sprintf(`http://%s`, local.String())
