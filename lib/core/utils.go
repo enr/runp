@@ -142,6 +142,7 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 	}
 	for id, unit := range rf.Units {
 		unit.vars = rf.Vars
+		unit.root = rf.Root
 		if unit.Name == "" {
 			unit.Name = id
 		}
@@ -243,6 +244,10 @@ func resolveWorkingDir(rf *Runpfile, unit *RunpUnit) (string, error) {
 	}
 	if pd == "" {
 		return rf.Root, nil
+	}
+	if varsRegexp.MatchString(pd) {
+		// Resolved when the unit starts, once the final vars are known.
+		return pd, nil
 	}
 	return resolvePath(pd, rf.Root)
 }

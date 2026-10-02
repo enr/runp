@@ -43,13 +43,18 @@ func parseStopTimeout(s string) time.Duration {
 }
 
 func stopByPIDFile(unitName string, timeout time.Duration, pidDir string) error {
-	pid, err := ReadPIDFile(pidDir, unitName)
+	pid, state, err := probePIDFile(pidDir, unitName)
 	if err != nil {
 		return fmt.Errorf("unit %q does not appear to be running (no PID file found)", unitName)
 	}
-	if !isProcessAlive(pid) {
+	switch state {
+	case pidFileExited:
 		RemovePIDFile(pidDir, unitName)
 		return fmt.Errorf("unit %q: process %d has already exited", unitName, pid)
+	case pidFileReused:
+		// Never signal a process that merely reuses the PID of the unit.
+		RemovePIDFile(pidDir, unitName)
+		return fmt.Errorf("unit %q: stale PID file, process %d is not the unit's process", unitName, pid)
 	}
 	proc, err := os.FindProcess(pid)
 	if err != nil {

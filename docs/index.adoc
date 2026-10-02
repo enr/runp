@@ -459,20 +459,30 @@ circular dependency detected: a.yml → b.yml → c.yml → b.yml
 **Startup ordering with `depends_on`**
 
 By default all units start concurrently. Use `depends_on` to declare explicit
-ordering when one unit must be fully running before another begins.
+ordering when one unit must be ready before another begins.
 
 [source,yaml]
 ----
 units:
   db:
+    ready:
+      cmd: "pg_isready -h localhost"
     container:
       image: postgres:15
       ports: ["5432:5432"]
   redis:
+    ready:
+      delay: 2s
     container:
       image: redis:7
+  migrate:
+    depends_on: [db]
+    host:
+      command: ./migrate up
   api:
-    depends_on: [db, redis]
+    depends_on: [migrate, redis]
+    ready:
+      output: "listening"
     host:
       command: ./api-server
   worker:
@@ -481,12 +491,19 @@ units:
       command: ./worker
 ----
 
-Runp groups units into *dependency layers* and starts each layer concurrently,
-waiting for it to complete before starting the next:
+Each unit starts as soon as all the units it depends on are *ready*,
+independently of unrelated units:
 
-- Layer 0: `db`, `redis` (no dependencies)
-- Layer 1: `api` (depends on `db` and `redis`)
-- Layer 2: `worker` (depends on `api`)
+- a unit with a `ready` condition (see below) is ready when the condition is satisfied;
+- a unit without a `ready` condition is ready when its process *exits successfully*.
+  This suits one-shot tasks such as `migrate`; a long-running service without a
+  `ready` condition blocks its dependents until it stops, and runp logs a notice
+  when this applies.
+
+If a dependency fails — it cannot be started, its `ready` condition fails or
+times out, or (without a `ready` condition) it exits with an error — its
+dependents are not started, the units already running are stopped and runp
+exits with an error.
 
 `runp validate` reports unknown references and circular dependencies as errors.
 
@@ -600,8 +617,8 @@ units:
 
 **Unit readiness conditions**
 
-By default, runp considers a unit "done" (and starts its dependents) when its
-process exits. For long-running services this is undesirable — dependents should
+By default, runp considers a unit ready (and starts its dependents) when its
+process exits successfully. For long-running services this is undesirable — dependents should
 start as soon as the service is up, not when it eventually stops.
 
 The `ready` block configures a readiness condition that tells runp when a unit

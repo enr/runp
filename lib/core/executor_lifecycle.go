@@ -9,7 +9,9 @@ import (
 	"syscall"
 )
 
-func (e *RunpfileExecutor) monitorProcessExit(cmd RunpCommand, process RunpProcess, logger Logger, appContext *ApplicationContext, pwg *sync.WaitGroup) {
+// monitorProcessExit waits for cmd in the background. The exit error is
+// stored in *exitErr (if not nil) before pwg is released.
+func (e *RunpfileExecutor) monitorProcessExit(cmd RunpCommand, process RunpProcess, logger Logger, appContext *ApplicationContext, pwg *sync.WaitGroup, exitErr *error) {
 	exit := make(chan error, 1)
 	go func() {
 		defer func() {
@@ -35,6 +37,9 @@ func (e *RunpfileExecutor) monitorProcessExit(cmd RunpCommand, process RunpProce
 		}()
 
 		err := <-exit
+		if exitErr != nil {
+			*exitErr = err
+		}
 		if err != nil {
 			if e.isGracefulShutdown(err, process, logger) {
 				return

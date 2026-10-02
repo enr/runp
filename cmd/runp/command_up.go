@@ -14,37 +14,9 @@ func doUp(c *cli.Context) error {
 	if len(os.Args) == 1 {
 		return cli.ShowAppHelp(c)
 	}
-	runpfile, err := loadRunpfile(resolveRunpfileArg(c), resolveChecksumArg(c))
+	runpfile, err := prepareRunpfile(c)
 	if err != nil {
 		return err
-	}
-	vars, err := applyUserVars(runpfile.Vars, c.StringSlice(`var`))
-	if err != nil {
-		return err
-	}
-	wd, err := os.Getwd()
-	if err != nil {
-		ui.WriteLinef("Failed to resolve current working directory: %v", err)
-	}
-	vars[`runp_root`] = runpfile.Root
-	vars[`runp_workdir`] = wd
-	vars[`runp_file_separator`] = string(os.PathSeparator)
-	vars, err = core.ExpandVars(vars)
-	if err != nil {
-		return exitErrorf(exitCodeVar, "Variable expansion failed: %v", err)
-	}
-	runpfile.Vars = vars
-
-	secretKey, err := resolveSecretKey(c.String(`key-env`), c.String(`key`))
-	if err != nil {
-		return err
-	}
-	runpfile.SecretKey = secretKey
-
-	preconditions := runpfile.Preconditions
-	preconditionVerifyResult := preconditions.Verify()
-	if preconditionVerifyResult.Vote != core.Proceed {
-		return exitErrorf(exitCodeExec, "Preconditions not met: %s\n  → Check that the required OS, environment variables, and runp version are satisfied", preconditionVerifyResult.Reasons)
 	}
 
 	executor := core.NewExecutor(runpfile)
@@ -58,6 +30,46 @@ func doUp(c *cli.Context) error {
 		return exitErrorf(exitCodeExec, "Failed to execute Runpfile: %s", resolveRunpfileArg(c))
 	}
 	return nil
+}
+
+// prepareRunpfile loads the Runpfile and applies everything needed before
+// starting units: user and implicit vars, variable expansion, the secret key
+// and root preconditions. "up" and "reload" share it so that a reloaded unit
+// runs exactly as it would under "up".
+func prepareRunpfile(c *cli.Context) (*core.Runpfile, error) {
+	runpfile, err := loadRunpfile(resolveRunpfileArg(c), resolveChecksumArg(c))
+	if err != nil {
+		return nil, err
+	}
+	vars, err := applyUserVars(runpfile.Vars, c.StringSlice(`var`))
+	if err != nil {
+		return nil, err
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		ui.WriteLinef("Failed to resolve current working directory: %v", err)
+	}
+	vars[`runp_root`] = runpfile.Root
+	vars[`runp_workdir`] = wd
+	vars[`runp_file_separator`] = string(os.PathSeparator)
+	vars, err = core.ExpandVars(vars)
+	if err != nil {
+		return nil, exitErrorf(exitCodeVar, "Variable expansion failed: %v", err)
+	}
+	runpfile.Vars = vars
+
+	secretKey, err := resolveSecretKey(c.String(`key-env`), c.String(`key`))
+	if err != nil {
+		return nil, err
+	}
+	runpfile.SecretKey = secretKey
+
+	preconditions := runpfile.Preconditions
+	preconditionVerifyResult := preconditions.Verify()
+	if preconditionVerifyResult.Vote != core.Proceed {
+		return nil, exitErrorf(exitCodeExec, "Preconditions not met: %s\n  → Check that the required OS, environment variables, and runp version are satisfied", preconditionVerifyResult.Reasons)
+	}
+	return runpfile, nil
 }
 
 func doDryRun(executor *core.RunpfileExecutor) error {

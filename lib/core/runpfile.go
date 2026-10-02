@@ -30,6 +30,7 @@ type RunpUnit struct {
 
 	vars                map[string]string
 	secretKey           string
+	root                string // root directory of the Runpfile defining the unit
 	process             RunpProcess
 	environmentSettings *EnvironmentSettings
 }
@@ -58,29 +59,45 @@ func (u *RunpUnit) Kind() string {
 	return ``
 }
 
+// buildProcess returns the process of the unit. Vars in the working
+// directory and in Env are not resolved here: the final vars (including --var
+// overrides and runp_root) are only known when units are started, see
+// resolveUnitWorkingDir and resolveEnvironment.
 func (u *RunpUnit) buildProcess() RunpProcess {
-	cliPreprocessor := newCliPreprocessor(u.vars)
 	if u.Container != nil {
-		container := u.Container
-		container.WorkingDir = cliPreprocessor.process(u.Container.WorkingDir)
-		// Don't process Env here - it will be processed at runtime in resolveEnvironment()
-		// container.Env = processEnv(container.Env, cliPreprocessor)
-		return container
+		return u.Container
 	}
 	if u.Host != nil {
-		host := u.Host
-		host.WorkingDir = cliPreprocessor.process(u.Host.WorkingDir)
-		// Don't process Env here - it will be processed at runtime in resolveEnvironment()
-		// host.Env = processEnv(host.Env, cliPreprocessor)
-		return host
+		return u.Host
 	}
 	if u.SSHTunnel != nil {
-		tunnel := u.SSHTunnel
-		tunnel.WorkingDir = cliPreprocessor.process(u.SSHTunnel.WorkingDir)
-		// Don't process Env here - it will be processed at runtime in resolveEnvironment()
-		// tunnel.Env = processEnv(tunnel.Env, cliPreprocessor)
-		return tunnel
+		return u.SSHTunnel
 	}
+	return nil
+}
+
+// resolveUnitWorkingDir resolves vars in the working directory of the unit
+// using its current vars. A relative result is made absolute against the root
+// of the Runpfile defining the unit (containers keep the path as is: it lives
+// inside the container).
+func resolveUnitWorkingDir(u *RunpUnit, defaultRoot string) error {
+	p := u.Process()
+	if p == nil || !varsRegexp.MatchString(p.Dir()) {
+		return nil
+	}
+	dir := newCliPreprocessor(u.vars).process(p.Dir())
+	if !u.SkipDirResolution() {
+		root := u.root
+		if root == "" {
+			root = defaultRoot
+		}
+		abs, err := resolvePath(dir, root)
+		if err != nil {
+			return fmt.Errorf("unit %s: cannot resolve working directory %s: %w", u.Name, dir, err)
+		}
+		dir = abs
+	}
+	p.SetDir(dir)
 	return nil
 }
 
