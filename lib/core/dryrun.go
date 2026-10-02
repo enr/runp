@@ -20,6 +20,7 @@ type UnitPreview struct {
 // one without starting any process. Skipped units (unsatisfied preconditions)
 // are included with Skipped=true so the caller can still show them.
 func (e *RunpfileExecutor) DryRunPreviews() []UnitPreview {
+	e.dryRun = true
 	e.initializeUnits()
 	skipped := e.skippedUnits()
 

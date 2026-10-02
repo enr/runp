@@ -9,10 +9,11 @@ import (
 	"time"
 )
 
-// stopProcessGracefully sends SIGTERM and waits up to timeout for the process
-// to exit, then sends SIGKILL if it is still alive.
+// stopProcessGracefully sends SIGTERM to the process group of proc (host
+// units run in their own group, so children of the shell are stopped too) and
+// waits up to timeout for it to exit, then sends SIGKILL if it is still alive.
 func stopProcessGracefully(proc *os.Process, timeout time.Duration) error {
-	if err := proc.Signal(syscall.SIGTERM); err != nil {
+	if !signalGroup(proc, syscall.SIGTERM) {
 		// Process may have already exited between the isProcessAlive check and here.
 		return nil
 	}
@@ -29,6 +30,6 @@ func stopProcessGracefully(proc *os.Process, timeout time.Duration) error {
 	}
 
 	ui.Debugf("Process %d did not stop within %v, sending SIGKILL", proc.Pid, timeout)
-	_ = proc.Signal(syscall.SIGKILL)
+	signalGroup(proc, syscall.SIGKILL)
 	return nil
 }

@@ -60,7 +60,7 @@ var commandUp = cli.Command{
 	Action: doUp,
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile or HTTP/HTTPS URL (overrides RUNP_FILE env var)`},
-		&cli.StringFlag{Name: "checksum", Usage: `Expected SHA-256 checksum of the Runpfile in "sha256:<hex>" format; used to verify integrity when --file is a URL`},
+		&cli.StringFlag{Name: "checksum", Usage: `Expected SHA-256 checksum of the Runpfile in "sha256:<hex>" format; verifies --file when it is a URL (required for http:// URLs)`},
 		&cli.BoolFlag{Name: "dry-run", Aliases: []string{"n"}, Usage: "Print what would be executed without starting any process"},
 		&cli.StringSliceFlag{Name: "var", Aliases: []string{"V"}, Usage: `Runtime variables in format "key=value"`},
 		&cli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: `Decryption key (WARNING: visible in 'ps aux' and shell history — prefer --key-env)`},
@@ -102,7 +102,7 @@ var commandStatus = cli.Command{
 	Action: doStatus,
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile or HTTP/HTTPS URL (overrides RUNP_FILE env var)`},
-		&cli.StringFlag{Name: "checksum", Usage: `Expected SHA-256 checksum in "sha256:<hex>" format`},
+		&cli.StringFlag{Name: "checksum", Usage: `Expected SHA-256 checksum in "sha256:<hex>" format (required for http:// URLs)`},
 	},
 }
 
@@ -115,7 +115,7 @@ var commandValidate = cli.Command{
 	Action: doValidate,
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile or HTTP/HTTPS URL (overrides RUNP_FILE env var)`},
-		&cli.StringFlag{Name: "checksum", Usage: `Expected SHA-256 checksum in "sha256:<hex>" format`},
+		&cli.StringFlag{Name: "checksum", Usage: `Expected SHA-256 checksum in "sha256:<hex>" format (required for http:// URLs)`},
 	},
 }
 
@@ -164,11 +164,17 @@ var commandReload = cli.Command{
 	Usage:       "reload <unit-name>",
 	Description: `Stop and restart a single unit by name. Run this in a separate shell while runp up is running to reload a single service without stopping the full stack. SSH tunnel units are not supported.`,
 	UsageText: `runp reload web
-   runp reload api --file ./infra/Runpfile`,
+   runp reload --file ./infra/Runpfile api
+   runp reload --var DB_HOST=localhost --key-env RUNP_SECRET_KEY api
+
+   Flags must precede the unit name.`,
 	Action: doReload,
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile or HTTP/HTTPS URL (overrides RUNP_FILE env var)`},
-		&cli.StringFlag{Name: "checksum", Usage: `Expected SHA-256 checksum in "sha256:<hex>" format`},
+		&cli.StringFlag{Name: "checksum", Usage: `Expected SHA-256 checksum in "sha256:<hex>" format (required for http:// URLs)`},
+		&cli.StringSliceFlag{Name: "var", Aliases: []string{"V"}, Usage: `Runtime variables in format "key=value" (pass the same values used with runp up)`},
+		&cli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: `Decryption key (WARNING: visible in 'ps aux' and shell history — prefer --key-env)`},
+		&cli.StringFlag{Name: "key-env", Usage: `Name of the environment variable containing the decryption key (recommended)`},
 	},
 	BashComplete: completionUnitNames,
 }
@@ -186,7 +192,7 @@ var commandList = cli.Command{
 	Action: doList,
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile or HTTP/HTTPS URL (overrides RUNP_FILE env var)`},
-		&cli.StringFlag{Name: "checksum", Usage: `Expected SHA-256 checksum in "sha256:<hex>" format`},
+		&cli.StringFlag{Name: "checksum", Usage: `Expected SHA-256 checksum in "sha256:<hex>" format (required for http:// URLs)`},
 		&cli.StringFlag{Name: "output", Aliases: []string{"o"}, Value: "table", Usage: `Output format: table (default) or json`},
 	},
 }

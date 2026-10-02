@@ -45,25 +45,25 @@ func TestRandomKey_UsesCryptoRand(t *testing.T) {
 }
 
 func TestRandomKey(t *testing.T) {
-	// Verifica che RandomKey restituisca sempre una stringa di 12 caratteri esadecimali
+	// Verifica che RandomKey restituisca sempre una stringa di 64 caratteri esadecimali
 	key1 := RandomKey()
-	if len(key1) != 12 {
-		t.Errorf("Expected key length 12, got %d", len(key1))
+	if len(key1) != 64 {
+		t.Errorf("Expected key length 64, got %d", len(key1))
 	}
 
 	// Verifica che sia composta solo da caratteri esadecimali
-	hexPattern := regexp.MustCompile(`^[0-9a-f]{12}$`)
+	hexPattern := regexp.MustCompile(`^[0-9a-f]{64}$`)
 	if !hexPattern.MatchString(key1) {
-		t.Errorf("Expected key to be 12 hex characters, got '%s'", key1)
+		t.Errorf("Expected key to be 64 hex characters, got '%s'", key1)
 	}
 
 	// Verifica che generi chiavi diverse (molto probabile, ma non garantito)
 	key2 := RandomKey()
-	if len(key2) != 12 {
-		t.Errorf("Expected key2 length 12, got %d", len(key2))
+	if len(key2) != 64 {
+		t.Errorf("Expected key2 length 64, got %d", len(key2))
 	}
 	if !hexPattern.MatchString(key2) {
-		t.Errorf("Expected key2 to be 12 hex characters, got '%s'", key2)
+		t.Errorf("Expected key2 to be 64 hex characters, got '%s'", key2)
 	}
 
 	// Genera diverse chiavi per assicurarsi che funzioni
@@ -71,11 +71,11 @@ func TestRandomKey(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		key := RandomKey()
 		keys[key] = true
-		if len(key) != 12 {
-			t.Errorf("Expected key length 12 at iteration %d, got %d", i, len(key))
+		if len(key) != 64 {
+			t.Errorf("Expected key length 64 at iteration %d, got %d", i, len(key))
 		}
 		if !hexPattern.MatchString(key) {
-			t.Errorf("Expected key to be 12 hex characters at iteration %d, got '%s'", i, key)
+			t.Errorf("Expected key to be 64 hex characters at iteration %d, got '%s'", i, key)
 		}
 	}
 

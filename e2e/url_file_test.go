@@ -24,13 +24,13 @@ func TestURLFile(t *testing.T) {
 
 	hash := fmt.Sprintf("%x", sha256.Sum256(content))
 
-	t.Run("url_no_checksum", func(t *testing.T) {
+	t.Run("url_plain_http_no_checksum_refused", func(t *testing.T) {
 		out, code := runp(t, "list", "--file", srv.URL)
-		if code != 0 {
-			t.Fatalf("expected exit 0, got %d\noutput: %s", code, out)
+		if code != 2 {
+			t.Fatalf("expected exit 2, got %d\noutput: %s", code, out)
 		}
-		if !strings.Contains(out, "env-test-unit") {
-			t.Errorf("expected unit name in output, got:\n%s", out)
+		if !strings.Contains(out, "plain HTTP") {
+			t.Errorf("expected plain HTTP refusal in output, got:\n%s", out)
 		}
 	})
 
@@ -45,7 +45,7 @@ func TestURLFile(t *testing.T) {
 	})
 
 	t.Run("url_checksum_mismatch", func(t *testing.T) {
-		out, code := runp(t, "list", "--file", srv.URL, "--checksum", "sha256:deadbeef")
+		out, code := runp(t, "list", "--file", srv.URL, "--checksum", "sha256:"+strings.Repeat("0", 64))
 		if code != 2 {
 			t.Fatalf("expected exit 2, got %d\noutput: %s", code, out)
 		}
@@ -55,7 +55,7 @@ func TestURLFile(t *testing.T) {
 	})
 
 	t.Run("url_unreachable", func(t *testing.T) {
-		out, code := runp(t, "list", "--file", "http://127.0.0.1:1")
+		out, code := runp(t, "list", "--file", "http://127.0.0.1:1", "--checksum", "sha256:"+hash)
 		if code != 2 {
 			t.Fatalf("expected exit 2, got %d\noutput: %s", code, out)
 		}

@@ -58,7 +58,9 @@ func (l *stubLogger) Write(p []byte) (int, error) {
 }
 
 func (l *stubLogger) outputLines() []string {
-	return l.output
+	mutex.Lock()
+	defer mutex.Unlock()
+	return append([]string{}, l.output...)
 }
 
 func createStubLogger(proc string, longest int, lc LoggerConfig) Logger {

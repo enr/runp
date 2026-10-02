@@ -2,8 +2,10 @@ package core
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
+	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -32,7 +34,10 @@ type ContainerProcess struct {
 	Env        map[string]string
 	Await      AwaitCondition
 
-	id                  string
+	id string
+	// project identifies the Runpfile owning the container (see ProjectID);
+	// it is set as the runp.project label.
+	project             string
 	vars                map[string]string
 	preconditions       Preconditions
 	secretKey           string
@@ -49,9 +54,6 @@ func (p *ContainerProcess) ID() string {
 func (p *ContainerProcess) SetID(id string) {
 	p.id = id
 }
-
-// PreStart implements RunpProcess. No-op for container processes.
-func (p *ContainerProcess) PreStart() error { return nil }
 
 // OnStarted implements RunpProcess. No-op for container processes.
 func (p *ContainerProcess) OnStarted(_ int) {}
@@ -84,14 +86,16 @@ func (p *ContainerProcess) StopCommand() (RunpCommand, error) {
 	if err != nil {
 		return nil, err
 	}
-	cl := fmt.Sprintf(`%s stop %s`, containerRunner, p.buildContainerName())
-	cmd, err := cmd(cl)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build stop command %s: %w", cl, err)
-	}
 	return &ExecCommandWrapper{
-		cmd: cmd,
+		cmd: exec.Command(containerRunner, containerStopArgs(p.buildContainerName(), p.StopTimeout())...),
 	}, nil
+}
+
+// containerStopArgs returns the arguments of "<runner> stop", passing the
+// unit's stop_timeout (rounded up to whole seconds) as the grace period.
+func containerStopArgs(name string, timeout time.Duration) []string {
+	secs := int((timeout + time.Second - 1) / time.Second)
+	return []string{"stop", "-t", strconv.Itoa(secs), name}
 }
 
 // StopTimeout duration to wait to force kill process
@@ -123,96 +127,73 @@ func (p *ContainerProcess) buildContainerName() string {
 	return fmt.Sprintf("%s%s", containerNamePrefix, p.ID())
 }
 
-func (p *ContainerProcess) buildCmdLine() (string, error) {
-	img := p.Image
+// buildArgs returns the argument list for "<runner> run ...". Each value is
+// expanded exactly once and passed as a separate argument, without going
+// through a shell, so values cannot inject commands on the host.
+func (p *ContainerProcess) buildArgs() ([]string, error) {
+	pre := newCliPreprocessor(p.vars)
+	img := pre.process(p.Image)
 	ui.Debugf("Run image '%s'\n", img)
 
-	containerRunner, err := p.lookupContainerRunner()
-	if err != nil {
-		return "", err
-	}
-	cliPreprocessor := newCliPreprocessor(p.vars)
-	var sb strings.Builder
 	// rm Automatically remove the container when it exits
-	sb.WriteString(containerRunner)
-	sb.WriteString(" run -t ")
+	args := []string{"run", "-t"}
 	if !p.SkipRm {
-		sb.WriteString("--rm ")
+		args = append(args, "--rm")
 	}
-	sb.WriteString("--name ")
-	sb.WriteString(p.buildContainerName())
-	sb.WriteString(" ")
-
-	// network: --network it-network
-	sb.WriteString("--network runp-network ")
-	// --label , -l 		Set meta data on a container
-	// --link
-	// --shm-size
+	args = append(args, "--name", pre.process(p.buildContainerName()))
+	if p.project != "" {
+		args = append(args, "--label", containerProjectLabel+"="+p.project)
+	}
+	args = append(args, "--network", "runp-network")
 	if p.ShmSize != "" {
-		sb.WriteString("--shm-size ")
-		sb.WriteString(p.ShmSize)
-		sb.WriteString(" ")
+		args = append(args, "--shm-size", pre.process(p.ShmSize))
 	}
-	// --user
-	// --volume
 	for _, volume := range p.Volumes {
-		sb.WriteString("--volume ")
-		sb.WriteString(cliPreprocessor.process(volume))
-		sb.WriteString(" ")
+		args = append(args, "--volume", pre.process(volume))
 	}
-	// --volumes-from
 	for _, volume := range p.VolumesFrom {
-		sb.WriteString("--volumes-from ")
-		sb.WriteString(containerNamePrefix)
-		sb.WriteString(cliPreprocessor.process(volume))
-		sb.WriteString(" ")
+		args = append(args, "--volumes-from", containerNamePrefix+pre.process(volume))
 	}
-	// --mount
 	for _, m := range p.Mounts {
-		sb.WriteString("--mount ")
-		sb.WriteString(cliPreprocessor.process(m))
-		sb.WriteString(" ")
+		args = append(args, "--mount", pre.process(m))
 	}
-	// --workdir
 	if p.WorkingDir != "" {
-		sb.WriteString("--workdir ")
-		sb.WriteString(p.WorkingDir)
-		sb.WriteString(" ")
+		args = append(args, "--workdir", pre.process(p.WorkingDir))
 	}
-
 	for _, ports := range p.Ports {
-		sb.WriteString("-p ")
-		sb.WriteString(ports)
-		sb.WriteString(" ")
+		args = append(args, "-p", pre.process(ports))
 	}
-	// Process env with current vars
-	for name, val := range p.Env {
-		sb.WriteString(`-e "`)
-		sb.WriteString(name)
-		sb.WriteString("=")
-		processedVal := cliPreprocessor.process(val)
-		sb.WriteString(os.ExpandEnv(processedVal))
-		sb.WriteString(`" `)
+	names := make([]string, 0, len(p.Env))
+	for name := range p.Env {
+		names = append(names, name)
 	}
-	sb.WriteString(img)
-	// command
+	sort.Strings(names)
+	for _, name := range names {
+		args = append(args, "-e", name+"="+expandEnvValue(pre.process(p.Env[name])))
+	}
+	args = append(args, img)
 	if p.Command != "" {
-		sb.WriteString(` `)
-		sb.WriteString(p.Command)
-		sb.WriteString(` `)
+		words, err := splitCommandLine(pre.process(p.Command))
+		if err != nil {
+			return nil, fmt.Errorf("invalid command for container %s: %w", p.ID(), err)
+		}
+		args = append(args, words...)
 	}
-	return sb.String(), nil
+	return args, nil
 }
 
 func (p *ContainerProcess) buildCmdImage() (*exec.Cmd, error) {
-	cl, err := p.buildCmdLine()
+	containerRunner, err := p.lookupContainerRunner()
 	if err != nil {
 		return nil, err
 	}
-	cliPreprocessor := newCliPreprocessor(p.vars)
-	cl = cliPreprocessor.process(cl)
-	ui.Debugf("Container command:\n%s", cl)
-	return cmd(cl)
+	args, err := p.buildArgs()
+	if err != nil {
+		return nil, err
+	}
+	cmd := exec.Command(containerRunner, args...)
+	ui.Debugf("Container command:\n%s", strings.Join(cmd.Args, " "))
+	return cmd, nil
 }
 
 // ShouldWait returns if the process has await set.
@@ -235,30 +216,70 @@ func (p *ContainerProcess) String() string {
 	return fmt.Sprintf("%T{id=%s container=%s}", p, p.ID(), p.buildContainerName())
 }
 
-// IsStartable ...
+// IsStartable checks that no container with the same name exists.
 func (p *ContainerProcess) IsStartable() (bool, error) {
 	containerRunner, err := p.lookupContainerRunner()
 	if err != nil {
 		return false, err
 	}
 	cn := p.buildContainerName()
-	cmdLine := fmt.Sprintf("%s ps -aq -f name=%s", containerRunner, cn)
-	ui.Debugf("IsStartable command:\n%s", cmdLine)
-	cmd, err := cmd(cmdLine)
+	state, exists, err := containerState(containerRunner, cn)
 	if err != nil {
 		return false, err
 	}
+	if !exists {
+		return true, nil
+	}
+	if state == "running" {
+		ui.WriteLinef("Container %s cannot be started: a container with this name is already running", cn)
+	} else {
+		ui.WriteLinef("Container %s cannot be started: a container with this name already exists (status: %s); remove it with: %s rm %s", cn, state, containerRunner, cn)
+	}
+	if owner, err := containerProject(containerRunner, cn); err == nil && owner != "" && p.project != "" && owner != p.project {
+		ui.WriteLinef("Container %s belongs to another Runpfile: set a different container name in the unit", cn)
+	}
+	return false, nil
+}
+
+const containerProjectLabel = "runp.project"
+
+// containerNameFilter returns a --filter value matching exactly name. Docker
+// matches the filter against names with a leading slash, podman without.
+func containerNameFilter(name string) string {
+	return "name=^/?" + regexp.QuoteMeta(name) + "$"
+}
+
+// containerState returns the status of the container named name (e.g.
+// "running", "exited") and whether it exists.
+func containerState(runner, name string) (string, bool, error) {
+	cmd := exec.Command(runner, "ps", "-aq", "--filter", containerNameFilter(name))
+	ui.Debugf("Container lookup command:\n%s", strings.Join(cmd.Args, " "))
 	out, err := cmd.Output()
 	if err != nil {
-		return false, err
+		return "", false, err
 	}
-	so := string(out)
-	ui.Debugf("Container startability check output: %s", so)
-	if so != "" {
-		ui.WriteLinef("Container %s cannot be started: container is already running (output: %s)", cn, so)
-		return false, nil
+	if strings.TrimSpace(string(out)) == "" {
+		return "", false, nil
 	}
-	return true, nil
+	out, err = exec.Command(runner, "inspect", "--format", "{{.State.Status}}", name).Output()
+	if err != nil {
+		return "unknown", true, nil
+	}
+	return strings.TrimSpace(string(out)), true, nil
+}
+
+// containerProject returns the runp.project label of the container named
+// name, or "" if it has none (e.g. not started by runp).
+func containerProject(runner, name string) (string, error) {
+	out, err := exec.Command(runner, "inspect", "--format", `{{index .Config.Labels "`+containerProjectLabel+`"}}`, name).Output()
+	if err != nil {
+		return "", err
+	}
+	label := strings.TrimSpace(string(out))
+	if label == "<no value>" {
+		return "", nil
+	}
+	return label, nil
 }
 
 // SetPreconditions set preconditions.
@@ -266,62 +287,61 @@ func (p *ContainerProcess) SetPreconditions(preconditions Preconditions) {
 	p.preconditions = preconditions
 }
 
-// VerifyPreconditions check if process can be started
+// VerifyPreconditions checks if the process can be started. It has no side
+// effects (it is also used by --dry-run): the container network is created
+// by PreStart.
 func (p *ContainerProcess) VerifyPreconditions() PreconditionVerifyResult {
-
 	res := p.preconditions.Verify()
 	if res.Vote != Proceed {
 		return res
 	}
-	containerRunner, err := p.lookupContainerRunner()
-	if err != nil {
+	if _, err := p.lookupContainerRunner(); err != nil {
 		return PreconditionVerifyResult{
 			Vote:    Stop,
 			Reasons: []string{err.Error()},
-		}
-	}
-	cmdLine := fmt.Sprintf("%s network ls --filter name=runp-network --format '{{ .Name }}'", containerRunner)
-	ui.Debugf("Checking network precondition: %s", cmdLine)
-	command, err := cmd(cmdLine)
-	if err != nil {
-		return PreconditionVerifyResult{
-			Vote:    Stop,
-			Reasons: []string{fmt.Sprintf("Failed to execute network check command: %s (%v)", cmdLine, err)},
-		}
-	}
-	out, err := command.Output()
-	if err != nil {
-		return PreconditionVerifyResult{
-			Vote:    Stop,
-			Reasons: []string{fmt.Sprintf("Failed to read network check command output: %s (%v)", cmdLine, err)},
-		}
-	}
-	so := strings.TrimSpace(string(out))
-	ui.Debugf("Network check output: %s", so)
-	if so == "runp-network" {
-		return PreconditionVerifyResult{
-			Vote:    Proceed,
-			Reasons: []string{},
-		}
-	}
-	cmdLine = fmt.Sprintf("%s network create runp-network", containerRunner)
-	ui.Debugf("Creating network: %s", cmdLine)
-	command, err = cmd(cmdLine)
-	if err != nil {
-		return PreconditionVerifyResult{
-			Vote:    Stop,
-			Reasons: []string{fmt.Sprintf("Failed to create network: %s (%v)", cmdLine, err)},
-		}
-	}
-	_, err = command.Output()
-	if err != nil {
-		return PreconditionVerifyResult{
-			Vote:    Stop,
-			Reasons: []string{fmt.Sprintf("Failed to read network creation command output: %s (%v)", cmdLine, err)},
 		}
 	}
 	return PreconditionVerifyResult{
 		Vote:    Proceed,
 		Reasons: []string{},
 	}
+}
+
+// PreStart creates the runp-network container network if it does not exist.
+func (p *ContainerProcess) PreStart() error {
+	containerRunner, err := p.lookupContainerRunner()
+	if err != nil {
+		return err
+	}
+	exists, err := containerNetworkExists(containerRunner)
+	if err != nil || exists {
+		return err
+	}
+	command := exec.Command(containerRunner, "network", "create", "runp-network")
+	cmdLine := strings.Join(command.Args, " ")
+	ui.Debugf("Creating network: %s", cmdLine)
+	if out, err := command.CombinedOutput(); err != nil {
+		// Another container unit starting concurrently may have created it.
+		if exists, _ := containerNetworkExists(containerRunner); exists {
+			return nil
+		}
+		return fmt.Errorf("failed to create network: %s (%v): %s", cmdLine, err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+func containerNetworkExists(containerRunner string) (bool, error) {
+	command := exec.Command(containerRunner, "network", "ls", "--filter", "name=runp-network", "--format", "{{ .Name }}")
+	cmdLine := strings.Join(command.Args, " ")
+	ui.Debugf("Checking network: %s", cmdLine)
+	out, err := command.Output()
+	if err != nil {
+		return false, fmt.Errorf("failed to read network check command output: %s (%v)", cmdLine, err)
+	}
+	for _, name := range strings.Fields(string(out)) {
+		if name == "runp-network" {
+			return true, nil
+		}
+	}
+	return false, nil
 }

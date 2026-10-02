@@ -65,12 +65,15 @@ func unitKindLabel(unit *RunpUnit) string {
 }
 
 func probeHostStatus(pidDir, unitName string) (UnitState, string) {
-	pid, err := ReadPIDFile(pidDir, unitName)
+	pid, state, err := probePIDFile(pidDir, unitName)
 	if err != nil {
 		return UnitStateUnknown, "no pid file"
 	}
-	if isProcessAlive(pid) {
+	switch state {
+	case pidFileRunning:
 		return UnitStateRunning, fmt.Sprintf("pid %d", pid)
+	case pidFileReused:
+		return UnitStateStopped, fmt.Sprintf("pid %d reused by another process (stale pid file)", pid)
 	}
 	return UnitStateStopped, fmt.Sprintf("pid %d exited", pid)
 }
@@ -82,13 +85,16 @@ func probeContainerStatus(c *ContainerProcess, envSettings *EnvironmentSettings)
 	}
 	name := c.buildContainerName()
 	// Anchor the filter with ^ and $ to avoid partial-name matches.
-	out, err := exec.Command(runner, "ps", "--filter", "name=^"+name+"$", "--format", "{{.Status}}").Output()
+	out, err := exec.Command(runner, "ps", "--filter", containerNameFilter(name), "--format", "{{.Status}}").Output()
 	if err != nil {
 		return UnitStateUnknown, fmt.Sprintf("container query failed: %v", err)
 	}
 	status := strings.TrimSpace(string(out))
 	if status == "" {
 		return UnitStateStopped, "container not running"
+	}
+	if owner, err := containerProject(runner, name); err == nil && owner != "" && c.project != "" && owner != c.project {
+		return UnitStateUnknown, fmt.Sprintf("container %s belongs to another Runpfile", name)
 	}
 	return UnitStateRunning, status
 }

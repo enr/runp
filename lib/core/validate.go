@@ -42,6 +42,7 @@ func ValidateRunpfile(rf *Runpfile) ValidationResult {
 	result.Errors = append(result.Errors, validateDependsOn(rf)...)
 
 	result.Warnings = append(result.Warnings, collectPreconditionWarnings(rf)...)
+	result.Warnings = append(result.Warnings, collectAwaitWarnings(rf)...)
 
 	return result
 }
@@ -58,8 +59,17 @@ func validateVarExpansion(rf *Runpfile) []error {
 	return nil
 }
 
+// implicitVars are set by runp itself when units start, so they can be
+// referenced without being declared in the vars section.
+var implicitVars = map[string]bool{
+	"runp_root":           true,
+	"runp_workdir":        true,
+	"runp_file_separator": true,
+}
+
 // validateVariableRefs checks that every {{vars NAME}} reference inside a
-// unit resolves to a name declared in the Runpfile vars section.
+// unit resolves to a name declared in the Runpfile vars section (or to an
+// implicit var).
 func validateVariableRefs(rf *Runpfile) []error {
 	var errs []error
 
@@ -78,7 +88,7 @@ func validateVariableRefs(rf *Runpfile) []error {
 		}
 		refs := extractVarRefs(string(data))
 		for _, ref := range refs {
-			if _, declared := rf.Vars[ref]; !declared {
+			if _, declared := rf.Vars[ref]; !declared && !implicitVars[ref] {
 				errs = append(errs, fmt.Errorf(
 					"unit %q: variable %q referenced but not declared in vars section",
 					unitName, ref,
@@ -103,6 +113,33 @@ func extractVarRefs(s string) []string {
 		}
 	}
 	return refs
+}
+
+// collectAwaitWarnings warns about await blocks without timeout: they are
+// ignored, the unit starts without waiting for the resource.
+func collectAwaitWarnings(rf *Runpfile) []string {
+	unitNames := make([]string, 0, len(rf.Units))
+	for name := range rf.Units {
+		unitNames = append(unitNames, name)
+	}
+	sort.Strings(unitNames)
+	var warnings []string
+	for _, name := range unitNames {
+		unit := rf.Units[name]
+		var await AwaitCondition
+		switch {
+		case unit.Host != nil:
+			await = unit.Host.Await
+		case unit.Container != nil:
+			await = unit.Container.Await
+		case unit.SSHTunnel != nil:
+			await = unit.SSHTunnel.Await
+		}
+		if await.Resource != "" && await.Timeout == "" {
+			warnings = append(warnings, fmt.Sprintf("unit %q: await.resource is set without await.timeout, the unit will not wait for %s", name, await.Resource))
+		}
+	}
+	return warnings
 }
 
 // collectPreconditionWarnings returns warning strings for OS and runp-version

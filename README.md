@@ -71,7 +71,7 @@ For comprehensive documentation, visit the [official documentation](https://enr.
 
 Large projects can split their configuration across multiple files and compose them with the `include:` key.
 Each entry is a path **relative to the directory of the file that declares it**.
-All units from included files are merged into the root Runpfile before startup.
+All units from included files are merged into the root Runpfile before startup, together with their `vars` (the including file wins when the same var is declared twice).
 
 ```yaml
 # Runpfile  (project root)
@@ -111,8 +111,10 @@ Rename the conflicting unit in one of the files before proceeding.
 **Circular includes** are detected and reported with the full import chain, for example:
 
 ```
-circular dependency detected: a.yml → b.yml → c.yml → b.yml
+circular dependency detected: a.yml -> b.yml -> c.yml -> b.yml
 ```
+
+Including the same file through two different branches is not a cycle, but it defines its units twice and is reported as a duplicate unit.
 
 Includes can be nested to any depth as long as there are no cycles and no duplicate unit names.
 
@@ -123,16 +125,19 @@ Includes can be nested to any depth as long as there are no cycles and no duplic
 
 When running Podman in rootless mode, `--volumes-from` can fail with a "container not found" error if the source container has not finished its startup sequence before the dependent container starts. This is a timing issue specific to rootless Podman; Docker is not affected.
 
-**Workaround:** add an `await:` condition to the source unit so that runp waits for it to be ready before starting any dependent container.
+**Workaround:** make the dependent unit `depends_on` the source unit, and give the source unit a `ready:` condition, so that runp starts the dependent container only once the source container is up.
 
 ```yaml
 units:
   data:
+    ready:
+      # ready when the container accepts connections...
+      cmd: "nc -z localhost 8080"
+      # ...or, if it exposes no port, after a short fixed delay:
+      # delay: 5s
     container:
       image: myapp/data:latest
-      await:
-        resource: tcp4://localhost:8080/
-        timeout: 0h0m30s
+      ports: ["8080:8080"]
 
   app:
     depends_on:
@@ -143,20 +148,11 @@ units:
         - data   # resolved to runp-data at runtime
 ```
 
-With `await:` on the `data` unit, runp blocks until the container is accepting connections before launching `app`, eliminating the race condition.
+Without a `ready:` condition, `app` would start only after the `data` container *exits*. For a data-only
+container that exits immediately, set `skip_rm: true` on it instead, so that the stopped container (and its
+volumes) is still available to `--volumes-from`.
 
-If the source container does not expose a TCP port you can await on, use a short fixed timeout:
-
-```yaml
-  data:
-    container:
-      image: myapp/data:latest
-      await:
-        resource: tcp4://localhost:9999/
-        timeout: 0h0m5s
-```
-
-The 5-second wait is enough for Podman's rootless networking to register the container before `--volumes-from` is resolved.
+Note that `await:` on the source unit would delay the start of the source unit itself, not of `app`.
 
 ## Development
 

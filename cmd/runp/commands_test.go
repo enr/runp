@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -510,6 +511,23 @@ func TestDoEncrypt(t *testing.T) {
 		if !strings.Contains(output, "Encrypted secret:") {
 			t.Errorf("Expected output to contain 'Encrypted secret:', got '%s'", output)
 		}
+		// The generated key must be printed, and must decrypt the secret.
+		var key, encrypted string
+		for _, line := range s.lines {
+			if v, ok := strings.CutPrefix(strings.TrimSpace(line), "Generated key: "); ok {
+				key = v
+			}
+			if v, ok := strings.CutPrefix(strings.TrimSpace(line), "Encrypted secret: "); ok {
+				encrypted = v
+			}
+		}
+		if key == "" {
+			t.Fatalf("Expected the generated key in output, got '%s'", output)
+		}
+		plain, err := core.DecryptBase64(encrypted, key)
+		if err != nil || string(plain) != "secret-value" {
+			t.Errorf("printed key does not decrypt the secret: %q, %v", plain, err)
+		}
 	})
 
 	t.Run("missing secret parameter (no stdin pipe)", func(t *testing.T) {
@@ -1002,4 +1020,54 @@ func captureStdout(t *testing.T, fn func()) string {
 	var buf strings.Builder
 	io.Copy(&buf, r)
 	return buf.String()
+}
+
+// reload must prepare the Runpfile exactly like up: --var overrides, implicit
+// vars and the secret key.
+func TestPrepareRunpfileAppliesVarsAndKey(t *testing.T) {
+	s := &stubLogger{}
+	ui = s
+	core.ConfigureUI(s, core.LoggerConfig{})
+
+	dir := t.TempDir()
+	runpfilePath := filepath.Join(dir, "Runpfile")
+	spec := "vars:\n  d: sub\nunits:\n  w:\n    host:\n      command: echo {{vars d}}\n"
+	if err := os.WriteFile(runpfilePath, []byte(spec), 0644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("RUNP_TEST_PREPARE_KEY", "the-key")
+
+	for _, command := range []*cli.Command{&commandUp, &commandReload} {
+		t.Run(command.Name, func(t *testing.T) {
+			set := flag.NewFlagSet(command.Name, 0)
+			for _, f := range command.Flags {
+				if err := f.Apply(set); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := set.Parse([]string{"--file", runpfilePath, "--var", "d=other", "--key-env", "RUNP_TEST_PREPARE_KEY", "w"}); err != nil {
+				t.Fatal(err)
+			}
+			c := cli.NewContext(cli.NewApp(), set, nil)
+			rf, err := prepareRunpfile(c)
+			if err != nil {
+				t.Fatalf("prepareRunpfile: %v", err)
+			}
+			if rf.Vars["d"] != "other" {
+				t.Errorf("--var not applied: d=%q", rf.Vars["d"])
+			}
+			if rf.Vars["runp_root"] != rf.Root || rf.Root == "" {
+				t.Errorf("runp_root not set: %q (root %q)", rf.Vars["runp_root"], rf.Root)
+			}
+			if rf.SecretKey != "the-key" {
+				t.Errorf("secret key not resolved: %q", rf.SecretKey)
+			}
+		})
+	}
+}
+
+func TestSignalExitCode(t *testing.T) {
+	if got := signalExitCode(os.Interrupt); got != 130 {
+		t.Errorf("SIGINT exit code = %d, want 130", got)
+	}
 }

@@ -3,8 +3,10 @@ package core
 import (
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -12,6 +14,12 @@ import (
 type ExecCommandWrapper struct {
 	// name string
 	cmd *exec.Cmd
+
+	// mu guards process and exited, which are written by the goroutines
+	// calling Start and Wait and read by the shutdown goroutine.
+	mu      sync.Mutex
+	process *os.Process
+	exited  bool
 }
 
 // Pid return PID for this command wrapper
@@ -31,27 +39,59 @@ func (c *ExecCommandWrapper) Stderr(stderr io.Writer) {
 
 // Start ...
 func (c *ExecCommandWrapper) Start() error {
-	return c.cmd.Start()
+	if err := c.cmd.Start(); err != nil {
+		return err
+	}
+	c.mu.Lock()
+	c.process = c.cmd.Process
+	c.mu.Unlock()
+	return nil
 }
 
 // Run ...
 func (c *ExecCommandWrapper) Run() error {
-	return c.cmd.Run()
+	if err := c.Start(); err != nil {
+		return err
+	}
+	return c.Wait()
 }
 
 // Stop ...
 func (c *ExecCommandWrapper) Stop() error {
-	return c.stopWithGracefulShutdown(5 * time.Second)
+	return c.stopWithGracefulShutdown(5*time.Second, "")
 }
 
 // stopWithGracefulShutdown implements graceful shutdown (platform-specific implementation)
-func (c *ExecCommandWrapper) stopWithGracefulShutdown(timeout time.Duration) error {
-	return stopWithGracefulShutdown(c.cmd, timeout)
+func (c *ExecCommandWrapper) stopWithGracefulShutdown(timeout time.Duration, id string) error {
+	p := c.startedProcess()
+	if p == nil {
+		if id != "" {
+			ui.WriteLinef("Process %s not found: process may not have been started", id)
+		}
+		return nil
+	}
+	return stopProcess(p, c.hasExited, timeout, id)
 }
 
 // Wait waits for the command to exit.
 func (c *ExecCommandWrapper) Wait() error {
-	return c.cmd.Wait()
+	err := c.cmd.Wait()
+	c.mu.Lock()
+	c.exited = true
+	c.mu.Unlock()
+	return err
+}
+
+func (c *ExecCommandWrapper) startedProcess() *os.Process {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.process
+}
+
+func (c *ExecCommandWrapper) hasExited() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.exited
 }
 
 func (c *ExecCommandWrapper) String() string {
@@ -60,24 +100,45 @@ func (c *ExecCommandWrapper) String() string {
 
 // ExecCommandStopper is the component calling the actual command stopping the process.
 type ExecCommandStopper struct {
-	id      string
+	id string
+	// wrapper is the running command; when set it is the only source of
+	// process state, so no exec.Cmd field is read concurrently with Wait.
+	wrapper *ExecCommandWrapper
+	// cmd is used when no wrapper is available.
 	cmd     *exec.Cmd
 	timeout time.Duration
 }
 
+func (c *ExecCommandStopper) execCmd() *exec.Cmd {
+	if c.wrapper != nil {
+		return c.wrapper.cmd
+	}
+	return c.cmd
+}
+
 // Pid ...
 func (c *ExecCommandStopper) Pid() int {
+	if c.wrapper != nil {
+		if p := c.wrapper.startedProcess(); p != nil {
+			return p.Pid
+		}
+		return 0
+	}
 	return c.cmd.Process.Pid
 }
 
 // Stdout ...
 func (c *ExecCommandStopper) Stdout(stdout io.Writer) {
-	c.cmd.Stdout = stdout
+	if cmd := c.execCmd(); cmd != nil {
+		cmd.Stdout = stdout
+	}
 }
 
 // Stderr ...
 func (c *ExecCommandStopper) Stderr(stderr io.Writer) {
-	c.cmd.Stderr = stderr
+	if cmd := c.execCmd(); cmd != nil {
+		cmd.Stderr = stderr
+	}
 }
 
 // Start ...
@@ -97,38 +158,27 @@ func (c *ExecCommandStopper) Stop() error {
 
 // stopWithGracefulShutdown implements graceful shutdown (platform-specific implementation)
 func (c *ExecCommandStopper) stopWithGracefulShutdown(timeout time.Duration) error {
-	p := c.cmd.Process
-	if p == nil {
+	if c.wrapper != nil {
+		return c.wrapper.stopWithGracefulShutdown(timeout, c.id)
+	}
+	if c.cmd == nil || c.cmd.Process == nil {
 		ui.WriteLinef("Process %s not found: process may not have been started", c.id)
 		return nil
 	}
-	if c.cmd.ProcessState != nil && c.cmd.ProcessState.Exited() {
-		return nil
-	}
-	return stopWithGracefulShutdownWithID(c.cmd, timeout, c.id)
+	cmd := c.cmd
+	exited := func() bool { return cmd.ProcessState != nil && cmd.ProcessState.Exited() }
+	return stopProcess(cmd.Process, exited, timeout, c.id)
 }
 
-// Wait waits for the command to exit.
-// Note: This should not be called if Wait() has already been called on the underlying cmd
-// by the executor. We check ProcessState to avoid calling Wait() twice.
+// Wait is a no-op: the executor owns the single Wait() call on the process.
 func (c *ExecCommandStopper) Wait() error {
-	// If ProcessState is already set, Wait() has been called elsewhere (by the executor)
-	// In this case, we just return the exit status if available
-	if c.cmd.ProcessState != nil {
-		if c.cmd.ProcessState.Exited() {
-			// Process has already exited and Wait() was called
-			// Return nil to indicate we've handled it (the executor will handle the actual error)
-			return nil
-		}
-		// ProcessState exists but process hasn't exited yet - this shouldn't happen
-		return nil
-	}
-	// ProcessState is nil, so Wait() hasn't been called yet
-	// But we shouldn't call it here because the executor is already waiting
-	// Just return nil and let the executor handle it
 	return nil
 }
 
 func (c *ExecCommandStopper) String() string {
-	return fmt.Sprintf("%T %s# %s", c, c.cmd.Dir, strings.Join(c.cmd.Args, " "))
+	cmd := c.execCmd()
+	if cmd == nil {
+		return fmt.Sprintf("%T (not started)", c)
+	}
+	return fmt.Sprintf("%T %s# %s", c, cmd.Dir, strings.Join(cmd.Args, " "))
 }

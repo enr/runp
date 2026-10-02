@@ -61,6 +61,18 @@ func IsRunpfileValid(runpfile *Runpfile) (bool, []error) {
 		errs = append(errs, errors.New("No units defined in Runpfile"))
 	}
 	for id, unit := range runpfile.Units {
+		if err := validateUnitName(id); err != nil {
+			errs = append(errs, err)
+		}
+		if unit != nil && unit.Name != "" && unit.Name != id {
+			if err := validateUnitName(unit.Name); err != nil {
+				errs = append(errs, err)
+			}
+		}
+		if unit == nil {
+			errs = append(errs, errors.New("Unit "+id+" must define exactly one process type: Host, SSHTunnel, or Container"))
+			continue
+		}
 		modes := []string{}
 		if unit.Container != nil {
 			modes = append(modes, "container")
@@ -79,6 +91,20 @@ func IsRunpfileValid(runpfile *Runpfile) (bool, []error) {
 		}
 	}
 	return (len(errs) == 0), errs
+}
+
+// validateUnitName rejects unit names that cannot be used safely as file
+// names (PID files) or container names.
+func validateUnitName(name string) error {
+	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\`) {
+		return fmt.Errorf("invalid unit name %q: it must not be empty, \".\", \"..\" or contain path separators", name)
+	}
+	for _, r := range name {
+		if r < 0x20 || r == 0x7f {
+			return fmt.Errorf("invalid unit name %q: it must not contain control characters", name)
+		}
+	}
+	return nil
 }
 
 type runpfileSource struct {
@@ -124,10 +150,18 @@ func circularImportError(runpfile runpfileSource) error {
 }
 
 func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSource, forValidation bool) (*Runpfile, error) {
-	if _, ok := visited[runpfile.path]; ok {
+	// visited holds the files on the current include chain only: a file
+	// included twice through different branches (A->B->D, A->C->D) is not a
+	// cycle; it is reported as duplicate units when merging.
+	key := runpfile.path
+	if abs, err := filepath.Abs(key); err == nil {
+		key = filepath.ToSlash(abs)
+	}
+	if _, ok := visited[key]; ok {
 		return nil, circularImportError(runpfile)
 	}
-	visited[runpfile.path] = runpfile
+	visited[key] = runpfile
+	defer delete(visited, key)
 	data, err := os.ReadFile(runpfile.path)
 	if err != nil {
 		return nil, err
@@ -142,6 +176,7 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 	}
 	for id, unit := range rf.Units {
 		unit.vars = rf.Vars
+		unit.root = rf.Root
 		if unit.Name == "" {
 			unit.Name = id
 		}
@@ -169,6 +204,12 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 	}
 	if runpfile.importedBy == "" {
 		ui.WriteLinef("Runpfile root directory: %s", rf.Root)
+		project := ProjectID(rf.Root)
+		for _, unit := range rf.Units {
+			if unit.Container != nil {
+				unit.Container.project = project
+			}
+		}
 	}
 	return rf, nil
 }
@@ -200,6 +241,16 @@ func merge(runpfile runpfileSource, rf *Runpfile, inc string, visited map[string
 		}
 		rf.Units[k] = v
 	}
+	// Vars declared in included files are available to all units; on a
+	// conflict the including file wins.
+	for k, v := range included.Vars {
+		if rf.Vars == nil {
+			rf.Vars = map[string]string{}
+		}
+		if _, ok := rf.Vars[k]; !ok {
+			rf.Vars[k] = v
+		}
+	}
 	return nil
 }
 
@@ -215,9 +266,22 @@ func sliceContains(s []string, e string) bool {
 func envAsArray(in map[string]string) (out []string) {
 	out = []string{}
 	for name, val := range in {
-		out = append(out, fmt.Sprintf("%s=%s", name, os.ExpandEnv(val)))
+		out = append(out, fmt.Sprintf("%s=%s", name, expandEnvValue(val)))
 	}
 	return out
+}
+
+// expandEnvValue expands $VAR and ${VAR} references to the environment of
+// runp; "$$" is an escape for a literal "$" (e.g. in passwords).
+func expandEnvValue(s string) string {
+	if !strings.Contains(s, "$") {
+		return s
+	}
+	parts := strings.Split(s, "$$")
+	for i, part := range parts {
+		parts[i] = os.ExpandEnv(part)
+	}
+	return strings.Join(parts, "$")
 }
 
 func loadRunpfileFromData(data []byte) (*Runpfile, error) {
@@ -243,6 +307,10 @@ func resolveWorkingDir(rf *Runpfile, unit *RunpUnit) (string, error) {
 	}
 	if pd == "" {
 		return rf.Root, nil
+	}
+	if varsRegexp.MatchString(pd) {
+		// Resolved when the unit starts, once the final vars are known.
+		return pd, nil
 	}
 	return resolvePath(pd, rf.Root)
 }
@@ -280,4 +348,75 @@ func cmd(commandLine string) (*exec.Cmd, error) {
 	args := shell.Args
 	args = append(args, commandLine)
 	return exec.Command(exe, args...), nil
+}
+
+// splitCommandLine splits s into words following POSIX shell quoting rules
+// (single quotes, double quotes, backslash escapes) without performing any
+// expansion. It is used to turn a command string into an argument list that
+// can be executed without a shell.
+func splitCommandLine(s string) ([]string, error) {
+	var words []string
+	var cur strings.Builder
+	inWord := false
+	const (
+		none = iota
+		single
+		double
+	)
+	quote := none
+	runes := []rune(s)
+	for i := 0; i < len(runes); i++ {
+		r := runes[i]
+		switch quote {
+		case single:
+			if r == '\'' {
+				quote = none
+			} else {
+				cur.WriteRune(r)
+			}
+		case double:
+			switch {
+			case r == '"':
+				quote = none
+			case r == '\\' && i+1 < len(runes) && strings.ContainsRune("\"\\$`\n", runes[i+1]):
+				i++
+				if runes[i] != '\n' {
+					cur.WriteRune(runes[i])
+				}
+			default:
+				cur.WriteRune(r)
+			}
+		default:
+			switch {
+			case r == ' ' || r == '\t' || r == '\n' || r == '\r':
+				if inWord {
+					words = append(words, cur.String())
+					cur.Reset()
+					inWord = false
+				}
+			case r == '\'':
+				quote, inWord = single, true
+			case r == '"':
+				quote, inWord = double, true
+			case r == '\\':
+				inWord = true
+				if i+1 < len(runes) {
+					i++
+					if runes[i] != '\n' {
+						cur.WriteRune(runes[i])
+					}
+				}
+			default:
+				inWord = true
+				cur.WriteRune(r)
+			}
+		}
+	}
+	if quote != none {
+		return nil, errors.New("unterminated quote in command")
+	}
+	if inWord {
+		words = append(words, cur.String())
+	}
+	return words, nil
 }

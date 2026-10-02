@@ -2,9 +2,11 @@ package core
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -27,13 +29,16 @@ type HostProcess struct {
 	Env        map[string]string
 	Await      AwaitCondition
 
-	id                  string
-	cmd                 *exec.Cmd
+	id string
+	// mu guards cmd, written when the unit starts and read on shutdown.
+	mu                  sync.Mutex
+	cmd                 *ExecCommandWrapper
 	vars                map[string]string
 	preconditions       Preconditions
 	secretKey           string
 	stopTimeout         string
 	pidDir              string
+	startedPid          int
 	environmentSettings *EnvironmentSettings
 }
 
@@ -44,6 +49,7 @@ func (p *HostProcess) PreStart() error {
 
 // OnStarted writes a PID file when a PID directory is configured.
 func (p *HostProcess) OnStarted(pid int) {
+	p.startedPid = pid
 	if p.pidDir != "" && pid > 0 {
 		if err := WritePIDFile(p.pidDir, p.id, pid); err != nil {
 			ui.Debugf("Failed to write PID file for unit %s: %v", p.id, err)
@@ -51,10 +57,11 @@ func (p *HostProcess) OnStarted(pid int) {
 	}
 }
 
-// PostStop removes the PID file written by OnStarted.
+// PostStop removes the PID file written by OnStarted, unless it has since
+// been replaced by another instance of the unit (e.g. by runp reload).
 func (p *HostProcess) PostStop() {
-	if p.pidDir != "" {
-		RemovePIDFile(p.pidDir, p.id)
+	if p.pidDir != "" && p.startedPid > 0 {
+		removePIDFileIfOwned(p.pidDir, p.id, p.startedPid)
 	}
 }
 
@@ -103,19 +110,31 @@ func (p *HostProcess) StartCommand() (RunpCommand, error) {
 		return nil, err
 	}
 	cmd.Dir = p.resolveWorkingDir()
+	if cmd.Dir != "" {
+		if fi, err := os.Stat(cmd.Dir); err != nil || !fi.IsDir() {
+			return nil, fmt.Errorf("working directory for process %s does not exist or is not a directory: %s", p.ID(), cmd.Dir)
+		}
+	}
 	// Configure process attributes for proper signal handling
 	configureProcessAttributes(cmd)
-	p.cmd = cmd
-	return &ExecCommandWrapper{
-		cmd: cmd,
-	}, nil
+	wrapper := &ExecCommandWrapper{cmd: cmd}
+	p.mu.Lock()
+	p.cmd = wrapper
+	p.mu.Unlock()
+	return wrapper, nil
 }
 
 // StopCommand returns the command stopping the process.
 func (p *HostProcess) StopCommand() (RunpCommand, error) {
+	p.mu.Lock()
+	wrapper := p.cmd
+	p.mu.Unlock()
+	if wrapper == nil {
+		return &ExecCommandStopper{id: p.id, timeout: p.StopTimeout()}, nil
+	}
 	return &ExecCommandStopper{
 		id:      p.id,
-		cmd:     p.cmd,
+		wrapper: wrapper,
 		timeout: p.StopTimeout(),
 	}, nil
 }

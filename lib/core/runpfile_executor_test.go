@@ -346,33 +346,35 @@ func TestRunpfileExecutor_isGracefulShutdown_ExitError(t *testing.T) {
 		Debug: false,
 		Color: false,
 	})
+	appContext := GetApplicationContext()
+	appContext.Lock()
+	wasShuttingDown := appContext.shuttingDown
+	appContext.shuttingDown = false
+	appContext.Unlock()
+	t.Cleanup(func() {
+		appContext.Lock()
+		appContext.shuttingDown = wasShuttingDown
+		appContext.Unlock()
+	})
 
-	rf := &Runpfile{}
-	executor := NewExecutor(rf)
 	mockProcess := &mockRunpProcess{id: "test-process"}
-	logger := testLogger
+	err := exec.Command("sh", "-c", "exit 143").Run() // 143 = 128 + 15 (SIGTERM)
+	exitErr, ok := err.(*exec.ExitError)
+	if !ok {
+		t.Fatalf("expected *exec.ExitError, got %T", err)
+	}
 
-	// Test con un vero ExitError creato eseguendo un comando che fallisce
-	// Nota: questo test potrebbe non funzionare su tutti i sistemi
-	cmd := exec.Command("sh", "-c", "exit 143") // 143 = 128 + 15 (SIGTERM)
-	err := cmd.Run()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			// Verifica che il codice di uscita sia quello atteso
-			exitCode := exitErr.ExitCode()
-			if exitCode == 143 {
-				result := executor.isGracefulShutdown(exitErr, mockProcess, logger)
-				if !result {
-					t.Errorf("isGracefulShutdown() should return true for exit code 143 (SIGTERM), got %v", result)
-				}
-			} else {
-				t.Logf("Exit code was %d, expected 143", exitCode)
-			}
-		} else {
-			t.Logf("Error is not an ExitError: %T", err)
-		}
-	} else {
-		t.Log("Command did not fail as expected")
+	// Outside a shutdown, a process terminated by a signal is an error
+	// (e.g. killed by the OOM killer) and must be reported.
+	executor := NewExecutor(&Runpfile{})
+	if executor.isGracefulShutdown(exitErr, mockProcess, testLogger) {
+		t.Error("exit code 143 outside a shutdown must not be considered graceful")
+	}
+
+	// While runp is stopping the units, it is the expected outcome.
+	close(executor.aborted)
+	if !executor.isGracefulShutdown(exitErr, mockProcess, testLogger) {
+		t.Error("exit during an abort must be considered graceful")
 	}
 }
 
