@@ -65,7 +65,7 @@ func TestStopContainerRefusesOtherProject(t *testing.T) {
 	runner, log := fakeContainerRunner(t, true, "running", "other123")
 	cp := &ContainerProcess{Image: "alpine", project: "mine4567"}
 	cp.SetID("db")
-	err := stopContainer(cp, &EnvironmentSettings{ContainerRunnerExe: runner})
+	err := stopContainer(cp, 5*time.Second, &EnvironmentSettings{ContainerRunnerExe: runner})
 	if err == nil || !strings.Contains(err.Error(), "another Runpfile") {
 		t.Fatalf("expected refusal, got %v", err)
 	}

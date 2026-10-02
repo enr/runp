@@ -511,6 +511,23 @@ func TestDoEncrypt(t *testing.T) {
 		if !strings.Contains(output, "Encrypted secret:") {
 			t.Errorf("Expected output to contain 'Encrypted secret:', got '%s'", output)
 		}
+		// The generated key must be printed, and must decrypt the secret.
+		var key, encrypted string
+		for _, line := range s.lines {
+			if v, ok := strings.CutPrefix(strings.TrimSpace(line), "Generated key: "); ok {
+				key = v
+			}
+			if v, ok := strings.CutPrefix(strings.TrimSpace(line), "Encrypted secret: "); ok {
+				encrypted = v
+			}
+		}
+		if key == "" {
+			t.Fatalf("Expected the generated key in output, got '%s'", output)
+		}
+		plain, err := core.DecryptBase64(encrypted, key)
+		if err != nil || string(plain) != "secret-value" {
+			t.Errorf("printed key does not decrypt the secret: %q, %v", plain, err)
+		}
 	})
 
 	t.Run("missing secret parameter (no stdin pipe)", func(t *testing.T) {

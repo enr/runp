@@ -164,8 +164,10 @@ var commandReload = cli.Command{
 	Usage:       "reload <unit-name>",
 	Description: `Stop and restart a single unit by name. Run this in a separate shell while runp up is running to reload a single service without stopping the full stack. SSH tunnel units are not supported.`,
 	UsageText: `runp reload web
-   runp reload api --file ./infra/Runpfile
-   runp reload api --var DB_HOST=localhost --key-env RUNP_SECRET_KEY`,
+   runp reload --file ./infra/Runpfile api
+   runp reload --var DB_HOST=localhost --key-env RUNP_SECRET_KEY api
+
+   Flags must precede the unit name.`,
 	Action: doReload,
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile or HTTP/HTTPS URL (overrides RUNP_FILE env var)`},

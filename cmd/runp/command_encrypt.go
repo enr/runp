@@ -27,14 +27,20 @@ func doEncrypt(c *cli.Context) error {
 		}
 		key = ev
 	}
+	generated := false
 	if key == "" {
 		ui.WriteLinef("No encryption key provided, generating random key")
 		key = core.RandomKey()
+		generated = true
 	}
 	ui.Debugf("Encrypting secret using key: %s", key)
 	secret, err := core.EncryptToBase64([]byte(plain), key)
 	if err != nil {
 		return exitErrorf(exitCodeExec, "Encryption operation failed: %v", err)
+	}
+	if generated {
+		// Without the key the encrypted secret cannot be used: print it.
+		ui.WriteLinef("Generated key: %s", key)
 	}
 	ui.WriteLinef("Encrypted secret: %s", secret)
 	return nil

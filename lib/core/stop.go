@@ -26,7 +26,7 @@ func StopUnit(unit *RunpUnit, pidDir string, envSettings *EnvironmentSettings) e
 	case unit.Host != nil:
 		return stopByPIDFile(unit.Name, timeout, pidDir)
 	case unit.Container != nil:
-		return stopContainer(unit.Container, envSettings)
+		return stopContainer(unit.Container, timeout, envSettings)
 	case unit.SSHTunnel != nil:
 		return fmt.Errorf("unit %q: %w: SSH tunnels run inside the runp up process and cannot be reloaded externally", unit.Name, ErrReloadNotSupported)
 	}
@@ -64,7 +64,7 @@ func stopByPIDFile(unitName string, timeout time.Duration, pidDir string) error 
 	return stopProcessGracefully(proc, timeout)
 }
 
-func stopContainer(c *ContainerProcess, envSettings *EnvironmentSettings) error {
+func stopContainer(c *ContainerProcess, timeout time.Duration, envSettings *EnvironmentSettings) error {
 	runner, err := exec.LookPath(envSettings.ContainerRunnerExe)
 	if err != nil {
 		return fmt.Errorf("container runner not found: %s", envSettings.ContainerRunnerExe)
@@ -75,7 +75,7 @@ func stopContainer(c *ContainerProcess, envSettings *EnvironmentSettings) error 
 	if owner, err := containerProject(runner, name); err == nil && owner != "" && c.project != "" && owner != c.project {
 		return fmt.Errorf("container %q belongs to another Runpfile (project %s), not stopping it", name, owner)
 	}
-	out, err := exec.Command(runner, "stop", name).CombinedOutput()
+	out, err := exec.Command(runner, containerStopArgs(name, timeout)...).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to stop container %q: %v (%s)", name, err, string(out))
 	}

@@ -138,3 +138,40 @@ func TestStopInReverseOrder(t *testing.T) {
 		t.Errorf("stop order = %s, want stray,worker,api,db", got)
 	}
 }
+
+func TestContainerStopArgsUseStopTimeout(t *testing.T) {
+	got := strings.Join(containerStopArgs("runp-db", 1500*time.Millisecond), " ")
+	if got != "stop -t 2 runp-db" {
+		t.Errorf("containerStopArgs = %q", got)
+	}
+}
+
+func TestValidateWarnsAwaitWithoutTimeout(t *testing.T) {
+	rf := &Runpfile{Units: map[string]*RunpUnit{
+		"u": {Host: &HostProcess{CommandLine: "true", Await: AwaitCondition{Resource: "tcp4://localhost:1/"}}},
+	}}
+	res := ValidateRunpfile(rf)
+	found := false
+	for _, w := range res.Warnings {
+		if strings.Contains(w, "without await.timeout") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected await warning, got %v", res.Warnings)
+	}
+}
+
+func TestIncludedVarsAreMerged(t *testing.T) {
+	ConfigureUI(testLogger, LoggerConfig{Debug: false, Color: false})
+	rf, err := LoadRunpfileFromPath("../../examples/Runpfile-include.yml")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if _, ok := rf.Vars["foo"]; !ok {
+		t.Fatalf("vars of included files not merged: %v", rf.Vars)
+	}
+	if res := ValidateRunpfile(rf); !res.Valid() {
+		t.Errorf("Runpfile-include.yml should be valid: %v", res.Errors)
+	}
+}

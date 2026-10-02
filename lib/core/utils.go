@@ -241,6 +241,16 @@ func merge(runpfile runpfileSource, rf *Runpfile, inc string, visited map[string
 		}
 		rf.Units[k] = v
 	}
+	// Vars declared in included files are available to all units; on a
+	// conflict the including file wins.
+	for k, v := range included.Vars {
+		if rf.Vars == nil {
+			rf.Vars = map[string]string{}
+		}
+		if _, ok := rf.Vars[k]; !ok {
+			rf.Vars[k] = v
+		}
+	}
 	return nil
 }
 

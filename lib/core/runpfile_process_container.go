@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -86,8 +87,15 @@ func (p *ContainerProcess) StopCommand() (RunpCommand, error) {
 		return nil, err
 	}
 	return &ExecCommandWrapper{
-		cmd: exec.Command(containerRunner, "stop", p.buildContainerName()),
+		cmd: exec.Command(containerRunner, containerStopArgs(p.buildContainerName(), p.StopTimeout())...),
 	}, nil
+}
+
+// containerStopArgs returns the arguments of "<runner> stop", passing the
+// unit's stop_timeout (rounded up to whole seconds) as the grace period.
+func containerStopArgs(name string, timeout time.Duration) []string {
+	secs := int((timeout + time.Second - 1) / time.Second)
+	return []string{"stop", "-t", strconv.Itoa(secs), name}
 }
 
 // StopTimeout duration to wait to force kill process
