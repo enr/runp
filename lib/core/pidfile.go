@@ -18,23 +18,28 @@ func PIDDirForRoot(root string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	return filepath.Join(home, ".runp", "pids", ProjectID(root)), nil
+}
+
+// ProjectID returns a short identifier for the Runpfile rooted at root. It
+// scopes PID files and labels the containers started for that Runpfile.
+func ProjectID(root string) string {
 	h := sha256.Sum256([]byte(root))
-	hash := fmt.Sprintf("%x", h)[:8]
-	return filepath.Join(home, ".runp", "pids", hash), nil
+	return fmt.Sprintf("%x", h)[:8]
 }
 
 // WritePIDFile writes pid to <pidDir>/<unitName>.pid, creating the directory if needed.
 // The file also records the identity (start time) of the process, so that a
 // stale file whose PID has been reused by another process can be detected.
 func WritePIDFile(pidDir, unitName string, pid int) error {
-	if err := os.MkdirAll(pidDir, 0755); err != nil {
+	if err := os.MkdirAll(pidDir, 0700); err != nil {
 		return err
 	}
 	content := strconv.Itoa(pid) + "\n"
 	if identity := processIdentity(pid); identity != "" {
 		content += identity + "\n"
 	}
-	return os.WriteFile(pidFilePath(pidDir, unitName), []byte(content), 0644)
+	return os.WriteFile(pidFilePath(pidDir, unitName), []byte(content), 0600)
 }
 
 // ReadPIDFile reads the PID stored in <pidDir>/<unitName>.pid.

@@ -12,6 +12,23 @@ type ApplicationContext struct {
 	shuttingDown     bool
 	shutdownOnce     sync.Once
 	shutdownCh       chan struct{}
+	// stopOrder lists process IDs in start (dependency) order, layer by
+	// layer; processes are stopped in the reverse order.
+	stopOrder [][]string
+}
+
+// SetStopOrder records the dependency layers (process IDs, dependencies
+// first) used to stop processes in reverse dependency order.
+func (c *ApplicationContext) SetStopOrder(layers [][]string) {
+	c.Lock()
+	defer c.Unlock()
+	c.stopOrder = layers
+}
+
+func (c *ApplicationContext) getStopOrder() [][]string {
+	c.Lock()
+	defer c.Unlock()
+	return c.stopOrder
 }
 
 // RegisterRunningProcess add process to the list of running ones.
@@ -58,7 +75,32 @@ func (c *ApplicationContext) StopRunningProcesses() {
 		return
 	}
 	ui.Debugf("Active processes detected: %d", len(processes))
-	stopProcesses(processes)
+	stopInReverseOrder(processes, c.getStopOrder())
+}
+
+// stopInReverseOrder stops dependents before their dependencies: the layers
+// of order are stopped from the last to the first, each layer concurrently.
+// Processes not listed in order are stopped first.
+func stopInReverseOrder(processes map[string]RunpProcess, order [][]string) {
+	remaining := make(map[string]RunpProcess, len(processes))
+	for id, p := range processes {
+		remaining[id] = p
+	}
+	batches := make([]map[string]RunpProcess, 0, len(order)+1)
+	for i := len(order) - 1; i >= 0; i-- {
+		batch := map[string]RunpProcess{}
+		for _, id := range order[i] {
+			if p, ok := remaining[id]; ok {
+				batch[id] = p
+				delete(remaining, id)
+			}
+		}
+		batches = append(batches, batch)
+	}
+	stopProcesses(remaining)
+	for _, batch := range batches {
+		stopProcesses(batch)
+	}
 }
 
 // stopProcesses stops processes concurrently and waits for all of them.

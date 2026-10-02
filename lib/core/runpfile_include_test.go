@@ -20,8 +20,9 @@ var okTestCases = []includesTestCase{
 
 var koTestCases = []includesTestCase{
 	{
+		// 04 includes 02 directly and through 05: a diamond, not a cycle.
 		runpfilePath: "../../testdata/runpfiles/include/04-02-05.yml",
-		errors:       []string{"circular dependency", "02.yml"},
+		errors:       []string{"duplicate unit", "unit-in-02"},
 	},
 	{
 		runpfilePath: "../../testdata/runpfiles/include/06-07.yml",

@@ -58,8 +58,17 @@ func validateVarExpansion(rf *Runpfile) []error {
 	return nil
 }
 
+// implicitVars are set by runp itself when units start, so they can be
+// referenced without being declared in the vars section.
+var implicitVars = map[string]bool{
+	"runp_root":           true,
+	"runp_workdir":        true,
+	"runp_file_separator": true,
+}
+
 // validateVariableRefs checks that every {{vars NAME}} reference inside a
-// unit resolves to a name declared in the Runpfile vars section.
+// unit resolves to a name declared in the Runpfile vars section (or to an
+// implicit var).
 func validateVariableRefs(rf *Runpfile) []error {
 	var errs []error
 
@@ -78,7 +87,7 @@ func validateVariableRefs(rf *Runpfile) []error {
 		}
 		refs := extractVarRefs(string(data))
 		for _, ref := range refs {
-			if _, declared := rf.Vars[ref]; !declared {
+			if _, declared := rf.Vars[ref]; !declared && !implicitVars[ref] {
 				errs = append(errs, fmt.Errorf(
 					"unit %q: variable %q referenced but not declared in vars section",
 					unitName, ref,

@@ -53,6 +53,9 @@ type RunpfileExecutor struct {
 	// running tracks every started process until it has exited, so that
 	// Start does not return while children are still alive.
 	running sync.WaitGroup
+	// dryRun disables precondition checks with side effects (e.g. the SSH
+	// tunnel test_command, which connects to the jump server).
+	dryRun bool
 	// aborted is closed when a unit fails to start; units not yet started
 	// are then skipped.
 	aborted   chan struct{}
@@ -129,6 +132,10 @@ func (e *RunpfileExecutor) unitPreconditions(unit *RunpUnit) *PreconditionVerify
 		return &pr
 	}
 	if unit.SSHTunnel != nil {
+		if e.dryRun {
+			pr := unit.SSHTunnel.preconditions.Verify()
+			return &pr
+		}
 		pr := unit.SSHTunnel.VerifyPreconditions()
 		return &pr
 	}
@@ -146,6 +153,9 @@ func (e *RunpfileExecutor) StartSingleUnit(unitName string) error {
 	e.initializeUnits()
 	if pr := e.unitPreconditions(unit); pr != nil && pr.Vote != Proceed {
 		return fmt.Errorf("preconditions not satisfied for unit %q: %v", unitName, pr.Reasons)
+	}
+	if errs := validateVariableRefs(&Runpfile{Vars: e.rf.Vars, Units: map[string]*RunpUnit{unitName: unit}}); len(errs) > 0 {
+		return fmt.Errorf("cannot start: %w", multiError(errs))
 	}
 	warnInsecureSSHTunnels(e.rf.Units, map[string]bool{})
 	err := e.startUnit(unit)
@@ -172,7 +182,7 @@ func (e *RunpfileExecutor) abort() {
 				own[p.ID()] = p
 			}
 		}
-		stopProcesses(own)
+		stopInReverseOrder(own, GetApplicationContext().getStopOrder())
 	})
 }
 
@@ -232,6 +242,14 @@ func (e *RunpfileExecutor) Start() error {
 	}
 	warnInsecureSSHTunnels(e.rf.Units, skipped)
 
+	// An undefined var would otherwise reach commands as "{undefined:name}".
+	if errs := validateVariableRefs(e.rf); len(errs) > 0 {
+		for _, err := range errs {
+			ui.WriteLinef("%v", err)
+		}
+		return fmt.Errorf("cannot start: %d undefined variable reference(s)", len(errs))
+	}
+
 	// Validates depends_on references and cycles; the layers only give a
 	// deterministic launch order, readiness is tracked per unit.
 	layers, err := TopologicalLayers(e.rf.Units, skipped)
@@ -240,6 +258,18 @@ func (e *RunpfileExecutor) Start() error {
 	}
 
 	warnBlockingDependencies(e.rf.Units, skipped)
+
+	stopOrder := make([][]string, 0, len(layers))
+	for _, layer := range layers {
+		ids := make([]string, 0, len(layer))
+		for _, name := range layer {
+			if p := e.rf.Units[name].Process(); p != nil {
+				ids = append(ids, p.ID())
+			}
+		}
+		stopOrder = append(stopOrder, ids)
+	}
+	GetApplicationContext().SetStopOrder(stopOrder)
 
 	states := make(map[string]*unitReadiness)
 	for _, layer := range layers {
@@ -491,7 +521,7 @@ func (e *RunpfileExecutor) handleAwaitResources(process RunpProcess, logger Logg
 		return err
 	}
 
-	err = await(duration, resources)
+	err = e.await(duration, resources)
 	if err != nil {
 		if err == impatient.ErrTimeout {
 			logger.WriteLinef("Timeout exceeded while awaiting resources for process %s: %v", process.ID(), err)
@@ -525,13 +555,35 @@ func warnInsecureSSHTunnels(units map[string]*RunpUnit, skipped map[string]bool)
 	}
 }
 
-func await(duration time.Duration, resources []string) error {
+// await waits for resources (or for duration when there are none). It is
+// cancelled when the executor aborts, so a failed unit does not leave other
+// units waiting until their await timeout.
+func (e *RunpfileExecutor) await(duration time.Duration, resources []string) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		select {
+		case <-e.aborted:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
 	ui.WriteLinef(`Awaiting resources for %s: %v resources %v`, duration, len(resources), resources)
 	if len(resources) < 1 {
 		ui.WriteLinef("No resources specified, waiting for duration: %s", duration)
-		time.Sleep(duration)
-		return nil
+		select {
+		case <-time.After(duration):
+			return nil
+		case <-ctx.Done():
+			return fmt.Errorf("await cancelled: %w", errShuttingDown)
+		}
 	}
 	ui.WriteLinef("Awaiting %d resource(s) for %s: %v", len(resources), duration, resources)
-	return impatient.Await(context.Background(), resources, duration)
+	if err := impatient.Await(ctx, resources, duration); err != nil {
+		if e.isAborted() {
+			return fmt.Errorf("await cancelled: %w", errShuttingDown)
+		}
+		return err
+	}
+	return nil
 }

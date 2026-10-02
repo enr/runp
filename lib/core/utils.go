@@ -61,6 +61,18 @@ func IsRunpfileValid(runpfile *Runpfile) (bool, []error) {
 		errs = append(errs, errors.New("No units defined in Runpfile"))
 	}
 	for id, unit := range runpfile.Units {
+		if err := validateUnitName(id); err != nil {
+			errs = append(errs, err)
+		}
+		if unit != nil && unit.Name != "" && unit.Name != id {
+			if err := validateUnitName(unit.Name); err != nil {
+				errs = append(errs, err)
+			}
+		}
+		if unit == nil {
+			errs = append(errs, errors.New("Unit "+id+" must define exactly one process type: Host, SSHTunnel, or Container"))
+			continue
+		}
 		modes := []string{}
 		if unit.Container != nil {
 			modes = append(modes, "container")
@@ -79,6 +91,20 @@ func IsRunpfileValid(runpfile *Runpfile) (bool, []error) {
 		}
 	}
 	return (len(errs) == 0), errs
+}
+
+// validateUnitName rejects unit names that cannot be used safely as file
+// names (PID files) or container names.
+func validateUnitName(name string) error {
+	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\`) {
+		return fmt.Errorf("invalid unit name %q: it must not be empty, \".\", \"..\" or contain path separators", name)
+	}
+	for _, r := range name {
+		if r < 0x20 || r == 0x7f {
+			return fmt.Errorf("invalid unit name %q: it must not contain control characters", name)
+		}
+	}
+	return nil
 }
 
 type runpfileSource struct {
@@ -124,10 +150,18 @@ func circularImportError(runpfile runpfileSource) error {
 }
 
 func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSource, forValidation bool) (*Runpfile, error) {
-	if _, ok := visited[runpfile.path]; ok {
+	// visited holds the files on the current include chain only: a file
+	// included twice through different branches (A->B->D, A->C->D) is not a
+	// cycle; it is reported as duplicate units when merging.
+	key := runpfile.path
+	if abs, err := filepath.Abs(key); err == nil {
+		key = filepath.ToSlash(abs)
+	}
+	if _, ok := visited[key]; ok {
 		return nil, circularImportError(runpfile)
 	}
-	visited[runpfile.path] = runpfile
+	visited[key] = runpfile
+	defer delete(visited, key)
 	data, err := os.ReadFile(runpfile.path)
 	if err != nil {
 		return nil, err
@@ -170,6 +204,12 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 	}
 	if runpfile.importedBy == "" {
 		ui.WriteLinef("Runpfile root directory: %s", rf.Root)
+		project := ProjectID(rf.Root)
+		for _, unit := range rf.Units {
+			if unit.Container != nil {
+				unit.Container.project = project
+			}
+		}
 	}
 	return rf, nil
 }
@@ -216,9 +256,22 @@ func sliceContains(s []string, e string) bool {
 func envAsArray(in map[string]string) (out []string) {
 	out = []string{}
 	for name, val := range in {
-		out = append(out, fmt.Sprintf("%s=%s", name, os.ExpandEnv(val)))
+		out = append(out, fmt.Sprintf("%s=%s", name, expandEnvValue(val)))
 	}
 	return out
+}
+
+// expandEnvValue expands $VAR and ${VAR} references to the environment of
+// runp; "$$" is an escape for a literal "$" (e.g. in passwords).
+func expandEnvValue(s string) string {
+	if !strings.Contains(s, "$") {
+		return s
+	}
+	parts := strings.Split(s, "$$")
+	for i, part := range parts {
+		parts[i] = os.ExpandEnv(part)
+	}
+	return strings.Join(parts, "$")
 }
 
 func loadRunpfileFromData(data []byte) (*Runpfile, error) {

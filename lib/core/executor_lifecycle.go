@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"sync"
-	"syscall"
 )
 
 // monitorProcessExit waits for cmd in the background. The exit error is
@@ -66,37 +65,22 @@ func (e *RunpfileExecutor) verifyProcessStartability(process RunpProcess, logger
 	return nil
 }
 
+// isGracefulShutdown reports whether a process exit is the expected effect of
+// runp stopping it: runp is shutting down (Ctrl-C, or a unit failed to start)
+// and the process exited, typically by signal. Outside a shutdown a process
+// killed by a signal (e.g. by the OOM killer) is an error and is reported.
 func (e *RunpfileExecutor) isGracefulShutdown(err error, process RunpProcess, logger Logger) bool {
 	exitErr, ok := err.(*exec.ExitError)
 	if !ok {
 		return false
 	}
-
-	errMsg := err.Error()
-	// Check for common graceful shutdown error messages
-	if errMsg == "signal: terminated" || errMsg == "signal: interrupt" || errMsg == "signal: killed" {
-		logger.Debugf("Process %s terminated by signal (graceful shutdown): %s", process.ID(), errMsg)
-		return true
+	if !GetApplicationContext().IsShuttingDown() && !e.isAborted() {
+		return false
 	}
-
-	exitCode := exitErr.ExitCode()
-	// Check for common graceful shutdown exit codes on Unix systems
-	if exitCode == 128+int(syscall.SIGTERM) || exitCode == 128+int(syscall.SIGINT) || exitCode == 128+int(syscall.SIGKILL) {
-		logger.Debugf("Process %s terminated by signal (graceful shutdown), exit code: %d", process.ID(), exitCode)
-		return true
-	}
-
-	// On Windows, when a process is killed with Kill(), it may generate exit code 1
-	// but we cannot assume all exit code 1 are graceful shutdowns.
-	// Verify if the application is shutting down.
-	// If shutting down, consider all *exec.ExitError as graceful shutdown.
-	appContext := GetApplicationContext()
-	if appContext.IsShuttingDown() {
-		logger.Debugf("Process %s terminated during application shutdown (graceful shutdown), exit code: %d", process.ID(), exitCode)
-		return true
-	}
-
-	return false
+	// On Windows a killed process may exit with code 1: during a shutdown
+	// every *exec.ExitError is considered graceful.
+	logger.Debugf("Process %s terminated during shutdown (graceful shutdown): %s (exit code %d)", process.ID(), err, exitErr.ExitCode())
+	return true
 }
 
 func (e *RunpfileExecutor) handleProcessError(err error, process RunpProcess, logger Logger, appContext *ApplicationContext) {

@@ -70,6 +70,11 @@ func stopContainer(c *ContainerProcess, envSettings *EnvironmentSettings) error 
 		return fmt.Errorf("container runner not found: %s", envSettings.ContainerRunnerExe)
 	}
 	name := c.buildContainerName()
+	// Never stop a container started for another Runpfile that happens to
+	// use the same name.
+	if owner, err := containerProject(runner, name); err == nil && owner != "" && c.project != "" && owner != c.project {
+		return fmt.Errorf("container %q belongs to another Runpfile (project %s), not stopping it", name, owner)
+	}
 	out, err := exec.Command(runner, "stop", name).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to stop container %q: %v (%s)", name, err, string(out))

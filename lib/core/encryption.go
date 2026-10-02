@@ -24,9 +24,10 @@ func deriveKey(passphrase string, salt []byte) []byte {
 	return pbkdf2.Key([]byte(passphrase), salt, kdfIter, kdfKeyLen, sha256.New)
 }
 
-// RandomKey generates a random string usable as key to encrypt secrets
+// RandomKey generates a random string usable as key to encrypt secrets.
+// It carries 256 bits of entropy (64 hex characters).
 func RandomKey() string {
-	b := make([]byte, 6)
+	b := make([]byte, 32)
 	if _, err := io.ReadFull(rand.Reader, b); err != nil {
 		panic("crypto/rand unavailable: " + err.Error())
 	}

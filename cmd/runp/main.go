@@ -21,8 +21,12 @@ Build date: %s
 )
 
 func listenForShutdown(ch <-chan os.Signal) {
+	// Exit with the conventional 128+signal code on Ctrl-C/SIGTERM, and with
+	// a failure when the shutdown was triggered by an internal error.
+	exitCode := 1
 	select {
-	case <-ch:
+	case sig := <-ch:
+		exitCode = signalExitCode(sig)
 	case <-appContext.ShutdownChan():
 	}
 	ui.Debug("Initiating graceful shutdown sequence")
@@ -57,7 +61,14 @@ func listenForShutdown(ch <-chan os.Signal) {
 		resetColorsFinal
 
 	fmt.Print(resetSequence)
-	os.Exit(0)
+	os.Exit(exitCode)
+}
+
+func signalExitCode(sig os.Signal) int {
+	if s, ok := sig.(syscall.Signal); ok {
+		return 128 + int(s)
+	}
+	return 1
 }
 
 func main() {
@@ -96,5 +107,16 @@ func main() {
 	app.Commands = commands
 	app.DefaultCommand = "up"
 
-	app.Run(os.Args)
+	err := app.Run(os.Args)
+	if appContext.IsShuttingDown() {
+		// Units exited because a shutdown is in progress: let the shutdown
+		// listener finish and exit with its code (e.g. 130 after Ctrl-C).
+		select {}
+	}
+	if err != nil {
+		// Errors implementing cli.ExitCoder have already been handled (and
+		// the process exited) by app.Run; anything else is a failure.
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }

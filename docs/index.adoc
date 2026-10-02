@@ -595,6 +595,9 @@ units:
         MYHOME: ${HOME}
 ----
 
+Environment variables of runp (`$NAME` or `${NAME}`) are expanded in `env` values. Use `$$` for a
+literal `$`, e.g. `PASSWORD: pa$$word` sets `pa$word`.
+
 Wait for an HTTP resource to be available:
 [source,yaml]
 ----
@@ -714,6 +717,13 @@ Only Docker and Podman (as they use the same command line flags) are supported.
 Containers can talk to each other thorough a Docker network (`runp-network`).
 
 The container name (the host name exposed to other containers) is set to `runp-${UNIT NAME}` or to the field `name`.
+
+Containers started by runp carry the label `runp.project` identifying their Runpfile: `runp reload` and
+`runp status` never act on a container with the same name started for another Runpfile. If a container
+with the unit's name already exists (running or stopped), the unit is not started and runp tells how to remove it.
+
+The container `command` is split into arguments with shell quoting rules (quotes and backslashes) but is not
+expanded by a shell on the host: use `sh -c '...'` to run a shell inside the container.
 
 This Runpfile starts Wordpress and MySql:
 
@@ -1024,6 +1034,9 @@ units:
     host:
       command: echo __{{vars foo}}__
 ----
+
+Variable names may contain letters, digits and underscores (e.g. `DB_HOST`). Referencing a variable
+that is not declared is an error: runp does not start any unit.
 
 The var `foo` will have value `FOO_DEFAULT_VALUE` or can be set from command line:
 

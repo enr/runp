@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	varsRegexp = regexp.MustCompile(`{{[[:space:]]{0,}vars[[:space:]]+([a-z_]+)[[:space:]]{0,}?}}`)
+	varsRegexp = regexp.MustCompile(`{{[[:space:]]{0,}vars[[:space:]]+([A-Za-z_][A-Za-z0-9_]*)[[:space:]]{0,}?}}`)
 )
 
 // ExpandVars resolves {{vars NAME}} references inside var values, enabling

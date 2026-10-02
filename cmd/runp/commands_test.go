@@ -1048,3 +1048,9 @@ func TestPrepareRunpfileAppliesVarsAndKey(t *testing.T) {
 		})
 	}
 }
+
+func TestSignalExitCode(t *testing.T) {
+	if got := signalExitCode(os.Interrupt); got != 130 {
+		t.Errorf("SIGINT exit code = %d, want 130", got)
+	}
+}
