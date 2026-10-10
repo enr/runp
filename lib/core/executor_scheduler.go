@@ -195,6 +195,10 @@ func (e *RunpfileExecutor) isAborted() bool {
 	}
 }
 
+// outputDrainGrace is how long, after a process exits, its remaining output
+// is awaited before its dependents are released.
+const outputDrainGrace = 200 * time.Millisecond
+
 // errShuttingDown marks units that were not started, or were stopped,
 // because another unit failed and runp is stopping everything.
 var errShuttingDown = errors.New("runp is shutting down")
@@ -440,7 +444,7 @@ func (e *RunpfileExecutor) runUnit(unit *RunpUnit, ready func(error)) error {
 	if e.isAborted() {
 		// abort ran between the check above and the start: stop this unit too.
 		stopRunningProcess(process)
-		e.readProcessOutput(r, process, logger)
+		go e.readProcessOutput(r, process, logger)
 		return fmt.Errorf("unit %s stopped: %w", unit.Name, errShuttingDown)
 	}
 
@@ -460,8 +464,19 @@ func (e *RunpfileExecutor) runUnit(unit *RunpUnit, ready func(error)) error {
 		return nil
 	}
 
-	e.readProcessOutput(r, process, logger)
+	// Readiness depends on the exit of the process, not on the end of its
+	// output: a background child (e.g. a daemon started by the command) may
+	// keep the pipe open long after the process has exited.
+	outputDone := make(chan struct{})
+	go func() {
+		e.readProcessOutput(r, process, logger)
+		close(outputDone)
+	}()
 	pwg.Wait()
+	select {
+	case <-outputDone:
+	case <-time.After(outputDrainGrace):
+	}
 	if exitErr != nil {
 		ready(fmt.Errorf("process exited with error: %w", exitErr))
 	} else {
