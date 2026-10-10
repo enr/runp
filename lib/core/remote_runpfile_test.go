@@ -128,3 +128,32 @@ func TestFetchRunpfile_TooLarge(t *testing.T) {
 		t.Fatalf("expected size limit error, got %v", err)
 	}
 }
+
+// Without a checksum an https URL must not be downgraded to plain HTTP by a
+// redirect.
+func TestFetchRunpfile_RedirectToHTTPRequiresChecksum(t *testing.T) {
+	plain := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(testRunpfileYAML))
+	}))
+	defer plain.Close()
+	srv := useTLSServer(t, func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, plain.URL, http.StatusFound)
+	})
+
+	path, err := FetchRunpfile(srv.URL, "")
+	if err == nil {
+		os.Remove(path)
+		t.Fatal("expected an error for a redirect to http:// without checksum")
+	}
+	if !strings.Contains(err.Error(), "refusing redirect") {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	// With a checksum the content is verified, so the redirect is allowed.
+	h := sha256.Sum256([]byte(testRunpfileYAML))
+	path, err = FetchRunpfile(srv.URL, fmt.Sprintf("sha256:%x", h))
+	if err != nil {
+		t.Fatalf("FetchRunpfile with checksum: %v", err)
+	}
+	os.Remove(path)
+}

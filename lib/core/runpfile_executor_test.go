@@ -703,3 +703,31 @@ func TestWarnInsecureSSHTunnels(t *testing.T) {
 		t.Errorf("expected WARNING prefix in output, got: %q", output)
 	}
 }
+
+// A line longer than any internal buffer must not stop the reading of the
+// output: the process would block writing to a full pipe.
+func TestReadProcessOutput_LongLine(t *testing.T) {
+	ConfigureUI(testLogger, LoggerConfig{Debug: false, Color: false})
+	long := strings.Repeat("a", 200*1024)
+	input := long + "\nafter\r\nlast"
+	lineCh := make(chan string, 16)
+	done := make(chan struct{})
+	go func() {
+		readProcessOutputInternal(strings.NewReader(input), &mockRunpProcess{id: "p"}, testLogger, lineCh)
+		close(done)
+	}()
+	var got []string
+	for line := range lineCh {
+		got = append(got, line)
+	}
+	<-done
+	want := []string{long, "after", "last"}
+	if len(got) != len(want) {
+		t.Fatalf("got %d lines, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("line %d: got %d bytes, want %d bytes", i, len(got[i]), len(want[i]))
+		}
+	}
+}

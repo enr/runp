@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -163,22 +164,59 @@ func (c *SSHTunnelCommandWrapper) untrack(conn net.Conn) {
 	delete(c.conns, conn)
 }
 
+// errTunnelStopped is returned when a connection is handled after Stop.
+var errTunnelStopped = errors.New("SSH tunnel stopped")
+
 // sshClient returns the shared SSH client, dialling the jump server if needed.
+// The dial runs without holding mu, so that Stop and the other connections
+// never wait for a slow or unresponsive jump server.
 func (c *SSHTunnelCommandWrapper) sshClient() (*ssh.Client, error) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.stopped {
-		return nil, errors.New("SSH tunnel stopped")
+	stopped, client := c.stopped, c.client
+	c.mu.Unlock()
+	if stopped {
+		return nil, errTunnelStopped
 	}
-	if c.client != nil {
-		return c.client, nil
+	if client != nil {
+		return client, nil
 	}
-	client, err := ssh.Dial("tcp", c.jumpAddress, c.config)
+	dialled, err := dialSSH(c.jumpAddress, c.config)
 	if err != nil {
 		return nil, err
 	}
-	c.client = client
-	return client, nil
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.stopped {
+		dialled.Close()
+		return nil, errTunnelStopped
+	}
+	if c.client != nil {
+		// Another connection dialled concurrently: share its client.
+		dialled.Close()
+		return c.client, nil
+	}
+	c.client = dialled
+	return dialled, nil
+}
+
+// dialSSH connects to addr like ssh.Dial, but config.Timeout also bounds the
+// SSH handshake: ssh.Dial applies it to the TCP connection only, so a server
+// accepting connections without completing the handshake blocks it forever.
+func dialSSH(addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
+	conn, err := net.DialTimeout("tcp", addr, config.Timeout)
+	if err != nil {
+		return nil, err
+	}
+	if config.Timeout > 0 {
+		conn.SetDeadline(time.Now().Add(config.Timeout))
+	}
+	sshConn, chans, reqs, err := ssh.NewClientConn(conn, addr, config)
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	conn.SetDeadline(time.Time{})
+	return ssh.NewClient(sshConn, chans, reqs), nil
 }
 
 // dropClient closes client and forgets it, so the next connection re-dials.

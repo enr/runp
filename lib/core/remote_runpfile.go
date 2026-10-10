@@ -2,6 +2,7 @@ package core
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -49,7 +50,21 @@ func FetchRunpfile(rawURL, checksum string) (string, error) {
 		return "", fmt.Errorf("unsupported URL scheme %q for Runpfile: %s", u.Scheme, rawURL)
 	}
 
-	resp, err := remoteHTTPClient.Get(rawURL) //nolint:gosec // URL is user-supplied via --file
+	client := *remoteHTTPClient
+	if want == "" {
+		// Without a checksum only TLS protects the download: never follow a
+		// redirect to plain HTTP.
+		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			if !strings.EqualFold(req.URL.Scheme, "https") {
+				return fmt.Errorf("refusing redirect to %s without --checksum: only https:// is allowed", req.URL.Redacted())
+			}
+			if len(via) >= 10 {
+				return errors.New("stopped after 10 redirects")
+			}
+			return nil
+		}
+	}
+	resp, err := client.Get(rawURL) //nolint:gosec // URL is user-supplied via --file
 	if err != nil {
 		return "", fmt.Errorf("fetching Runpfile from %s: %w", rawURL, err)
 	}

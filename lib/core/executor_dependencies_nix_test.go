@@ -153,3 +153,28 @@ func TestHostStartCommandRejectsMissingWorkdir(t *testing.T) {
 		t.Fatalf("expected working directory error, got %v", err)
 	}
 }
+
+// A dependency that exits successfully must release its dependents even when
+// a background child it started keeps its output open.
+func TestStart_BackgroundChildDoesNotBlockDependents(t *testing.T) {
+	marker := filepath.Join(t.TempDir(), "dependent-ran")
+	sut := newLifetimeExecutor(t, `
+units:
+  init:
+    host:
+      command: "(sleep 5) & echo daemon started"
+  app:
+    depends_on: [init]
+    host:
+      command: "touch `+marker+`"
+`)
+	start := time.Now()
+	go sut.Start()
+	for time.Since(start) < 3*time.Second {
+		if _, err := os.Stat(marker); err == nil {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatal("dependent not started while the dependency's background child was running")
+}

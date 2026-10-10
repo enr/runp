@@ -12,6 +12,10 @@ import (
 	"golang.org/x/crypto/ssh/knownhosts"
 )
 
+// sshDialTimeout bounds the connection to the jump server, SSH handshake
+// included.
+const sshDialTimeout = 15 * time.Second
+
 // Auth is auth
 type Auth struct {
 	Secret string
@@ -113,7 +117,7 @@ func (p *SSHTunnelProcess) executeCmd(command string) (*bytes.Buffer, error) {
 	hostname := p.Jump.Host
 	port := p.Jump.Port
 	ui.Debugf("Test command %s on %s:%d", p.TestCommand, hostname, port)
-	conn, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", hostname, port), config)
+	conn, err := dialSSH(fmt.Sprintf("%s:%d", hostname, port), config)
 	if err != nil {
 		return nil, err
 	}
@@ -236,6 +240,7 @@ func (p *SSHTunnelProcess) resolveSSHCommandConfiguration() (*ssh.ClientConfig, 
 		User:            sshUser,
 		Auth:            authMethods,
 		HostKeyCallback: hostKeyCallback,
+		Timeout:         sshDialTimeout,
 	}
 	return config, nil
 }

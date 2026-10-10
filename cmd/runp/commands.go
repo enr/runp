@@ -239,7 +239,7 @@ func exitErrorf(exitCode int, template string, args ...interface{}) error {
 // can capture it via combined output or stdout-only redirection.
 func runpfileNotFoundError(resolvedPath string) error {
 	fmt.Fprintf(os.Stdout,
-		"Runpfile not found at %s\n  → Run `runp init` to create one, or use --file to specify a path\n",
+		"Runpfile not found at %s\n  → Create a Runpfile, or use --file to specify a path\n",
 		resolvedPath)
 	return cli.Exit("", exitCodeLoad)
 }
