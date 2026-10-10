@@ -135,7 +135,8 @@ Flags:
 |===
 
 `runp up` keeps running until all started processes have exited. On Ctrl-C (or `SIGTERM`) it stops all
-units, dependents before their dependencies.
+units, dependents before their dependencies. A second Ctrl-C (or `SIGTERM`) while units are being stopped
+forces runp to exit immediately; processes that have not stopped yet may keep running.
 
 ### runp status (ps)
 
@@ -284,6 +285,17 @@ Supported keys:
 | Container runtime executable used for container units.
 |===
 
+### runp completion
+
+Print the shell completion script for `bash`, `zsh` or `fish`. Completion covers subcommands, flags and,
+for `runp reload`, the unit names of the Runpfile.
+
+----
+source <(runp completion bash)                               # in ~/.bashrc
+source <(runp completion zsh)                                # in ~/.zshrc, after compinit
+runp completion fish > ~/.config/fish/completions/runp.fish
+----
+
 ## Global flags
 
 [cols="1,3"]
@@ -369,6 +381,7 @@ runp up --file http://intranet/Runpfile --checksum sha256:<64 hex characters>
 ----
 
 A Runpfile runs commands on your machine: plain `http://` URLs are accepted only together with `--checksum`.
+For the same reason, without `--checksum` a redirect from an `https://` URL to a non-`https://` URL is refused.
 Paths in a remote Runpfile (`include:`, `workdir`) are relative to a temporary directory, so remote Runpfiles
 should be self-contained.
 
