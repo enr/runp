@@ -29,6 +29,13 @@ func listenForShutdown(ch <-chan os.Signal) {
 		exitCode = signalExitCode(sig)
 	case <-appContext.ShutdownChan():
 	}
+	// A further Ctrl-C/SIGTERM while processes are being stopped forces the
+	// exit: a stop that hangs must never leave runp impossible to interrupt.
+	go func() {
+		sig := <-ch
+		fmt.Fprintln(os.Stderr, "Forced exit: some processes may still be running")
+		os.Exit(signalExitCode(sig))
+	}()
 	ui.Debug("Initiating graceful shutdown sequence")
 	appContext.StopRunningProcesses()
 
