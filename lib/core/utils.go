@@ -174,27 +174,8 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 	if err != nil {
 		return nil, err
 	}
-	for id, unit := range rf.Units {
-		unit.vars = rf.Vars
-		unit.root = rf.Root
-		if unit.Name == "" {
-			unit.Name = id
-		}
-		if unit.Process() == nil {
-			if !forValidation {
-				return nil, fmt.Errorf(ErrFmtCreateProcess, id)
-			}
-			continue
-		}
-		wd, fail := resolveWorkingDir(rf, unit)
-		if fail != nil {
-			ui.WriteLinef("Failed to resolve working directory for unit %s (path: %s): %v", unit.Name, unit.Process().Dir(), fail)
-			return nil, fail
-		}
-		ui.Debugf("Resolved working directory for unit %s: %s -> %s", id, unit.Process().Dir(), wd)
-		unit.Process().SetPreconditions(unit.Preconditions)
-		unit.Process().SetDir(wd)
-		unit.Process().SetID(unit.Name)
+	if err = prepareUnits(rf, forValidation); err != nil {
+		return nil, err
 	}
 	for _, inc := range rf.Include {
 		err = merge(runpfile, rf, inc, visited, forValidation)
@@ -212,6 +193,34 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 		}
 	}
 	return rf, nil
+}
+
+// prepareUnits binds each unit of rf to the Runpfile vars and root and
+// configures its process (name, preconditions, working directory).
+func prepareUnits(rf *Runpfile, forValidation bool) error {
+	for id, unit := range rf.Units {
+		unit.vars = rf.Vars
+		unit.root = rf.Root
+		if unit.Name == "" {
+			unit.Name = id
+		}
+		if unit.Process() == nil {
+			if !forValidation {
+				return fmt.Errorf(ErrFmtCreateProcess, id)
+			}
+			continue
+		}
+		wd, fail := resolveWorkingDir(rf, unit)
+		if fail != nil {
+			ui.WriteLinef("Failed to resolve working directory for unit %s (path: %s): %v", unit.Name, unit.Process().Dir(), fail)
+			return fail
+		}
+		ui.Debugf("Resolved working directory for unit %s: %s -> %s", id, unit.Process().Dir(), wd)
+		unit.Process().SetPreconditions(unit.Preconditions)
+		unit.Process().SetDir(wd)
+		unit.Process().SetID(unit.Name)
+	}
+	return nil
 }
 
 func merge(runpfile runpfileSource, rf *Runpfile, inc string, visited map[string]runpfileSource, forValidation bool) error {
@@ -355,68 +364,88 @@ func cmd(commandLine string) (*exec.Cmd, error) {
 // expansion. It is used to turn a command string into an argument list that
 // can be executed without a shell.
 func splitCommandLine(s string) ([]string, error) {
-	var words []string
-	var cur strings.Builder
-	inWord := false
-	const (
-		none = iota
-		single
-		double
-	)
-	quote := none
-	runes := []rune(s)
-	for i := 0; i < len(runes); i++ {
-		r := runes[i]
-		switch quote {
-		case single:
-			if r == '\'' {
-				quote = none
-			} else {
-				cur.WriteRune(r)
-			}
-		case double:
-			switch {
-			case r == '"':
-				quote = none
-			case r == '\\' && i+1 < len(runes) && strings.ContainsRune("\"\\$`\n", runes[i+1]):
-				i++
-				if runes[i] != '\n' {
-					cur.WriteRune(runes[i])
-				}
-			default:
-				cur.WriteRune(r)
-			}
+	sp := &cmdLineSplitter{runes: []rune(s)}
+	for sp.i = 0; sp.i < len(sp.runes); sp.i++ {
+		switch sp.quote {
+		case quoteSingle:
+			sp.single()
+		case quoteDouble:
+			sp.double()
 		default:
-			switch {
-			case r == ' ' || r == '\t' || r == '\n' || r == '\r':
-				if inWord {
-					words = append(words, cur.String())
-					cur.Reset()
-					inWord = false
-				}
-			case r == '\'':
-				quote, inWord = single, true
-			case r == '"':
-				quote, inWord = double, true
-			case r == '\\':
-				inWord = true
-				if i+1 < len(runes) {
-					i++
-					if runes[i] != '\n' {
-						cur.WriteRune(runes[i])
-					}
-				}
-			default:
-				inWord = true
-				cur.WriteRune(r)
-			}
+			sp.unquoted()
 		}
 	}
-	if quote != none {
+	if sp.quote != quoteNone {
 		return nil, errors.New("unterminated quote in command")
 	}
-	if inWord {
-		words = append(words, cur.String())
+	if sp.inWord {
+		sp.words = append(sp.words, sp.cur.String())
 	}
-	return words, nil
+	return sp.words, nil
+}
+
+const (
+	quoteNone = iota
+	quoteSingle
+	quoteDouble
+)
+
+// cmdLineSplitter holds the state of splitCommandLine while it scans runes.
+type cmdLineSplitter struct {
+	runes  []rune
+	i      int
+	words  []string
+	cur    strings.Builder
+	inWord bool
+	quote  int
+}
+
+func (sp *cmdLineSplitter) single() {
+	if r := sp.runes[sp.i]; r == '\'' {
+		sp.quote = quoteNone
+	} else {
+		sp.cur.WriteRune(r)
+	}
+}
+
+func (sp *cmdLineSplitter) double() {
+	r := sp.runes[sp.i]
+	switch {
+	case r == '"':
+		sp.quote = quoteNone
+	case r == '\\' && sp.i+1 < len(sp.runes) && strings.ContainsRune("\"\\$`\n", sp.runes[sp.i+1]):
+		sp.i++
+		if sp.runes[sp.i] != '\n' {
+			sp.cur.WriteRune(sp.runes[sp.i])
+		}
+	default:
+		sp.cur.WriteRune(r)
+	}
+}
+
+func (sp *cmdLineSplitter) unquoted() {
+	r := sp.runes[sp.i]
+	switch {
+	case r == ' ' || r == '\t' || r == '\n' || r == '\r':
+		if sp.inWord {
+			sp.words = append(sp.words, sp.cur.String())
+			sp.cur.Reset()
+			sp.inWord = false
+		}
+	case r == '\'':
+		sp.quote, sp.inWord = quoteSingle, true
+	case r == '"':
+		sp.quote, sp.inWord = quoteDouble, true
+	case r == '\\':
+		sp.inWord = true
+		if sp.i+1 < len(sp.runes) {
+			sp.i++
+			if sp.runes[sp.i] != '\n' {
+				sp.cur.WriteRune(sp.runes[sp.i])
+			}
+		}
+	default:
+		sp.inWord = true
+		sp.cur.WriteRune(r)
+	}
 }

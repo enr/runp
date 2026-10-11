@@ -233,17 +233,7 @@ func (r *unitReadiness) resolve(err error) {
 func (e *RunpfileExecutor) Start() error {
 	e.initializeUnits()
 	skipped := e.skippedUnits()
-	if len(skipped) > 0 {
-		names := make([]string, 0, len(skipped))
-		for name := range skipped {
-			names = append(names, name)
-		}
-		sort.Strings(names)
-		ui.WriteLinef("Units skipped due to unsatisfied preconditions: %v", names)
-		for _, name := range names {
-			ui.WriteLinef("Skipping unit: %s", name)
-		}
-	}
+	reportSkippedUnits(skipped)
 	warnInsecureSSHTunnels(e.rf.Units, skipped)
 
 	// An undefined var would otherwise reach commands as "{undefined:name}".
@@ -263,17 +253,7 @@ func (e *RunpfileExecutor) Start() error {
 
 	warnBlockingDependencies(e.rf.Units, skipped)
 
-	stopOrder := make([][]string, 0, len(layers))
-	for _, layer := range layers {
-		ids := make([]string, 0, len(layer))
-		for _, name := range layer {
-			if p := e.rf.Units[name].Process(); p != nil {
-				ids = append(ids, p.ID())
-			}
-		}
-		stopOrder = append(stopOrder, ids)
-	}
-	GetApplicationContext().SetStopOrder(stopOrder)
+	GetApplicationContext().SetStopOrder(e.stopOrder(layers))
 
 	states := make(map[string]*unitReadiness)
 	for _, layer := range layers {
@@ -299,27 +279,7 @@ func (e *RunpfileExecutor) Start() error {
 			wg.Add(1)
 			go func(u *RunpUnit, ready *unitReadiness) {
 				defer wg.Done()
-				// Dependents must never wait forever, whatever happens here.
-				defer ready.resolve(fmt.Errorf("unit %s did not start", u.Name))
-				defer func() {
-					if r := recover(); r != nil {
-						ui.WriteLinef("Panic in goroutine for unit %s: %v", u.Name, r)
-						fail(fmt.Errorf("panic in goroutine for unit %s: %v", u.Name, r))
-						GetApplicationContext().TriggerShutdown()
-					}
-				}()
-				if err := e.awaitDependencies(u, states, skipped); err != nil {
-					ready.resolve(err)
-					if !errors.Is(err, errShuttingDown) {
-						ui.WriteLinef("%v", err)
-					}
-					fail(err)
-					return
-				}
-				if err := e.runUnit(u, ready.resolve); err != nil {
-					ready.resolve(err)
-					fail(err)
-				}
+				e.launchUnit(u, ready, states, skipped, fail)
 			}(e.rf.Units[name], states[name])
 		}
 	}
@@ -330,6 +290,63 @@ func (e *RunpfileExecutor) Start() error {
 		return fmt.Errorf("%d unit(s) failed to start", len(errs))
 	}
 	return nil
+}
+
+// reportSkippedUnits logs the units skipped for unsatisfied preconditions.
+func reportSkippedUnits(skipped map[string]bool) {
+	if len(skipped) == 0 {
+		return
+	}
+	names := make([]string, 0, len(skipped))
+	for name := range skipped {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	ui.WriteLinef("Units skipped due to unsatisfied preconditions: %v", names)
+	for _, name := range names {
+		ui.WriteLinef("Skipping unit: %s", name)
+	}
+}
+
+// stopOrder returns the process IDs of each layer, in launch order.
+func (e *RunpfileExecutor) stopOrder(layers [][]string) [][]string {
+	stopOrder := make([][]string, 0, len(layers))
+	for _, layer := range layers {
+		ids := make([]string, 0, len(layer))
+		for _, name := range layer {
+			if p := e.rf.Units[name].Process(); p != nil {
+				ids = append(ids, p.ID())
+			}
+		}
+		stopOrder = append(stopOrder, ids)
+	}
+	return stopOrder
+}
+
+// launchUnit waits for the dependencies of u, then runs it, resolving ready
+// in every case and reporting failures through fail.
+func (e *RunpfileExecutor) launchUnit(u *RunpUnit, ready *unitReadiness, states map[string]*unitReadiness, skipped map[string]bool, fail func(error)) {
+	// Dependents must never wait forever, whatever happens here.
+	defer ready.resolve(fmt.Errorf("unit %s did not start", u.Name))
+	defer func() {
+		if r := recover(); r != nil {
+			ui.WriteLinef("Panic in goroutine for unit %s: %v", u.Name, r)
+			fail(fmt.Errorf("panic in goroutine for unit %s: %v", u.Name, r))
+			GetApplicationContext().TriggerShutdown()
+		}
+	}()
+	if err := e.awaitDependencies(u, states, skipped); err != nil {
+		ready.resolve(err)
+		if !errors.Is(err, errShuttingDown) {
+			ui.WriteLinef("%v", err)
+		}
+		fail(err)
+		return
+	}
+	if err := e.runUnit(u, ready.resolve); err != nil {
+		ready.resolve(err)
+		fail(err)
+	}
 }
 
 // warnBlockingDependencies notes the dependencies without a ready condition:
