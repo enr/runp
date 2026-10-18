@@ -331,7 +331,7 @@ pre.rouge {
 <h1>Runp</h1>
 <div class="details">
 <span id="author" class="author">runp contributors</span><br>
-<span id="revnumber">version 0.12.0</span>
+<span id="revnumber">version 0.12.1</span>
 </div>
 </div>
 <div id="content">
@@ -352,7 +352,7 @@ pre.rouge {
 <p><a href="https://github.com/enr/runp/releases/latest">Download last artifacts</a> |
  <a href="https://enr.github.io/runp/pdf/runp_manual.pdf">This manual as PDF</a> |
  <a href="https://github.com/enr/runp">Source code</a> |
- Build revision <code>f2d3e13eefaebe7f78ae3b6851bd38034ce95212</code></p>
+ Build revision <code>86c0c250905394564fda44bdb84848d93de3fd41</code></p>
 </div>
 </div>
 </div>
@@ -580,7 +580,8 @@ The <code>ps</code> alias is provided for convenience.</p>
 runp ls
 runp list --output json
 runp list --output json | jq '.[].name'
-runp list --file ./infra/Runpfile</pre>
+runp list --file ./infra/Runpfile
+runp list --var foo=bar</pre>
 </div>
 </div>
 <div class="paragraph">
@@ -603,6 +604,11 @@ runp list --file ./infra/Runpfile</pre>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Output format. <code>table</code> (default) prints an aligned table with NAME, KIND, COMMAND, DESCRIPTION, PRECONDITIONS columns.
   <code>json</code> emits a JSON array of objects with the keys <code>name</code>, <code>kind</code>, <code>command</code>, <code>description</code> and <code>preconditions</code>,
   suitable for piping to <code>jq</code>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>--var</code> / <code>-V</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Runtime variables in <code>key=value</code> format, as for <code>runp up</code>: the COMMAND column shows the commands with the vars
+  resolved, so pass the same values used with <code>runp up</code>.</p></td>
 </tr>
 </tbody>
 </table>
@@ -2071,8 +2077,8 @@ that is not declared is an error: runp does not start any unit.</p>
 </div>
 <div id="footer">
 <div id="footer-text">
-Version 0.12.0<br>
-Last updated 2026-10-14 19:50:42 UTC
+Version 0.12.1<br>
+Last updated 2026-10-18 15:32:27 UTC
 </div>
 </div>
 </body>
