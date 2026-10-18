@@ -30,7 +30,7 @@ func (e *RunpfileExecutor) DryRunPreviews() []UnitPreview {
 		preview := UnitPreview{
 			Name:    unit.Name,
 			Kind:    unitKind(unit),
-			Command: unitCommandSummary(unit),
+			Command: unitCommandSummary(unit, e.rf.Vars),
 			Skipped: skipped[unit.Name],
 		}
 		if skipped[unit.Name] {
@@ -62,23 +62,24 @@ func unitKind(unit *RunpUnit) string {
 }
 
 // unitCommandSummary returns a human-readable, variable-resolved description
-// of the command the unit would execute.
-func unitCommandSummary(unit *RunpUnit) string {
+// of the command the unit would execute. The vars are passed explicitly: the
+// process-level ones are bound only when the executor starts the units.
+func unitCommandSummary(unit *RunpUnit, vars map[string]string) string {
+	pre := newCliPreprocessor(vars)
 	if unit.Host != nil {
 		h := unit.Host
-		pre := newCliPreprocessor(h.vars)
 		if h.CommandLine != "" {
 			return pre.process(h.CommandLine)
 		}
 		if h.Executable != "" {
-			parts := append([]string{h.Executable}, h.Args...)
+			// like the executor: the executable is taken as is, only the args are expanded
+			parts := append([]string{h.Executable}, pre.processArgs(h.Args)...)
 			return strings.Join(parts, " ")
 		}
 		return ""
 	}
 	if unit.Container != nil {
 		c := unit.Container
-		pre := newCliPreprocessor(c.vars)
 		img := pre.process(c.Image)
 		if len(c.Ports) > 0 {
 			return fmt.Sprintf("%s  ports: %s", img, strings.Join(c.Ports, ", "))

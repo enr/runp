@@ -15,6 +15,9 @@ func doList(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	if err := resolveVars(runpfile, c.StringSlice(`var`)); err != nil {
+		return err
+	}
 
 	entries := core.ListEntries(runpfile)
 

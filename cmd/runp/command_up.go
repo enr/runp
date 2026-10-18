@@ -41,22 +41,9 @@ func prepareRunpfile(c *cli.Context) (*core.Runpfile, error) {
 	if err != nil {
 		return nil, err
 	}
-	vars, err := applyUserVars(runpfile.Vars, c.StringSlice(`var`))
-	if err != nil {
+	if err := resolveVars(runpfile, c.StringSlice(`var`)); err != nil {
 		return nil, err
 	}
-	wd, err := os.Getwd()
-	if err != nil {
-		ui.WriteLinef("Failed to resolve current working directory: %v", err)
-	}
-	vars[`runp_root`] = runpfile.Root
-	vars[`runp_workdir`] = wd
-	vars[`runp_file_separator`] = string(os.PathSeparator)
-	vars, err = core.ExpandVars(vars)
-	if err != nil {
-		return nil, exitErrorf(exitCodeVar, "Variable expansion failed: %v", err)
-	}
-	runpfile.Vars = vars
 
 	secretKey, err := resolveSecretKey(c.String(`key-env`), c.String(`key`))
 	if err != nil {
@@ -70,6 +57,28 @@ func prepareRunpfile(c *cli.Context) (*core.Runpfile, error) {
 		return nil, exitErrorf(exitCodeExec, "Preconditions not met: %s\n  → Check that the required OS, environment variables, and runp version are satisfied", preconditionVerifyResult.Reasons)
 	}
 	return runpfile, nil
+}
+
+// resolveVars applies the user vars to the Runpfile vars, adds the implicit
+// ones and expands the references between them.
+func resolveVars(runpfile *core.Runpfile, userVars []string) error {
+	vars, err := applyUserVars(runpfile.Vars, userVars)
+	if err != nil {
+		return err
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		ui.WriteLinef("Failed to resolve current working directory: %v", err)
+	}
+	vars[`runp_root`] = runpfile.Root
+	vars[`runp_workdir`] = wd
+	vars[`runp_file_separator`] = string(os.PathSeparator)
+	vars, err = core.ExpandVars(vars)
+	if err != nil {
+		return exitErrorf(exitCodeVar, "Variable expansion failed: %v", err)
+	}
+	runpfile.Vars = vars
+	return nil
 }
 
 func doDryRun(executor *core.RunpfileExecutor) error {

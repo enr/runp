@@ -188,12 +188,14 @@ var commandList = cli.Command{
    runp ls
    runp list --output json
    runp list --output json | jq '.[].name'
-   runp list --file ./infra/Runpfile`,
+   runp list --file ./infra/Runpfile
+   runp list --var foo=bar`,
 	Action: doList,
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "file", Aliases: []string{"f"}, Value: configFileBaseName, Usage: `Path to Runpfile or HTTP/HTTPS URL (overrides RUNP_FILE env var)`},
 		&cli.StringFlag{Name: "checksum", Usage: `Expected SHA-256 checksum in "sha256:<hex>" format (required for http:// URLs)`},
 		&cli.StringFlag{Name: "output", Aliases: []string{"o"}, Value: "table", Usage: `Output format: table (default) or json`},
+		&cli.StringSliceFlag{Name: "var", Aliases: []string{"V"}, Usage: `Runtime variables in format "key=value" (pass the same values used with runp up)`},
 	},
 }
 

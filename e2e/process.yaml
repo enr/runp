@@ -66,6 +66,28 @@ specs:
             - docker.io/wordpress:php8.2-fpm-alpine
         stderr:
           is_empty: true
+  command_list_vars:
+    description: list resolves vars in commands, defaults and --var overrides
+    command:
+      working_dir: ..
+      exe: bin/runp
+      ext:
+        windows: .exe
+      args:
+        - "ls"
+        - "--var"
+        - "foo=qwerty"
+        - "--file"
+        - "examples/Runpfile-vars.yml"
+    expectations:
+      status:
+        equals_to: 0
+      output:
+        stdout:
+          contains_all:
+            - __qwerty__
+        stderr:
+          is_empty: true
   vardir:
     description: vars are usable in workdir
     command:

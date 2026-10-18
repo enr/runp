@@ -169,6 +169,7 @@ runp ls
 runp list --output json
 runp list --output json | jq '.[].name'
 runp list --file ./infra/Runpfile
+runp list --var foo=bar
 ----
 
 Flags:
@@ -181,6 +182,10 @@ Flags:
 | Output format. `table` (default) prints an aligned table with NAME, KIND, COMMAND, DESCRIPTION, PRECONDITIONS columns.
   `json` emits a JSON array of objects with the keys `name`, `kind`, `command`, `description` and `preconditions`,
   suitable for piping to `jq`.
+
+| `--var` / `-V`
+| Runtime variables in `key=value` format, as for `runp up`: the COMMAND column shows the commands with the vars
+  resolved, so pass the same values used with `runp up`.
 |===
 
 ### runp validate

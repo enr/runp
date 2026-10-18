@@ -95,3 +95,27 @@ func TestPreconditionSummaryRunpVersion(t *testing.T) {
 		t.Errorf("Expected 'runp:>=0.10.0', got %q", s)
 	}
 }
+
+func TestListEntriesResolvesVars(t *testing.T) {
+	ui = CreateMainLogger(" ", 6, "TEST", false, false)
+
+	rf := &Runpfile{
+		Vars: map[string]string{"flag": "true", "img": "nginx"},
+		Units: map[string]*RunpUnit{
+			"cmd":   {Name: "cmd", Host: &HostProcess{CommandLine: "run -Denabled={{vars flag}}"}},
+			"exe":   {Name: "exe", Host: &HostProcess{Executable: "run", Args: []string{"--flag={{vars flag}}"}}},
+			"image": {Name: "image", Container: &ContainerProcess{Image: "{{vars img}}:latest"}},
+		},
+	}
+
+	expected := map[string]string{
+		"cmd":   "run -Denabled=true",
+		"exe":   "run --flag=true",
+		"image": "nginx:latest",
+	}
+	for _, e := range ListEntries(rf) {
+		if e.Command != expected[e.Name] {
+			t.Errorf("%s: command = %q, want %q", e.Name, e.Command, expected[e.Name])
+		}
+	}
+}

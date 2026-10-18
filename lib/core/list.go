@@ -22,7 +22,7 @@ func ListEntries(rf *Runpfile) []UnitListEntry {
 		entries = append(entries, UnitListEntry{
 			Name:          unit.Name,
 			Kind:          unitKind(unit),
-			Command:       unitCommandSummary(unit),
+			Command:       unitCommandSummary(unit, rf.Vars),
 			Description:   unit.Description,
 			Preconditions: preconditionSummary(unit.Preconditions),
 		})
