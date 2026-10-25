@@ -1,0 +1,24 @@
+baseURL = "https://enr.github.io/runp/"
+languageCode = "en-us"
+title = "runp"
+enableRobotsTXT = true
+
+[params]
+  # currentAppVersion is injected by .sdlc/website from .sdlc/config (APP_VERSION)
+  currentAppVersion = "dev"
+  description = "Like docker-compose but not just for containers: run host processes, containers and SSH tunnels together from a single Runpfile."
+  repo = "https://github.com/enr/runp"
+
+[markup.highlight]
+  noClasses = false
+  style = "github"
+
+[menu]
+  [[menu.main]]
+    name = "Home"
+    pageRef = "/"
+    weight = 10
+  [[menu.main]]
+    name = "Docs"
+    pageRef = "/docs"
+    weight = 20

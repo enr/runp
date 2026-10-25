@@ -1,0 +1,83 @@
+{{ define "main" }}
+<section class="hero">
+  <p class="section-label"><span class="tick">▚</span> process runner · single static binary</p>
+
+  <h1 class="wordmark" aria-label="runp">
+    <span>r</span><span>u</span><span>n</span><span>p</span>
+  </h1>
+
+  <p class="tagline">{{ site.Params.description }}</p>
+
+  <div class="cmd" data-copy>
+    <span class="cmd-prompt" aria-hidden="true">$</span>
+    <code class="cmd-text">runp up -f Runpfile</code>
+    <button class="cmd-copy" type="button" aria-label="Copy command">copy</button>
+  </div>
+
+  <div class="hero-actions">
+    <a class="btn btn-primary" href="{{ "docs" | relURL }}">Get started <span aria-hidden="true">→</span></a>
+    <a class="btn" href="{{ site.Params.repo }}/releases">Download</a>
+    <a class="btn" href="{{ site.Params.repo }}">GitHub</a>
+  </div>
+
+  <dl class="spec-strip">
+    <div><dt>version</dt><dd>{{ site.Params.currentAppVersion }}</dd></div>
+    <div><dt>platforms</dt><dd>linux · mac · windows</dd></div>
+    <div><dt>config</dt><dd>Runpfile (YAML)</dd></div>
+    <div><dt>license</dt><dd>Apache-2.0</dd></div>
+  </dl>
+</section>
+
+<section class="principles">
+  <p class="section-label"><span class="idx">01</span> what runp is</p>
+  <div class="principle-grid">
+    <article class="principle">
+      <h3>The system as a whole</h3>
+      <p>Describe every part of your project — applications, services, tunnels — as units in one Runpfile and start them together.</p>
+    </article>
+    <article class="principle">
+      <h3>Not just containers</h3>
+      <p>Like docker-compose, but units can be host processes, containers or SSH tunnels, mixed freely.</p>
+    </article>
+    <article class="principle">
+      <h3>Fast environment setup</h3>
+      <p>Replace custom scripts and tribal knowledge with a single file anyone on the team can run.</p>
+    </article>
+  </div>
+</section>
+
+<section class="specsheet">
+  <p class="section-label"><span class="idx">02</span> capabilities</p>
+  <div class="grid">
+    <article class="cell">
+      <h3>Per-unit setup</h3>
+      <p>Working directory and environment variables for every process.</p>
+    </article>
+    <article class="cell">
+      <h3>Variables</h3>
+      <p>User defined vars in the Runpfile or passed at runtime with <code>--var</code>.</p>
+    </article>
+    <article class="cell">
+      <h3>Await &amp; readiness</h3>
+      <p>A unit can wait for a file, a TCP port or another unit being ready before starting.</p>
+    </article>
+    <article class="cell">
+      <h3>Startup ordering</h3>
+      <p>Explicit ordering between units via <code>depends_on</code>.</p>
+    </article>
+    <article class="cell">
+      <h3>One shot commands</h3>
+      <p>Not only long running processes: run setup commands alongside services.</p>
+    </article>
+    <article class="cell">
+      <h3>Secrets</h3>
+      <p>Keep encrypted values in the Runpfile with <code>runp encrypt</code>.</p>
+    </article>
+  </div>
+</section>
+
+<section class="content readme">
+  <p class="section-label"><span class="idx">03</span> quickstart</p>
+  {{ .Content }}
+</section>
+{{ end }}

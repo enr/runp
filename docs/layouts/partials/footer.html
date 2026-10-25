@@ -1,0 +1,15 @@
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-col">
+      <span class="footer-brand">runp</span>
+      <span class="footer-note">{{ site.Params.description }}</span>
+    </div>
+    <nav class="footer-links">
+      <a href="{{ site.Params.repo }}">Source</a>
+      <a href="{{ "docs" | relURL }}">Docs</a>
+      <a href="{{ site.Params.repo }}/releases">Releases</a>
+      <a href="{{ site.Params.repo }}/blob/main/LICENSE">License · Apache-2.0</a>
+    </nav>
+    <span class="footer-version">v{{ site.Params.currentAppVersion }}</span>
+  </div>
+</footer>
