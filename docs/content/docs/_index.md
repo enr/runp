@@ -1,29 +1,19 @@
-= Runp
-:author: {project-authors}
-:revnumber: {project-version}
-:stylesheet: style.css
+---
+title: "Documentation"
+---
 
-<<<
+[![CI Linux Mac](https://github.com/enr/runp/workflows/CI%20Linux%20Mac/badge.svg)](https://github.com/enr/runp/actions)
+[![CI Windows](https://github.com/enr/runp/workflows/CI%20Windows/badge.svg)](https://github.com/enr/runp/actions)
 
+[Download last artifacts](https://github.com/enr/runp/releases/latest) |
+[Source code](https://github.com/enr/runp)
 
-ifeval::["{backend}" == "html5"]
-
-image::https://github.com/{ci-ns}/workflows/CI%20Linux%20Mac/badge.svg[CI Linux Mac]
-image::https://github.com/{ci-ns}/workflows/CI%20Windows/badge.svg[CI Windows]
-
-https://github.com/{ci-ns}/releases/latest[Download last artifacts] |
- https://{repo-owner}.github.io/{repo-name}/pdf/{repo-name}_manual.pdf[This manual as PDF] |
- https://github.com/{repo-owner}/{repo-name}[Source code] |
- Build revision `{ci-build-id}`
-endif::[]
-
-[[_book]]
 ## Overview
 
 Like `docker-compose` but not just for containers.
 
 Today, every non-trivial software project is compound of a number of parts (applications, libraries, services)
-running together in a lot of environments: virtual machines, Docker containers, physical boxes, cloud...
+running together in a lot of environments: virtual machines, Docker containers, physical boxes, cloud…
 
 Runp allows you to specify what and how you want to run and helps you to start the system as a whole,
 running all needed processes in parallel (like Docker compose, Foreman et simili).
@@ -44,13 +34,12 @@ Moreover the Runpfile handles:
 - user defined vars per system, defined in the Runpfile or passed at runtime as command line arguments
 - processes dependency: a process can wait for a given condition to start, e.g. a file appearing or another process being ready
 - explicit startup ordering via `depends_on`
-- not only _long running_ processes but _one shot commands_ too
+- not only *long running* processes but *one shot commands* too
 - Windows OS
 
 An example of a `Runpfile` :
 
-[source,yaml]
-----
+``` yaml
 name: Example
 description: |
   Sample Runpfile to show runp functionalities
@@ -91,7 +80,7 @@ units:
       target:
         host: corporate.db
         port: 5432
-----
+```
 
 ## Commands
 
@@ -100,39 +89,23 @@ units:
 Start all units defined in the Runpfile. This is the **default command**: running `runp` with no
 subcommand is equivalent to `runp up`.
 
-----
-runp up
-runp up --file ./infra/Runpfile
-runp up --var DB_HOST=localhost --var DB_PORT=5432
-runp up --key-env RUNP_SECRET_KEY
-runp up --dry-run
-----
+    runp up
+    runp up --file ./infra/Runpfile
+    runp up --var DB_HOST=localhost --var DB_PORT=5432
+    runp up --key-env RUNP_SECRET_KEY
+    runp up --dry-run
 
 Flags:
 
-[cols="1,3"]
-|===
-| Flag | Description
-
-| `--file` / `-f`
-| Path to the Runpfile, or an `https://`/`http://` URL (see <<_remote_runpfiles,Remote Runpfiles>>). Overrides the `RUNP_FILE` environment variable. Default: `./Runpfile`.
-
-| `--checksum`
-| Expected SHA-256 checksum of a remote Runpfile, in the form `sha256:<64 hex characters>`. Required for `http://` URLs.
-
-| `--var` / `-V`
-| Set a runtime variable declared in the `vars:` section, e.g. `--var DB_HOST=localhost`. Can be repeated.
-
-| `--key-env`
-| Name of the environment variable that holds the decryption key for `encrypted_secret` fields (recommended).
-
-| `--key` / `-k`
-| Decryption key as a plain-text argument. *Visible in `ps aux` and shell history — prefer `--key-env`.*
-
-| `--dry-run` / `-n`
-| Print the units that would be started (name, kind, resolved command) without actually starting any process.
-  Preconditions are evaluated without side effects: no container network is created and no SSH connection is opened.
-|===
+| Flag               | Description                                                                                                                                                               |
+|--------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `--file` / `-f`    | Path to the Runpfile, or an `https://`/`http://` URL (see [Remote Runpfiles](#remote-runpfiles)). Overrides the `RUNP_FILE` environment variable. Default: `./Runpfile`. |
+| `--checksum`       | Expected SHA-256 checksum of a remote Runpfile, in the form `sha256:<64 hex characters>`. Required for `http://` URLs.                                                    |
+| `--var` / `-V`     | Set a runtime variable declared in the `vars:` section, e.g. `--var DB_HOST=localhost`. Can be repeated.                                                                  |
+| `--key-env`        | Name of the environment variable that holds the decryption key for `encrypted_secret` fields (recommended).                                                               |
+| `--key` / `-k`     | Decryption key as a plain-text argument. **Visible in `ps aux` and shell history — prefer `--key-env`.**                                                                  |
+| `--dry-run` / `-n` | Print the units that would be started (name, kind, resolved command) without actually starting any process.                                                               
+                      Preconditions are evaluated without side effects: no container network is created and no SSH connection is opened.                                                         |
 
 `runp up` keeps running until all started processes have exited. On Ctrl-C (or `SIGTERM`) it stops all
 units, dependents before their dependencies. A second Ctrl-C (or `SIGTERM`) while units are being stopped
@@ -142,11 +115,9 @@ forces runp to exit immediately; processes that have not stopped yet may keep ru
 
 Show the runtime state of all units.
 
-----
-runp status
-runp ps
-runp status --file ./infra/Runpfile
-----
+    runp status
+    runp ps
+    runp status --file ./infra/Runpfile
 
 Prints a table with columns NAME, KIND, STATE, and DETAIL.
 The `ps` alias is provided for convenience.
@@ -163,39 +134,29 @@ The state is probed from outside `runp up`, so `status` can run in another shell
 
 List all units defined in the Runpfile.
 
-----
-runp list
-runp ls
-runp list --output json
-runp list --output json | jq '.[].name'
-runp list --file ./infra/Runpfile
-runp list --var foo=bar
-----
+    runp list
+    runp ls
+    runp list --output json
+    runp list --output json | jq '.[].name'
+    runp list --file ./infra/Runpfile
+    runp list --var foo=bar
 
 Flags:
 
-[cols="1,3"]
-|===
-| Flag | Description
-
-| `--output` / `-o`
-| Output format. `table` (default) prints an aligned table with NAME, KIND, COMMAND, DESCRIPTION, PRECONDITIONS columns.
-  `json` emits a JSON array of objects with the keys `name`, `kind`, `command`, `description` and `preconditions`,
-  suitable for piping to `jq`.
-
-| `--var` / `-V`
-| Runtime variables in `key=value` format, as for `runp up`: the COMMAND column shows the commands with the vars
-  resolved, so pass the same values used with `runp up`.
-|===
+| Flag              | Description                                                                                                            |
+|-------------------|------------------------------------------------------------------------------------------------------------------------|
+| `--output` / `-o` | Output format. `table` (default) prints an aligned table with NAME, KIND, COMMAND, DESCRIPTION, PRECONDITIONS columns. 
+                     `json` emits a JSON array of objects with the keys `name`, `kind`, `command`, `description` and `preconditions`,        
+                     suitable for piping to `jq`.                                                                                            |
+| `--var` / `-V`    | Runtime variables in `key=value` format, as for `runp up`: the COMMAND column shows the commands with the vars         
+                     resolved, so pass the same values used with `runp up`.                                                                  |
 
 ### runp validate
 
 Validate the Runpfile without starting any process.
 
-----
-runp validate
-runp validate --file ./infra/Runpfile
-----
+    runp validate
+    runp validate --file ./infra/Runpfile
 
 Exit codes:
 
@@ -211,154 +172,108 @@ the current machine, and `await` blocks with a `resource` but no `timeout` (whic
 Stop and restart a single unit by name while the rest of the stack keeps running.
 Run this in a separate shell while `runp up` is active.
 
-----
-runp reload web
-runp reload --file ./infra/Runpfile api
-runp reload --var DB_HOST=localhost --key-env RUNP_SECRET_KEY api
-----
+    runp reload web
+    runp reload --file ./infra/Runpfile api
+    runp reload --var DB_HOST=localhost --key-env RUNP_SECRET_KEY api
 
-[NOTE]
-====
-Flags must be placed *before* the unit name: flags after it are ignored.
-====
+> [!NOTE]
+> Flags must be placed **before** the unit name: flags after it are ignored.
 
 `reload` accepts the same `--file`, `--checksum`, `--var`, `--key` and `--key-env` flags as `runp up`; pass the
 same values so that the unit is restarted with the same configuration.
 
 The running instance is stopped (host units through their PID file, container units through the container
-engine), then the unit is started again *in the shell running `reload`*, which keeps running until the unit
+engine), then the unit is started again **in the shell running `reload`**, which keeps running until the unit
 exits. SSH tunnel units are not supported by `reload`.
 
 ### runp encrypt
 
 Encrypt a secret value for use as `encrypted_secret` in a Runpfile.
 
-----
-runp encrypt --key-env RUNP_SECRET_KEY mysecretvalue
-echo mysecretvalue | runp encrypt --key-env RUNP_SECRET_KEY
-runp encrypt mysecretvalue        # generates a random key and prints it with the encrypted value
-----
+    runp encrypt --key-env RUNP_SECRET_KEY mysecretvalue
+    echo mysecretvalue | runp encrypt --key-env RUNP_SECRET_KEY
+    runp encrypt mysecretvalue        # generates a random key and prints it with the encrypted value
 
 The secret can be supplied as a positional argument or piped via stdin.
 When neither is provided and stdin is a terminal, the command exits with an error.
 
-[WARNING]
-====
-Avoid `--key` with a literal value — the key will be visible in `ps aux` output and recorded
-in your shell history. Use `--key-env` instead:
-
-----
-export RUNP_SECRET_KEY=my-encryption-key
-runp encrypt --key-env RUNP_SECRET_KEY mysecretvalue
-----
-====
+> [!WARNING]
+> Avoid `--key` with a literal value — the key will be visible in `ps aux` output and recorded
+> in your shell history. Use `--key-env` instead:
+>
+>     export RUNP_SECRET_KEY=my-encryption-key
+>     runp encrypt --key-env RUNP_SECRET_KEY mysecretvalue
 
 ### runp config
 
 Manage user settings stored in `~/.runp/settings.yaml`.
 
-[cols="1,3"]
-|===
-| Subcommand | Description
-
-| `runp config show`
-| Print the full contents of `~/.runp/settings.yaml` and its path.
-
-| `runp config get <key>`
-| Print the current value of a setting key (returns the default when not explicitly set).
-
-| `runp config set <key> <value>`
-| Write a setting key. Creates `~/.runp/settings.yaml` if it does not exist.
-|===
+| Subcommand                      | Description                                                                             |
+|---------------------------------|-----------------------------------------------------------------------------------------|
+| `runp config show`              | Print the full contents of `~/.runp/settings.yaml` and its path.                        |
+| `runp config get <key>`         | Print the current value of a setting key (returns the default when not explicitly set). |
+| `runp config set <key> <value>` | Write a setting key. Creates `~/.runp/settings.yaml` if it does not exist.              |
 
 Example:
 
-----
-runp config show
-runp config get container_runner
-runp config set container_runner podman
-----
+    runp config show
+    runp config get container_runner
+    runp config set container_runner podman
 
 Supported keys:
 
-[cols="1,1,3"]
-|===
-| Key | Default | Description
-
-| `container_runner`
-| `docker`
-| Container runtime executable used for container units.
-|===
+| Key                | Default  | Description                                            |
+|--------------------|----------|--------------------------------------------------------|
+| `container_runner` | `docker` | Container runtime executable used for container units. |
 
 ### runp completion
 
 Print the shell completion script for `bash`, `zsh` or `fish`. Completion covers subcommands, flags and,
 for `runp reload`, the unit names of the Runpfile.
 
-----
-source <(runp completion bash)                               # in ~/.bashrc
-source <(runp completion zsh)                                # in ~/.zshrc, after compinit
-runp completion fish > ~/.config/fish/completions/runp.fish
-----
+    source <(runp completion bash)                               # in ~/.bashrc
+    source <(runp completion zsh)                                # in ~/.zshrc, after compinit
+    runp completion fish > ~/.config/fish/completions/runp.fish
 
 ## Global flags
 
-[cols="1,3"]
-|===
-| Flag | Description
-
-| `--log-level` / `-l`
-| Log verbosity. Accepted values: `trace`, `debug`, `info` (default), `warn`, `error`.
-
-| `--file` / `-f`
-| Path to the Runpfile for the default `up` command, e.g. `runp -f ./infra/Runpfile`.
-
-| `--no-color` / `-C`
-| Disable colored output. Also honoured via the `NO_COLOR` environment variable.
-
-| `--dry-run` / `-n`
-| Preview units without starting them (equivalent to `runp up --dry-run`).
-
-| `--debug` / `-d`
-| *Deprecated.* Equivalent to `--log-level debug`.
-
-| `--quiet` / `-q`
-| *Deprecated.* Equivalent to `--log-level warn`.
-|===
+| Flag                 | Description                                                                          |
+|----------------------|--------------------------------------------------------------------------------------|
+| `--log-level` / `-l` | Log verbosity. Accepted values: `trace`, `debug`, `info` (default), `warn`, `error`. |
+| `--file` / `-f`      | Path to the Runpfile for the default `up` command, e.g. `runp -f ./infra/Runpfile`.  |
+| `--no-color` / `-C`  | Disable colored output. Also honoured via the `NO_COLOR` environment variable.       |
+| `--dry-run` / `-n`   | Preview units without starting them (equivalent to `runp up --dry-run`).             |
+| `--debug` / `-d`     | **Deprecated.** Equivalent to `--log-level debug`.                                   |
+| `--quiet` / `-q`     | **Deprecated.** Equivalent to `--log-level warn`.                                    |
 
 ## Exit codes
 
-[cols="1,3"]
-|===
-| Code | Meaning
-
-| `0` | Success
-| `1` | `runp validate` found errors, or an unexpected internal error
-| `2` | The Runpfile cannot be loaded (not found, invalid YAML, invalid Runpfile, fetch failure)
-| `3` | Invalid arguments (e.g. mutually exclusive flags, missing unit name)
-| `4` | Variable error (e.g. `--var` for an undeclared variable, circular variable references)
-| `5` | Execution error (root preconditions not met, undeclared variable referenced by a unit, a unit failed to start or a dependency failed)
-| `128+N` | Stopped by signal `N`: `130` after Ctrl-C (`SIGINT`), `143` after `SIGTERM`
-|===
+| Code    | Meaning                                                                                                                               |
+|---------|---------------------------------------------------------------------------------------------------------------------------------------|
+| `0`     | Success                                                                                                                               |
+| `1`     | `runp validate` found errors, or an unexpected internal error                                                                         |
+| `2`     | The Runpfile cannot be loaded (not found, invalid YAML, invalid Runpfile, fetch failure)                                              |
+| `3`     | Invalid arguments (e.g. mutually exclusive flags, missing unit name)                                                                  |
+| `4`     | Variable error (e.g. `--var` for an undeclared variable, circular variable references)                                                |
+| `5`     | Execution error (root preconditions not met, undeclared variable referenced by a unit, a unit failed to start or a dependency failed) |
+| `128+N` | Stopped by signal `N`: `130` after Ctrl-C (`SIGINT`), `143` after `SIGTERM`                                                           |
 
 ## Usage
 
-**Run runp**
+### Run runp
 
 Some commands:
 
-----
-runp --help                               # generic help
-runp help up                              # describes the command "up"
-runp up                                   # run the Runpfile in the current directory (default command)
-runp --log-level debug up -f /path/to/runpfile.yaml
-runp encrypt --key-env RUNP_KEY secret    # encrypt "secret" using the key from $RUNP_KEY
-runp ls -f /path/to/runpfile.yaml         # list units in Runpfile
-runp validate -f /path/to/runpfile.yaml   # validate Runpfile without starting
-runp status                               # show runtime status of all units
-----
+    runp --help                               # generic help
+    runp help up                              # describes the command "up"
+    runp up                                   # run the Runpfile in the current directory (default command)
+    runp --log-level debug up -f /path/to/runpfile.yaml
+    runp encrypt --key-env RUNP_KEY secret    # encrypt "secret" using the key from $RUNP_KEY
+    runp ls -f /path/to/runpfile.yaml         # list units in Runpfile
+    runp validate -f /path/to/runpfile.yaml   # validate Runpfile without starting
+    runp status                               # show runtime status of all units
 
-**Selecting the Runpfile**
+### Selecting the Runpfile
 
 The Runpfile path is resolved in the following order of precedence:
 
@@ -368,111 +283,103 @@ The Runpfile path is resolved in the following order of precedence:
 
 Example using the environment variable:
 
-----
-export RUNP_FILE=/path/to/my/Runpfile
-runp up
-runp validate
-----
+    export RUNP_FILE=/path/to/my/Runpfile
+    runp up
+    runp validate
 
-[[_remote_runpfiles]]
-**Remote Runpfiles**
+### Remote Runpfiles
 
 `--file` also accepts an `https://` or `http://` URL: the Runpfile is downloaded (at most 1 MiB, 30 seconds
 timeout) and verified against `--checksum` when given.
 
-----
-runp up --file https://example.com/project/Runpfile
-runp up --file http://intranet/Runpfile --checksum sha256:<64 hex characters>
-----
+    runp up --file https://example.com/project/Runpfile
+    runp up --file http://intranet/Runpfile --checksum sha256:<64 hex characters>
 
 A Runpfile runs commands on your machine: plain `http://` URLs are accepted only together with `--checksum`.
 For the same reason, without `--checksum` a redirect from an `https://` URL to a non-`https://` URL is refused.
 Paths in a remote Runpfile (`include:`, `workdir`) are relative to a temporary directory, so remote Runpfiles
 should be self-contained.
 
-**Settings**
+### Settings
 
 Runp looks for a settings file in `~/.runp/settings.yaml`.
 
 If the file does not exist or is empty/invalid, Runp starts using these defaults:
 
-[source,yaml]
-----
+``` yaml
 container_runner: docker
-----
+```
 
 Use `runp config` to read or update settings without editing the file directly:
 
-----
-runp config set container_runner podman
-runp config get container_runner
-runp config show
-----
+    runp config set container_runner podman
+    runp config get container_runner
+    runp config show
 
-**Preconditions**
+### Preconditions
 
 Preconditions can be defined at two levels: at the root of the `Runpfile` or within a specific `unit`.
 
-- *Root-level preconditions*: These are checked before any unit is executed. If any of these preconditions are not met, `runp` will exit and no units will be started. This is useful for ensuring that the environment is correctly set up before attempting to run any part of the system.
-- *Unit-level preconditions*: These are checked before the specific unit is executed. If the preconditions for a unit are not met, that unit is skipped, but other units in the `Runpfile` will still be executed.
+- **Root-level preconditions**: These are checked before any unit is executed. If any of these preconditions are not met, `runp` will exit and no units will be started. This is useful for ensuring that the environment is correctly set up before attempting to run any part of the system.
+- **Unit-level preconditions**: These are checked before the specific unit is executed. If the preconditions for a unit are not met, that unit is skipped, but other units in the `Runpfile` will still be executed.
 
 Available preconditions:
 
-- *os*: This precondition checks if the operating system matches one of the specified values.
-- *runp*: This precondition checks if the `runp` version satisfies the specified constraint.
-- *hosts*: This precondition checks if `/etc/hosts` contains the given mappings.
-- *env_vars*: This precondition checks environment variables.
+- **os**: This precondition checks if the operating system matches one of the specified values.
+- **runp**: This precondition checks if the `runp` version satisfies the specified constraint.
+- **hosts**: This precondition checks if `/etc/hosts` contains the given mappings.
+- **env_vars**: This precondition checks environment variables.
 
-***os***
+#### os
 
 The `os` precondition checks if the operating system is one of the specified `inclusions`.
 
 Example:
-[source,yaml]
-----
+
+``` yaml
 preconditions:
   os:
     inclusions:
       - linux
       - darwin
-----
+```
 
 In this example, the execution will only proceed if the operating system is Linux or macOS.
 
-***runp***
+#### runp
 
 The `runp` precondition checks if the `runp` version satisfies the specified constraint. The available operators are: `LessThan`, `LessThanOrEqual`, `Equal`, `GreaterThanOrEqual`, `GreaterThan`.
 
 Example:
-[source,yaml]
-----
+
+``` yaml
 preconditions:
   runp:
     operator: GreaterThanOrEqual
     version: 0.10.0
-----
+```
 
 This will ensure that `runp` version is at least `0.10.0`.
 
-***hosts***
+#### hosts
 
 The `hosts` precondition checks for the presence of specific entries in the `/etc/hosts` file.
 `contains` maps an IP address to the host names that must be mapped to it.
 
 Example:
-[source,yaml]
-----
+
+``` yaml
 preconditions:
   hosts:
     contains:
       127.0.0.1:
         - my.special.host
         - other.local
-----
+```
 
 This precondition is satisfied if `/etc/hosts` maps both `my.special.host` and `other.local` to `127.0.0.1`.
 
-***env_vars***
+#### env_vars
 
 The `env_vars` precondition checks for the presence or value of environment variables. The available conditions are:
 
@@ -481,19 +388,19 @@ The `env_vars` precondition checks for the presence or value of environment vari
 - `is_equal`: the variable has the given `value`.
 
 Example of a root-level precondition:
-[source,yaml]
-----
+
+``` yaml
 preconditions:
   env_vars:
     - name: DATABASE_URL
       condition: is_set
-----
+```
 
 In this case, `runp` will exit if the `DATABASE_URL` environment variable is not set.
 
 Example of a unit-level precondition:
-[source,yaml]
-----
+
+``` yaml
 units:
   my-service:
     preconditions:
@@ -503,18 +410,17 @@ units:
           value: "true"
     host:
       command: "echo 'My service is enabled'"
-----
+```
 
 In this example, the `my-service` unit will only be executed if the `MY_SERVICE_ENABLED` environment variable is set to `"true"`.
 
-**Runpfile composition with `include:`**
+### Runpfile composition with `include:`
 
 A Runpfile can include other Runpfiles using the `include:` key.
 Each entry is a path **relative to the directory of the file that declares it**.
 All units from included files are merged into the root Runpfile before startup.
 
-[source,yaml]
-----
+``` yaml
 name: My Project
 include:
   - infra/Runpfile      # defines units: db, redis
@@ -523,7 +429,7 @@ units:
   proxy:
     host:
       command: nginx -g "daemon off;"
-----
+```
 
 After loading, `runp up` starts all units from all included files together.
 
@@ -533,31 +439,24 @@ included file (e.g. `workdir`) are relative to the directory of that file.
 
 Includes can be nested to any depth.
 
-[WARNING]
-====
-*Duplicate unit names* across any two files are an error — loading fails with:
+> [!WARNING]
+> **Duplicate unit names** across any two files are an error — loading fails with:
+>
+>     duplicate unit identifier: <name>
+>
+> **Circular includes** are detected and reported with the full import chain:
+>
+>     circular dependency detected: a.yml -> b.yml -> c.yml -> b.yml
+>
+> Including the same file twice (e.g. `a.yml` includes `b.yml` and `c.yml`, which both include `d.yml`) is not
+> a cycle, but it defines the units of `d.yml` twice and is reported as a duplicate unit.
 
-----
-duplicate unit identifier: <name>
-----
-
-*Circular includes* are detected and reported with the full import chain:
-
-----
-circular dependency detected: a.yml -> b.yml -> c.yml -> b.yml
-----
-
-Including the same file twice (e.g. `a.yml` includes `b.yml` and `c.yml`, which both include `d.yml`) is not
-a cycle, but it defines the units of `d.yml` twice and is reported as a duplicate unit.
-====
-
-**Startup ordering with `depends_on`**
+### Startup ordering with `depends_on`
 
 By default all units start concurrently. Use `depends_on` to declare explicit
 ordering when one unit must be ready before another begins.
 
-[source,yaml]
-----
+``` yaml
 units:
   db:
     ready:
@@ -584,13 +483,13 @@ units:
     depends_on: [api]
     host:
       command: ./worker
-----
+```
 
-Each unit starts as soon as all the units it depends on are *ready*,
+Each unit starts as soon as all the units it depends on are **ready**,
 independently of unrelated units:
 
 - a unit with a `ready` condition (see below) is ready when the condition is satisfied;
-- a unit without a `ready` condition is ready when its process *exits successfully*.
+- a unit without a `ready` condition is ready when its process **exits successfully**.
   This suits one-shot tasks such as `migrate`; a long-running service without a
   `ready` condition blocks its dependents until it stops, and runp logs a notice
   when this applies.
@@ -605,7 +504,7 @@ exits with an error.
 Units that are skipped due to unsatisfied preconditions are excluded from the
 graph; their dependents are treated as if the dependency is already satisfied.
 
-**Stop timeout**
+### Stop timeout
 
 For every unit, you can specify a timeout to wait for the process to stop gracefully.
 If the process does not stop within the timeout, it will be killed.
@@ -613,11 +512,11 @@ The default value is 5 seconds.
 
 - host units: the process group of the unit (the shell and its children) receives `SIGTERM`, then `SIGKILL`
   after the timeout (on Windows the process is terminated);
+
 - container units: the timeout is passed to `docker stop -t` (rounded up to whole seconds);
 - SSH tunnel units are closed immediately.
 
-[source,yaml]
-----
+``` yaml
 units:
   zookeeper:
     description: Zookeeper
@@ -630,9 +529,9 @@ units:
         - "2181:2181"
       env:
         LOG_DIR: /tmp/logs
-----
+```
 
-**App waiting for another resource**
+### App waiting for another resource
 
 A unit can wait for a resource to be available before starting.
 The `await` block can be used to specify a `resource` and a `timeout`.
@@ -645,8 +544,7 @@ started, runp stops the units already running and exits with an error.
 Supported resources: `file:///path`, `tcp://host:port/` (also `tcp4`, `tcp6`), `unix:///path/to/socket`,
 `http://` and `https://` URLs.
 
-[source,yaml]
-----
+``` yaml
 units:
   app:
     description: app
@@ -656,12 +554,11 @@ units:
         PATH: $PATH
       await:
         timeout: 0h0m03s
-----
+```
 
 A backend app running on host waiting for a DB running in a container to be available:
 
-[source,yaml]
-----
+``` yaml
 units:
   be:
     description: Backend app
@@ -684,11 +581,11 @@ units:
         POSTGRES_PASSWORD: pass
         POSTGRES_USER: user
         POSTGRES_DB: dbname
-----
+```
 
 Wait for a file to be available:
-[source,yaml]
-----
+
+``` yaml
 units:
   await:
     description: command
@@ -699,14 +596,13 @@ units:
         timeout: 0h0m9s
       env:
         MYHOME: ${HOME}
-----
+```
 
-Environment variables of runp (`$NAME` or `${NAME}`) are expanded in `env` values. Use `$$` for a
-literal `$`, e.g. `PASSWORD: pa$$word` sets `pa$word`.
+Environment variables of runp (`$NAME` or `${NAME}`) are expanded in `env` values. Use `` ` for a literal `$`, e.g. `PASSWORD: paword `` sets `pa$word`.
 
 Wait for an HTTP resource to be available:
-[source,yaml]
-----
+
+``` yaml
 units:
   run:
     description: docker from shell
@@ -722,9 +618,9 @@ units:
       image: crccheck/hello-world
       ports:
         - "8000:8000"
-----
+```
 
-**Unit readiness conditions**
+### Unit readiness conditions
 
 By default, runp considers a unit ready (and starts its dependents) when its
 process exits successfully. For long-running services this is undesirable — dependents should
@@ -735,10 +631,9 @@ is ready for its dependents to proceed. Three condition types are supported; at
 most one should be set per unit. If multiple fields are set, `output` takes
 priority, then `cmd`, then `delay`.
 
-_ready.delay_ — wait a fixed duration after the process starts:
+*ready.delay* — wait a fixed duration after the process starts:
 
-[source,yaml]
-----
+``` yaml
 units:
   db:
     description: Database (ready after 3s warm-up)
@@ -752,12 +647,11 @@ units:
     depends_on: [db]
     host:
       command: node server.js
-----
+```
 
-_ready.output_ — match a substring in the process stdout/stderr:
+*ready.output* — match a substring in the process stdout/stderr:
 
-[source,yaml]
-----
+``` yaml
 units:
   api:
     description: App server (ready when "listening" appears in output)
@@ -771,13 +665,12 @@ units:
     depends_on: [api]
     host:
       command: node worker.js
-----
+```
 
-_ready.cmd_ — poll a shell command every second; ready when it exits 0. The command runs with the default
+*ready.cmd* — poll a shell command every second; ready when it exits 0. The command runs with the default
 shell (`bash` on Unix, `cmd` on Windows) in the working directory and with the environment of runp:
 
-[source,yaml]
-----
+``` yaml
 units:
   api:
     description: App server (ready when health endpoint responds)
@@ -791,38 +684,34 @@ units:
     depends_on: [api]
     host:
       command: ./consumer
-----
+```
 
-[NOTE]
-====
-`ready` and `await` serve complementary roles:
-
-* `await` waits for an *external* resource before *this* unit's process starts
-  (e.g. "wait for the DB port to be open before launching the app").
-* `ready` determines when *this* unit signals to its *dependents* that they may
-  proceed (e.g. "dependents start when this service prints 'listening'").
-
-Both can be used together on the same unit.
-====
+> [!NOTE]
+> `ready` and `await` serve complementary roles:
+>
+> - `await` waits for an **external** resource before **this** unit’s process starts
+>   (e.g. "wait for the DB port to be open before launching the app").
+>
+> - `ready` determines when **this** unit signals to its **dependents** that they may
+>   proceed (e.g. "dependents start when this service prints 'listening'").
+>
+> Both can be used together on the same unit.
 
 If the `ready` condition of a unit fails or times out, the units depending on it are not started (see
-*Startup ordering with `depends_on`*); a unit nobody depends on keeps running.
+[Startup ordering with `depends_on`](#startup-ordering-with-depends_on)); a unit nobody depends on keeps running.
 
-**Containers**
+### Containers
 
 You can set the container engine using the settings file (key: `container_runner`).
 
 Example:
 
-[source,yaml]
-----
+``` yaml
 container_runner: /path/to/podman
-----
+```
 
-[WARNING]
-====
-Only Docker and Podman (as they use the same command line flags) are supported.
-====
+> [!WARNING]
+> Only Docker and Podman (as they use the same command line flags) are supported.
 
 Containers can talk to each other through a Docker network (`runp-network`), created automatically when the
 first container unit starts.
@@ -831,15 +720,14 @@ The container name (the host name exposed to other containers) is set to `runp-$
 
 Containers started by runp carry the label `runp.project` identifying their Runpfile: `runp reload` and
 `runp status` never act on a container with the same name started for another Runpfile. If a container
-with the unit's name already exists (running or stopped), the unit is not started and runp tells how to remove it.
+with the unit’s name already exists (running or stopped), the unit is not started and runp tells how to remove it.
 
 The container `command` is split into arguments with shell quoting rules (quotes and backslashes) but is not
-expanded by a shell on the host: use `sh -c '...'` to run a shell inside the container.
+expanded by a shell on the host: use `sh -c '…'` to run a shell inside the container.
 
 This Runpfile starts Wordpress and MySql:
 
-[source,yaml]
-----
+``` yaml
 name: Wordpress Runpfile
 description: Runpfile to run Wordpress and MySql
 units:
@@ -867,14 +755,13 @@ units:
       await:
         resource: tcp4://localhost:3306/
         timeout: 0h0m20s
-----
+```
 
-**Use containers volumes**
+### Use containers volumes
 
 Run containers and volumes (example is from the book Docker in action - Manning):
 
-[source,yaml]
-----
+``` yaml
 name: Containers Runpfile
 description: This is Runpfile showing Docker volumes
 units:
@@ -910,14 +797,13 @@ units:
         ls -l /library/
       await:
         timeout: 0h0m3s
-----
+```
 
-**On Windows**
+### On Windows
 
 Windows is supported:
 
-[source,yaml]
-----
+``` yaml
 name: Test Runpfile
 description: This is Runpfile
 units:
@@ -939,14 +825,13 @@ units:
       # this script is in examples/ directory
       executable: infinite.cmd
       workdir: examples
-----
+```
 
 Some programs, especially on Windows, implicitly use OS specific environment variables.
 
 If you run into strange problems try adding these to the env block:
 
-[source,yaml]
-----
+``` yaml
 # Windows env vars
 SystemRoot: ${SystemRoot}
 ALLUSERSPROFILE: ${ALLUSERSPROFILE}
@@ -972,9 +857,9 @@ TMP: ${TMP}
 USERNAME: ${USERNAME}
 USERPROFILE: ${USERPROFILE}
 windir: ${windir}
-----
+```
 
-**Specify a shell for host processes**
+### Specify a shell for host processes
 
 For host processes, you can specify a shell to execute the command.
 By default, `runp` runs `command` with `bash --noprofile --norc -eo pipefail -c` on Unix (so `bash` must be
@@ -982,8 +867,7 @@ installed) and with `cmd /C` on Windows. The command is appended to `args` as th
 
 Use `executable` and `args` instead of `command` to run a program directly, without a shell.
 
-[source,yaml]
-----
+``` yaml
 units:
   bash-process:
     description: a process that runs with bash
@@ -993,14 +877,13 @@ units:
         path: /bin/bash
         args:
           - -c
-----
+```
 
-**Run a different command on different operative systems**
+### Run a different command on different operative systems
 
 Inclusions are compared to `runtime.GOOS`:
 
-[source,yaml]
-----
+``` yaml
 units:
   win:
     description: Windows unit
@@ -1021,9 +904,9 @@ units:
           - darwin
     host:
       command: ls -al {{vars runp_root}}
-----
+```
 
-**SSH tunnel to reach a remote LDAP**
+### SSH tunnel to reach a remote LDAP
 
 A backend app running on host using LDAP on remote server available using SSH tunneling.
 
@@ -1041,8 +924,7 @@ The host key of the jump server is verified against `~/.ssh/known_hosts` (or the
 
 Each connection to the local port is forwarded independently through a single SSH connection to the jump server.
 
-[source,yaml]
-----
+``` yaml
 units:
   be:
     description: Backend app
@@ -1069,69 +951,56 @@ units:
       # optional
       known_hosts_file: ~/.ssh/known_hosts
       test_command: "hostname"
-----
+```
 
-[WARNING]
-====
-Setting `insecure_ignore_host_key: true` on an SSH tunnel unit disables host key
-verification and makes the connection vulnerable to man-in-the-middle attacks.
-Runp always prints a warning to stderr when this option is active, regardless of
-the `--log-level` setting. Use it only in controlled environments and never in
-production.
+> [!WARNING]
+> Setting `insecure_ignore_host_key: true` on an SSH tunnel unit disables host key
+> verification and makes the connection vulnerable to man-in-the-middle attacks.
+> Runp always prints a warning to stderr when this option is active, regardless of
+> the `--log-level` setting. Use it only in controlled environments and never in
+> production.
+>
+> ``` yaml
+> ssh_tunnel:
+>   insecure_ignore_host_key: true   # WARNING: MITM risk
+>   ...
+> ```
 
-[source,yaml]
-----
-ssh_tunnel:
-  insecure_ignore_host_key: true   # WARNING: MITM risk
-  ...
-----
-====
-
-**Use secrets**
+### Use secrets
 
 SSH tunnel process allows user to use secrets to specify the password.
 
 To create the encrypted secret:
 
-----
-export RUNP_SECRET_KEY=thekey
-runp encrypt --key-env RUNP_SECRET_KEY SECRET
-----
+    export RUNP_SECRET_KEY=thekey
+    runp encrypt --key-env RUNP_SECRET_KEY SECRET
 
 The above command will encrypt the string `SECRET` using the key stored in `$RUNP_SECRET_KEY`.
 
-[NOTE]
-====
-You can also pipe the secret from stdin to avoid it appearing in your shell history:
-
-----
-echo SECRET | runp encrypt --key-env RUNP_SECRET_KEY
-----
-
-If no key is provided at all, `runp encrypt` generates a random key and prints it
-alongside the encrypted value.
-====
+> [!NOTE]
+> You can also pipe the secret from stdin to avoid it appearing in your shell history:
+>
+>     echo SECRET | runp encrypt --key-env RUNP_SECRET_KEY
+>
+> If no key is provided at all, `runp encrypt` generates a random key and prints it
+> alongside the encrypted value.
 
 To run a Runpfile containing an `encrypted_secret` you have to pass the key to the
 `up` command (the key must coincide with the one used to encrypt).
 
 Use `--key-env` to pass the key through an environment variable (recommended):
 
-----
-export RUNP_SECRET_KEY=thekey
-runp up --key-env RUNP_SECRET_KEY
-----
+    export RUNP_SECRET_KEY=thekey
+    runp up --key-env RUNP_SECRET_KEY
 
-[WARNING]
-====
-The `--key` / `-k` flag passes the key as a plain-text command-line argument.
-It will be visible in `ps aux` output and recorded in your shell history.
-Always prefer `--key-env`.
-====
+> [!WARNING]
+> The `--key` / `-k` flag passes the key as a plain-text command-line argument.
+> It will be visible in `ps aux` output and recorded in your shell history.
+> Always prefer `--key-env`.
 
-**Use environment variables**
+### Use environment variables
 
-Host processes do *not* inherit the environment of runp: they receive only the variables listed in their
+Host processes do **not** inherit the environment of runp: they receive only the variables listed in their
 `env` block. Forward the variables a process needs explicitly, e.g. `PATH: $PATH` or `HOME: ${HOME}`.
 Values are expanded against the environment of runp; use `$$` for a literal `$`.
 
@@ -1140,8 +1009,7 @@ of their environment.
 
 A one-shot command using custom environment variables:
 
-[source,yaml]
-----
+``` yaml
   env3:
     description: echo command
     host:
@@ -1149,14 +1017,13 @@ A one-shot command using custom environment variables:
       workdir: ..
       env:
         MYHOME: ${HOME}
-----
+```
 
-**User defined variables**
+### User defined variables
 
 Use runtime vars:
 
-[source,yaml]
-----
+``` yaml
 vars:
   foo: FOO_DEFAULT_VALUE
 units:
@@ -1164,19 +1031,18 @@ units:
     description: echo a user defined var
     host:
       command: echo __{{vars foo}}__
-----
+```
 
 Variable names may contain letters, digits and underscores (e.g. `DB_HOST`). Referencing a variable
 that is not declared is an error: runp does not start any unit.
 
 The var `foo` will have value `FOO_DEFAULT_VALUE` or can be set from command line:
 
-[source,bash]
-----
+``` bash
 $ bin/runp --log-level debug up -f examples/Runpfile-vars.yml --var foo=bar
-----
+```
 
-**Implicit variables**
+### Implicit variables
 
 Runp adds to the context some variables:
 
@@ -1186,37 +1052,31 @@ Runp adds to the context some variables:
 
 Usage:
 
-[source,yaml]
-----
+``` yaml
 units:
   vars:
     description: echo implicit vars from Runp
     host:
       command: "echo runp_workdir={{vars runp_workdir}} runp_root={{vars runp_root}}"
-----
+```
 
-**Disabling color output**
+### Disabling color output
 
 To have plain, non-colored text output set the environment variable `NO_COLOR`:
 
-----
-NO_COLOR=1 ./bin/runp --log-level debug up -f examples/Runpfile-many-units.yml
-----
+    NO_COLOR=1 ./bin/runp --log-level debug up -f examples/Runpfile-many-units.yml
 
 or use the option `--no-color`:
 
-----
-./bin/runp --log-level debug --no-color up -f examples/Runpfile-many-units.yml
-----
+    ./bin/runp --log-level debug --no-color up -f examples/Runpfile-many-units.yml
 
-**Runpfile Runp version**
+### Runpfile Runp version
 
 A unit can require a constraint on the Runp version.
 
 This unit requires runp version greater the 0.5.0:
 
-[source,yaml]
-----
+``` yaml
 units:
   test1:
     description: test unit
@@ -1227,7 +1087,7 @@ units:
     host:
       command: env
       workdir: ${HOME}
-----
+```
 
 The available operators are:
 
@@ -1237,7 +1097,6 @@ The available operators are:
 - `GreaterThanOrEqual`
 - `GreaterThan`
 
-
 ## License
 
-http://www.apache.org/licenses/LICENSE-2.0[Apache License 2.0] - Copyright (C) 2020-TODAY {project-authors}.
+[Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0) - Copyright © 2020-TODAY runp contributors.

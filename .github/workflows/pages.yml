@@ -1,0 +1,51 @@
+name: GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Hugo
+        run: go install github.com/gohugoio/hugo@latest
+
+      - name: Add Hugo to PATH
+        run: echo "$HOME/go/bin" >> $GITHUB_PATH
+
+      - uses: actions/configure-pages@v5
+
+      - name: Build site
+        run: .sdlc/website build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
