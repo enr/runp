@@ -101,7 +101,7 @@ Flags:
 |--------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `--file` / `-f`    | Path to the Runpfile, or an `https://`/`http://` URL (see [Remote Runpfiles](#remote-runpfiles)). Overrides the `RUNP_FILE` environment variable. Default: `./Runpfile`. |
 | `--checksum`       | Expected SHA-256 checksum of a remote Runpfile, in the form `sha256:<64 hex characters>`. Required for `http://` URLs.                                                    |
-| `--var` / `-V`     | Set a runtime variable declared in the `vars:` section, e.g. `--var DB_HOST=localhost`. Can be repeated.                                                                  |
+| `--var` / `-V`     | Set a runtime variable declared in the `vars:` section, e.g. `--var DB_HOST=localhost`. Everything after the first `=` is the value, commas included (`--var PROFILES=dev,local`). Repeat the flag to set several variables. |
 | `--key-env`        | Name of the environment variable that holds the decryption key for `encrypted_secret` fields (recommended).                                                               |
 | `--key` / `-k`     | Decryption key as a plain-text argument. **Visible in `ps aux` and shell history — prefer `--key-env`.**                                                                  |
 | `--dry-run` / `-n` | Print the units that would be started (name, kind, resolved command) without actually starting any process.                                                               

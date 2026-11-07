@@ -1071,3 +1071,61 @@ func TestSignalExitCode(t *testing.T) {
 		t.Errorf("SIGINT exit code = %d, want 130", got)
 	}
 }
+
+// TestVarFlagKeepsCommas runs every command declaring --var through the real
+// app and checks that a value is never split on commas.
+func TestVarFlagKeepsCommas(t *testing.T) {
+	s := &stubLogger{}
+	ui = s
+	core.ConfigureUI(s, core.LoggerConfig{})
+	// Errors are ExitCoders: keep cli from exiting the test binary.
+	oldExiter := cli.OsExiter
+	cli.OsExiter = func(int) {}
+	defer func() { cli.OsExiter = oldExiter }()
+
+	dir := t.TempDir()
+	runpfilePath := filepath.Join(dir, "Runpfile")
+	spec := "vars:\n  k: x\n  j: y\nunits:\n  w:\n    host:\n      command: echo {{vars k}}\n"
+	if err := os.WriteFile(runpfilePath, []byte(spec), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []struct {
+		args []string
+		want map[string]string
+	}{
+		{[]string{"--var", "k=a,b"}, map[string]string{"k": "a,b", "j": "y"}},
+		{[]string{"-V", "k=x=y"}, map[string]string{"k": "x=y", "j": "y"}},
+		{[]string{"--var", "k=app.access,q2c.sales", "--var", "j=dev,local"}, map[string]string{"k": "app.access,q2c.sales", "j": "dev,local"}},
+	}
+
+	for _, command := range []*cli.Command{&commandUp, &commandReload, &commandList} {
+		for _, tc := range cases {
+			t.Run(command.Name+" "+strings.Join(tc.args, " "), func(t *testing.T) {
+				var got map[string]string
+				cmd := *command
+				cmd.Action = func(c *cli.Context) error {
+					rf, err := prepareRunpfile(c)
+					if err != nil {
+						return err
+					}
+					got = rf.Vars
+					return nil
+				}
+				app := newApp()
+				app.Before = nil
+				app.Commands = []*cli.Command{&cmd}
+
+				args := append([]string{"runp", cmd.Name, "--file", runpfilePath}, tc.args...)
+				if err := app.Run(args); err != nil {
+					t.Fatalf("app.Run(%v): %v", args, err)
+				}
+				for k, v := range tc.want {
+					if got[k] != v {
+						t.Errorf("var %s = %q, want %q", k, got[k], v)
+					}
+				}
+			})
+		}
+	}
+}

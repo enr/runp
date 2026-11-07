@@ -78,12 +78,8 @@ func signalExitCode(sig os.Signal) int {
 	return 1
 }
 
-func main() {
-	// manage stop signals
-	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
-	go listenForShutdown(ch)
-
+// newApp builds the runp CLI application.
+func newApp() *cli.App {
 	app := cli.NewApp()
 	app.Name = "runp"
 	app.Version = appVersion
@@ -111,8 +107,22 @@ func main() {
 		return nil
 	}
 
+	// Slice flags (--var) must not split values on commas: "k=a,b" is one
+	// variable whose value is "a,b". Repeat the flag to pass several values.
+	app.DisableSliceFlagSeparator = true
+
 	app.Commands = commands
 	app.DefaultCommand = "up"
+	return app
+}
+
+func main() {
+	// manage stop signals
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
+	go listenForShutdown(ch)
+
+	app := newApp()
 
 	err := app.Run(os.Args)
 	if appContext.IsShuttingDown() {
