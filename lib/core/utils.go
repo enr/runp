@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/mitchellh/go-homedir"
@@ -90,7 +91,36 @@ func IsRunpfileValid(runpfile *Runpfile) (bool, []error) {
 			errs = append(errs, errors.New("Unit "+id+" must define exactly one process type: Host, SSHTunnel, or Container"))
 		}
 	}
+	errs = append(errs, duplicateUnitNames(runpfile)...)
 	return (len(errs) == 0), errs
+}
+
+// duplicateUnitNames reports units sharing the same name (the name field, or
+// the unit ID when unset): the name identifies the running process, its PID
+// file and its container, so such units would overwrite each other.
+func duplicateUnitNames(runpfile *Runpfile) []error {
+	byName := map[string][]string{}
+	for id, unit := range runpfile.Units {
+		name := id
+		if unit != nil && unit.Name != "" {
+			name = unit.Name
+		}
+		byName[name] = append(byName[name], id)
+	}
+	names := make([]string, 0, len(byName))
+	for name, ids := range byName {
+		if len(ids) > 1 {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	var errs []error
+	for _, name := range names {
+		ids := byName[name]
+		sort.Strings(ids)
+		errs = append(errs, fmt.Errorf("units %s have the same name %q: unit names must be unique", strings.Join(ids, ", "), name))
+	}
+	return errs
 }
 
 // validateUnitName rejects unit names that cannot be used safely as file

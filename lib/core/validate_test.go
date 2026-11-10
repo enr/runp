@@ -232,3 +232,25 @@ func TestValidateDurations(t *testing.T) {
 		})
 	}
 }
+
+// Two units with the same effective name share their process ID (running
+// processes, PID file, container name): it must be rejected.
+func TestIsRunpfileValidDuplicateNames(t *testing.T) {
+	rf := &Runpfile{Units: map[string]*RunpUnit{
+		"a": {Name: "same", Host: &HostProcess{CommandLine: "true"}},
+		"b": {Name: "same", Host: &HostProcess{CommandLine: "true"}},
+		"c": {Name: "d", Host: &HostProcess{CommandLine: "true"}},
+		"d": {Host: &HostProcess{CommandLine: "true"}},
+		"e": {Host: &HostProcess{CommandLine: "true"}},
+	}}
+	_, errs := IsRunpfileValid(rf)
+	var dups []string
+	for _, err := range errs {
+		if strings.Contains(err.Error(), "same name") {
+			dups = append(dups, err.Error())
+		}
+	}
+	if len(dups) != 2 {
+		t.Errorf("expected 2 duplicate name errors (same, d), got %v", errs)
+	}
+}
