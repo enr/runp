@@ -305,7 +305,7 @@ func (p *SSHTunnelProcess) resolveEnvironment() []string {
 	cliPreprocessor := newCliPreprocessor(p.vars)
 	processedEnv := map[string]string{}
 	for k, v := range p.Env {
-		processedEnv[k] = cliPreprocessor.process(v)
+		processedEnv[k] = resolveEnvValue(cliPreprocessor, v)
 	}
 	environment = append(environment, envAsArray(processedEnv)...)
 	return environment

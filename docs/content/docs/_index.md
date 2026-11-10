@@ -1003,6 +1003,7 @@ Use `--key-env` to pass the key through an environment variable (recommended):
 Host processes do **not** inherit the environment of runp: they receive only the variables listed in their
 `env` block. Forward the variables a process needs explicitly, e.g. `PATH: $PATH` or `HOME: ${HOME}`.
 Values are expanded against the environment of runp; use `$$` for a literal `$`.
+The values of vars used in `env` (`{{vars name}}`) are inserted as they are, without expansion.
 
 Container units receive their `env` block as `-e NAME=value` options; the container image defines the rest
 of their environment.

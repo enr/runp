@@ -305,9 +305,17 @@ func sliceContains(s []string, e string) bool {
 func envAsArray(in map[string]string) (out []string) {
 	out = []string{}
 	for name, val := range in {
-		out = append(out, fmt.Sprintf("%s=%s", name, expandEnvValue(val)))
+		out = append(out, fmt.Sprintf("%s=%s", name, val))
 	}
 	return out
+}
+
+// resolveEnvValue returns the value of an env entry: references to the
+// environment of runp are expanded in the value as written in the Runpfile,
+// then vars are substituted, so that a "$" in a var value (e.g. a password
+// passed with --var) is never expanded.
+func resolveEnvValue(pre *cliPreprocessor, value string) string {
+	return pre.process(expandEnvValue(value))
 }
 
 // expandEnvValue expands $VAR and ${VAR} references to the environment of

@@ -169,7 +169,7 @@ func (p *ContainerProcess) buildArgs() ([]string, error) {
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		args = append(args, "-e", name+"="+expandEnvValue(pre.process(p.Env[name])))
+		args = append(args, "-e", name+"="+resolveEnvValue(pre, p.Env[name]))
 	}
 	args = append(args, img)
 	if p.Command != "" {
