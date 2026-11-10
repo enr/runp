@@ -306,3 +306,34 @@ units:
 		t.Errorf("running units not stopped after the readiness failure (took %v)", elapsed)
 	}
 }
+
+// {{vars}} in the ready and await blocks and in host.executable are expanded.
+func TestStart_VarsExpandedInReadyAwaitAndExecutable(t *testing.T) {
+	notShuttingDown(t)
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "dependent-ran")
+	sut := newLifetimeExecutor(t, `
+units:
+  svc:
+    ready:
+      cmd: 'test "{{vars msg}}" = hello'
+      timeout: "{{vars timeout}}"
+    host:
+      executable: "{{vars sh}}"
+      args: ["-c", "sleep 1"]
+      await:
+        resource: "file://{{vars dir}}"
+        timeout: "{{vars timeout}}"
+  dependent:
+    depends_on: [svc]
+    host:
+      command: "touch `+marker+`"
+`)
+	sut.rf.Vars = map[string]string{"msg": "hello", "timeout": "5s", "sh": "sh", "dir": dir}
+	if err := startWithTimeout(t, sut, 15*time.Second); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if _, statErr := os.Stat(marker); statErr != nil {
+		t.Error("dependent not started: vars not expanded in ready/await/executable")
+	}
+}

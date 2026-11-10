@@ -505,7 +505,7 @@ func (e *RunpfileExecutor) runUnit(unit *RunpUnit, ready func(error)) error {
 		return fmt.Errorf("unit %s stopped: %w", unit.Name, errShuttingDown)
 	}
 
-	rc := unit.Ready
+	rc := unit.Ready.expand(unit.vars)
 	if rc.IsSet() {
 		// Output is read in a background goroutine so that AwaitReady can
 		// scan it for the ready pattern. runUnit returns as soon as readiness

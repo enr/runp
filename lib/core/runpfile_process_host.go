@@ -155,8 +155,8 @@ func (p *HostProcess) String() string {
 }
 
 func (p *HostProcess) buildCmdExecutable() (*exec.Cmd, error) {
-	exe := p.Executable
-	// var cmd *exec.Cmd
+	cliPreprocessor := newCliPreprocessor(p.vars)
+	exe := cliPreprocessor.process(p.Executable)
 	p1, err := exec.LookPath(exe)
 	if err != nil {
 		ui.Debugf("Executable '%s' not found in PATH", exe)
@@ -171,7 +171,6 @@ func (p *HostProcess) buildCmdExecutable() (*exec.Cmd, error) {
 		exe = p1
 	}
 	ui.Debugf("Resolved executable path: %s", exe)
-	cliPreprocessor := newCliPreprocessor(p.vars)
 	cmd := exec.Command(exe, cliPreprocessor.processArgs(p.Args)...)
 	cmd.Env = p.resolveEnvironment()
 	return cmd, nil
@@ -195,7 +194,8 @@ func (p *HostProcess) resolveShell() (string, []string, error) {
 	shellCommand := p.CommandLine
 	shell := defaultShell()
 	if p.Shell.Path != "" {
-		shell = p.Shell
+		// The args are expanded with the command line by the caller.
+		shell = Shell{Path: newCliPreprocessor(p.vars).process(p.Shell.Path), Args: p.Shell.Args}
 	}
 	return shell.Path, append(shell.Args, shellCommand), nil
 }
@@ -227,12 +227,12 @@ func (p *HostProcess) ShouldWait() bool {
 
 // AwaitResource returns the await resource.
 func (p *HostProcess) AwaitResource() string {
-	return p.Await.Resource
+	return newCliPreprocessor(p.vars).process(p.Await.Resource)
 }
 
 // AwaitTimeout returns the await timeout.
 func (p *HostProcess) AwaitTimeout() string {
-	return p.Await.Timeout
+	return newCliPreprocessor(p.vars).process(p.Await.Timeout)
 }
 
 // IsStartable always true.

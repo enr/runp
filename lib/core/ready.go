@@ -28,6 +28,17 @@ type ReadyCondition struct {
 	Timeout string `yaml:"timeout"`
 }
 
+// expand returns a copy of rc with {{vars}} references resolved.
+func (rc ReadyCondition) expand(vars map[string]string) ReadyCondition {
+	pre := newCliPreprocessor(vars)
+	return ReadyCondition{
+		Delay:   pre.process(rc.Delay),
+		Output:  pre.process(rc.Output),
+		Cmd:     pre.process(rc.Cmd),
+		Timeout: pre.process(rc.Timeout),
+	}
+}
+
 // IsSet reports whether any readiness condition is configured.
 func (rc ReadyCondition) IsSet() bool {
 	return rc.Delay != "" || rc.Output != "" || rc.Cmd != ""

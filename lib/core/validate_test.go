@@ -179,3 +179,23 @@ func containsString(ss []string, substr string) bool {
 	}
 	return false
 }
+
+// {{vars}} in a field that runp does not expand is reported, instead of
+// reaching the process as a literal "{{vars name}}".
+func TestValidateVariableRefsInNotExpandedField(t *testing.T) {
+	rf := &Runpfile{
+		Vars: map[string]string{"x": "1"},
+		Units: map[string]*RunpUnit{
+			"u": {
+				Name:        "u",
+				Description: "uses {{vars x}}",
+				Ready:       ReadyCondition{Cmd: "test {{vars x}} = 1"},
+				Host:        &HostProcess{CommandLine: "echo {{vars x}}"},
+			},
+		},
+	}
+	errs := validateVariableRefs(rf)
+	if len(errs) != 1 || !strings.Contains(errs[0].Error(), "description") {
+		t.Errorf("expected one error about description, got %v", errs)
+	}
+}

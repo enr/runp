@@ -203,12 +203,12 @@ func (p *ContainerProcess) ShouldWait() bool {
 
 // AwaitResource returns the await resource.
 func (p *ContainerProcess) AwaitResource() string {
-	return p.Await.Resource
+	return newCliPreprocessor(p.vars).process(p.Await.Resource)
 }
 
 // AwaitTimeout returns the await timeout.
 func (p *ContainerProcess) AwaitTimeout() string {
-	return p.Await.Timeout
+	return newCliPreprocessor(p.vars).process(p.Await.Timeout)
 }
 
 // String representation of process

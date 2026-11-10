@@ -72,8 +72,7 @@ func unitCommandSummary(unit *RunpUnit, vars map[string]string) string {
 			return pre.process(h.CommandLine)
 		}
 		if h.Executable != "" {
-			// like the executor: the executable is taken as is, only the args are expanded
-			parts := append([]string{h.Executable}, pre.processArgs(h.Args)...)
+			parts := append([]string{pre.process(h.Executable)}, pre.processArgs(h.Args)...)
 			return strings.Join(parts, " ")
 		}
 		return ""
