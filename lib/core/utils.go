@@ -295,7 +295,9 @@ func expandEnvValue(s string) string {
 
 func loadRunpfileFromData(data []byte) (*Runpfile, error) {
 	rf := &Runpfile{}
-	err := unmarshalStrict(data, &rf)
+	// Decode into the struct, not into the pointer: a null document would
+	// otherwise set rf to nil.
+	err := unmarshalStrict(data, rf)
 	return rf, err
 }
 
