@@ -280,3 +280,29 @@ units:
 		t.Error("dependent not started although its dependency completed successfully")
 	}
 }
+
+// A unit whose ready condition fails is a failure of the run even when no
+// other unit depends on it: runp stops the running units and reports it.
+func TestStart_FailedReadinessWithoutDependentsFailsStart(t *testing.T) {
+	notShuttingDown(t)
+	sut := newLifetimeExecutor(t, `
+units:
+  svc:
+    ready:
+      output: "never printed"
+      timeout: 500ms
+    host:
+      command: "sleep 30"
+  other:
+    host:
+      command: "sleep 30"
+`)
+	start := time.Now()
+	err := startWithTimeout(t, sut, 15*time.Second)
+	if err == nil {
+		t.Error("expected an error when a ready condition fails")
+	}
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
+		t.Errorf("running units not stopped after the readiness failure (took %v)", elapsed)
+	}
+}

@@ -178,6 +178,10 @@ func (e *RunpfileExecutor) StartSingleUnit(unitName string) error {
 	}
 	warnInsecureSSHTunnels(e.rf.Units, map[string]bool{})
 	err := e.startUnit(unit)
+	if err != nil && !errors.Is(err, errShuttingDown) {
+		// e.g. a failed readiness: do not leave the unit running.
+		e.abort()
+	}
 	// A unit with a ready condition returns from startUnit while still
 	// running: wait for it so the caller does not leave it orphaned.
 	e.running.Wait()
@@ -430,8 +434,9 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit) error {
 //   - other units: when the process exits (with its exit error); runUnit
 //     returns after the exit.
 //
-// The returned error reports failures to start the process; ready is not
-// called in that case.
+// The returned error reports failures to start the process (ready is not
+// called in that case) and readiness failures (ready is called with the
+// same cause): the caller stops the running units.
 func (e *RunpfileExecutor) runUnit(unit *RunpUnit, ready func(error)) error {
 	logger := e.LoggerFactory(unit.Name, e.longestName(), processLoggerConfiguration)
 	process := unit.Process()
@@ -505,9 +510,16 @@ func (e *RunpfileExecutor) runUnit(unit *RunpUnit, ready func(error)) error {
 		lineCh := make(chan string, 128)
 		go e.readProcessOutputToChannel(r, process, logger, lineCh)
 		if err := AwaitReady(rc, lineCh, exited, logger); err != nil {
+			if e.isAborted() || appContext.IsShuttingDown() {
+				// The process was stopped by the shutdown, not a real failure.
+				return fmt.Errorf("unit %s not ready: %w", unit.Name, errShuttingDown)
+			}
 			logger.WriteLinef("Readiness check failed for unit %s: %v", unit.Name, err)
-			ready(fmt.Errorf("readiness check failed: %w", err))
-			return nil
+			readyErr := fmt.Errorf("readiness check failed: %w", err)
+			ready(readyErr)
+			// A failed readiness fails the run even without dependents: the
+			// caller stops the running units.
+			return fmt.Errorf("unit %s: %w", unit.Name, readyErr)
 		}
 		ready(nil)
 		return nil
