@@ -5,31 +5,15 @@ package core
 
 import (
 	"os"
-	"syscall"
 	"time"
 )
 
-// stopProcessGracefully sends SIGTERM to the process group of proc (host
-// units run in their own group, so children of the shell are stopped too) and
-// waits up to timeout for it to exit, then sends SIGKILL if it is still alive.
+// stopProcessGracefully stops proc, a process started by another runp
+// instance (runp reload): SIGTERM to its process group (host units run in
+// their own group, so children of the shell are stopped too), then SIGKILL
+// to the processes of the group still alive after timeout.
 func stopProcessGracefully(proc *os.Process, timeout time.Duration) error {
-	if !signalGroup(proc, syscall.SIGTERM) {
-		// Process may have already exited between the isProcessAlive check and here.
-		return nil
-	}
-
-	deadline := time.Now().Add(timeout)
-	ticker := time.NewTicker(50 * time.Millisecond)
-	defer ticker.Stop()
-
-	for time.Now().Before(deadline) {
-		<-ticker.C
-		if !isProcessAlive(proc.Pid) {
-			return nil
-		}
-	}
-
-	ui.Debugf("Process %d did not stop within %v, sending SIGKILL", proc.Pid, timeout)
-	signalGroup(proc, syscall.SIGKILL)
-	return nil
+	// The process is not a child of this runp: it is never reaped here.
+	notReaped := func() bool { return false }
+	return stopProcess(proc, notReaped, timeout, "")
 }

@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"os/exec"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -360,4 +361,31 @@ func TestExecCommandStopper(t *testing.T) {
 			t.Errorf("Expected String() to contain 'echo', got '%s'", str)
 		}
 	})
+}
+
+// When the shell exits on SIGTERM but a child ignores it, the child must be
+// killed at the end of the stop timeout, not left running.
+func TestStopProcessKillsGroupAfterLeaderExit(t *testing.T) {
+	ConfigureUI(testLogger, LoggerConfig{})
+	cmd := exec.Command("bash", "-c", `sh -c 'trap "" TERM; sleep 60' & wait`)
+	configureProcessAttributes(cmd)
+	w := &ExecCommandWrapper{cmd: cmd}
+	if err := w.Start(); err != nil {
+		t.Fatal(err)
+	}
+	pgid := cmd.Process.Pid
+	t.Cleanup(func() { syscall.Kill(-pgid, syscall.SIGKILL) })
+	go w.Wait()
+	time.Sleep(300 * time.Millisecond) // let the shell start its child
+
+	if err := stopProcess(w.startedProcess(), w.hasExited, time.Second, "tree"); err != nil {
+		t.Logf("stopProcess: %v", err)
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for syscall.Kill(-pgid, 0) == nil {
+		if time.Now().After(deadline) {
+			t.Fatal("a process of the group survived the stop")
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
 }
