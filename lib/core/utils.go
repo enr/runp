@@ -141,6 +141,8 @@ type runpfileSource struct {
 	path       string
 	importedBy string
 	chain      []string // ordered list of paths from root to this file's importer
+	// remoteURL is the URL a remote Runpfile was downloaded from to path.
+	remoteURL string
 }
 
 // LoadRunpfileFromPath returns an Runpfile object reading file from path.
@@ -150,6 +152,23 @@ func LoadRunpfileFromPath(runpfilePath string) (*Runpfile, error) {
 	}
 	visited := make(map[string]runpfileSource)
 	return loadRunpfileFromPath(rps, visited, false)
+}
+
+// LoadRemoteRunpfile returns the Runpfile downloaded from rawURL to the local
+// file runpfilePath (see FetchRunpfile). Its root is the current directory:
+// relative working directories are resolved against it, not against the
+// temporary directory of the download. Its project ID derives from rawURL,
+// and it cannot include other files.
+func LoadRemoteRunpfile(runpfilePath, rawURL string) (*Runpfile, error) {
+	rps := runpfileSource{path: runpfilePath, remoteURL: rawURL}
+	return loadRunpfileFromPath(rps, map[string]runpfileSource{}, false)
+}
+
+// LoadRemoteRunpfileForValidation is LoadRunpfileForValidation for a remote
+// Runpfile (see LoadRemoteRunpfile).
+func LoadRemoteRunpfileForValidation(runpfilePath, rawURL string) (*Runpfile, error) {
+	rps := runpfileSource{path: runpfilePath, remoteURL: rawURL}
+	return loadRunpfileFromPath(rps, map[string]runpfileSource{}, true)
 }
 
 // LoadRunpfileForValidation loads a Runpfile without failing on units that
@@ -200,7 +219,15 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 	if err != nil {
 		return nil, err
 	}
-	rf.Root, err = filepath.Abs(filepath.Dir(runpfile.path))
+	if runpfile.remoteURL != "" {
+		if len(rf.Include) > 0 {
+			return nil, fmt.Errorf("include is not supported in a remote Runpfile (%s): its included files cannot be fetched", runpfile.remoteURL)
+		}
+		rf.projectKey = runpfile.remoteURL
+		rf.Root, err = os.Getwd()
+	} else {
+		rf.Root, err = filepath.Abs(filepath.Dir(runpfile.path))
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +242,7 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 	}
 	if runpfile.importedBy == "" {
 		ui.WriteLinef("Runpfile root directory: %s", rf.Root)
-		project := ProjectID(rf.Root)
+		project := rf.ProjectID()
 		for _, unit := range rf.Units {
 			if unit.Container != nil {
 				unit.Container.project = project

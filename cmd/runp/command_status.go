@@ -22,7 +22,7 @@ func doStatus(c *cli.Context) error {
 	}
 
 	envSettings := core.LoadEnvironmentSettings()
-	pidDir, _ := core.PIDDirForRoot(runpfile.Root)
+	pidDir, _ := core.PIDDirForRunpfile(runpfile)
 
 	statuses := make([]core.UnitStatus, 0, len(runpfile.Units))
 	for _, unit := range runpfile.Units {

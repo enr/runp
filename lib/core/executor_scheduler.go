@@ -16,7 +16,7 @@ import (
 func NewExecutor(rf *Runpfile) *RunpfileExecutor {
 	pidDir := ""
 	if rf.Root != "" {
-		if d, err := PIDDirForRoot(rf.Root); err == nil {
+		if d, err := PIDDirForRunpfile(rf); err == nil {
 			pidDir = d
 		}
 	}

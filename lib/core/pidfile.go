@@ -21,6 +21,15 @@ func PIDDirForRoot(root string) (string, error) {
 	return filepath.Join(home, ".runp", "pids", ProjectID(root)), nil
 }
 
+// PIDDirForRunpfile returns the directory used to store the PID files of rf.
+func PIDDirForRunpfile(rf *Runpfile) (string, error) {
+	home, err := homedir.Dir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".runp", "pids", rf.ProjectID()), nil
+}
+
 // ProjectID returns a short identifier for the Runpfile rooted at root. It
 // scopes PID files and labels the containers started for that Runpfile.
 func ProjectID(root string) string {

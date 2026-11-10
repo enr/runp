@@ -16,7 +16,12 @@ func doValidate(c *cli.Context) error {
 		return runpfileNotFoundError(localPath)
 	}
 
-	runpfile, err := core.LoadRunpfileForValidation(localPath)
+	var runpfile *core.Runpfile
+	if isURL(f) {
+		runpfile, err = core.LoadRemoteRunpfileForValidation(localPath, f)
+	} else {
+		runpfile, err = core.LoadRunpfileForValidation(localPath)
+	}
 	if err != nil {
 		return exitErrorf(exitCodeLoad, "Failed to load Runpfile %s: %s", displayPath, err.Error())
 	}

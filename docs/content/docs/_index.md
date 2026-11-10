@@ -297,8 +297,9 @@ timeout) and verified against `--checksum` when given.
 
 A Runpfile runs commands on your machine: plain `http://` URLs are accepted only together with `--checksum`.
 For the same reason, without `--checksum` a redirect from an `https://` URL to a non-`https://` URL is refused.
-Paths in a remote Runpfile (`include:`, `workdir`) are relative to a temporary directory, so remote Runpfiles
-should be self-contained.
+A remote Runpfile must be self-contained: `include:` is not supported. Relative `workdir` paths (and the
+`runp_root` var) refer to the current directory. Each URL is a distinct project for `runp status` and
+`runp reload` (PID files, container labels), so use the same URL for all the commands.
 
 ### Settings
 

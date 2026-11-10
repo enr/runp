@@ -25,7 +25,7 @@ func doReload(c *cli.Context) error {
 
 	pidDir := ""
 	if runpfile.Root != "" {
-		if d, e := core.PIDDirForRoot(runpfile.Root); e == nil {
+		if d, e := core.PIDDirForRunpfile(runpfile); e == nil {
 			pidDir = d
 		}
 	}
