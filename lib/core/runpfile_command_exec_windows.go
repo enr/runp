@@ -9,14 +9,6 @@ import (
 	"time"
 )
 
-var (
-	kernel32             = syscall.NewLazyDLL("kernel32.dll")
-	procOpenProcess      = kernel32.NewProc("OpenProcess")
-	procCloseHandle      = kernel32.NewProc("CloseHandle")
-	procGetLastError     = kernel32.NewProc("GetLastError")
-	procTerminateProcess = kernel32.NewProc("TerminateProcess")
-)
-
 const (
 	PROCESS_QUERY_INFORMATION = 0x0400
 	PROCESS_TERMINATE         = 0x0001
@@ -34,25 +26,24 @@ const (
 )
 
 // checkProcessStatus checks the status of a process on Windows
-// It distinguishes between "process doesn't exist" and "access denied"
+// It distinguishes between "process doesn't exist" and "access denied".
+//
+// The error comes from the OpenProcess call itself: the last Win32 error is
+// per thread, so reading it with a separate GetLastError call (the goroutine
+// may have moved to another OS thread in between) gave unreliable results.
 func checkProcessStatus(pid int) processStatus {
-	handle, _, _ := procOpenProcess.Call(PROCESS_QUERY_INFORMATION, 0, uintptr(pid))
-	if handle != 0 {
+	handle, err := syscall.OpenProcess(PROCESS_QUERY_INFORMATION, false, uint32(pid))
+	if err == nil {
 		// Successfully opened the process - it exists and we have access
-		procCloseHandle.Call(handle)
+		syscall.CloseHandle(handle)
 		return processRunning
 	}
 
-	// OpenProcess failed - need to check the error code
-	// GetLastError returns the last error code set by Windows API
-	lastError, _, _ := procGetLastError.Call()
-	errorCode := int(lastError)
-
-	switch errorCode {
-	case ERROR_INVALID_PARAMETER:
+	switch err {
+	case syscall.Errno(ERROR_INVALID_PARAMETER):
 		// Process doesn't exist (invalid PID)
 		return processExited
-	case ERROR_ACCESS_DENIED:
+	case syscall.ERROR_ACCESS_DENIED:
 		// Process exists but we don't have permission to access it
 		// This means the process is likely still running
 		return processAccessDenied
@@ -75,23 +66,14 @@ func isProcessRunning(pid int) bool {
 // This can work in cases where p.Kill() fails due to permission issues
 func terminateProcessDirectly(pid int) error {
 	// Try to open the process with TERMINATE permission
-	handle, _, _ := procOpenProcess.Call(PROCESS_TERMINATE, 0, uintptr(pid))
-	if handle == 0 {
-		// Failed to open process - return error
-		lastError, _, _ := procGetLastError.Call()
-		return syscall.Errno(lastError)
+	handle, err := syscall.OpenProcess(PROCESS_TERMINATE, false, uint32(pid))
+	if err != nil {
+		return err
 	}
-	defer procCloseHandle.Call(handle)
+	defer syscall.CloseHandle(handle)
 
 	// Terminate the process with exit code 1
-	result, _, _ := procTerminateProcess.Call(handle, 1)
-	if result == 0 {
-		// TerminateProcess failed
-		lastError, _, _ := procGetLastError.Call()
-		return syscall.Errno(lastError)
-	}
-
-	return nil
+	return syscall.TerminateProcess(handle, 1)
 }
 
 // handleKillError handles errors when Kill() fails, attempting alternative termination methods

@@ -89,3 +89,15 @@ func TestStopProcessStopsProcessTree(t *testing.T) {
 		t.Error("children of the shell still running after stopProcess")
 	}
 }
+
+// checkProcessStatus reads the error of OpenProcess itself (not a separate
+// GetLastError call, which may run on another OS thread).
+func TestCheckProcessStatus(t *testing.T) {
+	if got := checkProcessStatus(os.Getpid()); got != processRunning {
+		t.Errorf("own process: got status %d, want running", got)
+	}
+	// Windows PIDs are multiples of 4: this one cannot exist.
+	if got := checkProcessStatus(0x7ffffffd); got != processExited {
+		t.Errorf("nonexistent PID: got status %d, want exited", got)
+	}
+}
