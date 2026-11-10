@@ -44,6 +44,7 @@ func (e *RunpfileExecutor) monitorProcessExit(cmd RunpCommand, process RunpProce
 				return
 			}
 			e.handleProcessError(err, process, logger, appContext)
+			e.recordExitError(fmt.Errorf("unit %s: %w", process.ID(), err))
 		} else {
 			logger.WriteLinef("Process %s completed successfully", process.ID())
 		}

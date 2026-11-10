@@ -60,6 +60,25 @@ type RunpfileExecutor struct {
 	// are then skipped.
 	aborted   chan struct{}
 	abortOnce sync.Once
+
+	// exitErrs collects the units whose process exited with an error outside
+	// a shutdown, so that Start reports them even when nothing depends on them.
+	exitMu   sync.Mutex
+	exitErrs []error
+}
+
+// recordExitError notes that a unit's process exited with an error.
+func (e *RunpfileExecutor) recordExitError(err error) {
+	e.exitMu.Lock()
+	defer e.exitMu.Unlock()
+	e.exitErrs = append(e.exitErrs, err)
+}
+
+// exitErrorCount returns the number of units whose process exited with an error.
+func (e *RunpfileExecutor) exitErrorCount() int {
+	e.exitMu.Lock()
+	defer e.exitMu.Unlock()
+	return len(e.exitErrs)
 }
 
 // longestName returns the longest unit name length. It is computed before any
@@ -162,6 +181,9 @@ func (e *RunpfileExecutor) StartSingleUnit(unitName string) error {
 	// A unit with a ready condition returns from startUnit while still
 	// running: wait for it so the caller does not leave it orphaned.
 	e.running.Wait()
+	if err == nil && e.exitErrorCount() > 0 {
+		return fmt.Errorf("unit %q exited with an error", unitName)
+	}
 	return err
 }
 
@@ -286,8 +308,14 @@ func (e *RunpfileExecutor) Start() error {
 	wg.Wait()
 	e.running.Wait()
 
-	if len(errs) > 0 {
+	exited := e.exitErrorCount()
+	switch {
+	case len(errs) > 0 && exited > 0:
+		return fmt.Errorf("%d unit(s) failed to start, %d unit(s) exited with an error", len(errs), exited)
+	case len(errs) > 0:
 		return fmt.Errorf("%d unit(s) failed to start", len(errs))
+	case exited > 0:
+		return fmt.Errorf("%d unit(s) exited with an error", exited)
 	}
 	return nil
 }

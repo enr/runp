@@ -178,3 +178,42 @@ units:
 	}
 	t.Fatal("dependent not started while the dependency's background child was running")
 }
+
+// A unit that exits with an error must make Start fail even when no other
+// unit depends on it, so that runp exits with a non-zero code.
+func TestStart_UnitExitErrorFailsStart(t *testing.T) {
+	notShuttingDown(t)
+	sut := newLifetimeExecutor(t, `
+units:
+  bad:
+    host:
+      command: "exit 7"
+  good:
+    host:
+      command: "true"
+`)
+	err := startWithTimeout(t, sut, 10*time.Second)
+	if err == nil {
+		t.Fatal("expected an error when a unit exits with an error")
+	}
+	if !strings.Contains(err.Error(), "exited with an error") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+// notShuttingDown clears the shutting-down flag of the global application
+// context for the duration of the test: other tests may leave it set, and
+// exits during a shutdown are not reported as errors.
+func notShuttingDown(t *testing.T) {
+	t.Helper()
+	ctx := GetApplicationContext()
+	ctx.Lock()
+	was := ctx.shuttingDown
+	ctx.shuttingDown = false
+	ctx.Unlock()
+	t.Cleanup(func() {
+		ctx.Lock()
+		ctx.shuttingDown = was
+		ctx.Unlock()
+	})
+}
