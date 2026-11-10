@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"time"
 )
 
 // ValidationResult holds errors and warnings produced by ValidateRunpfile.
@@ -26,6 +27,7 @@ func (r *ValidationResult) Valid() bool {
 //   - unit with multiple or missing process types
 //   - variable references that are not declared in the vars section
 //   - circular variable references in the vars section
+//   - invalid durations (stop_timeout, await.timeout, ready.delay/timeout)
 //
 // Warnings (informational, do not fail validation):
 //   - OS or runp-version preconditions that would cause a unit to be skipped
@@ -40,6 +42,7 @@ func ValidateRunpfile(rf *Runpfile) ValidationResult {
 	result.Errors = append(result.Errors, validateVariableRefs(rf)...)
 
 	result.Errors = append(result.Errors, validateDependsOn(rf)...)
+	result.Errors = append(result.Errors, validateDurations(rf, false)...)
 
 	result.Warnings = append(result.Warnings, collectPreconditionWarnings(rf)...)
 	result.Warnings = append(result.Warnings, collectAwaitWarnings(rf)...)
@@ -239,15 +242,7 @@ func collectAwaitWarnings(rf *Runpfile) []string {
 	var warnings []string
 	for _, name := range unitNames {
 		unit := rf.Units[name]
-		var await AwaitCondition
-		switch {
-		case unit.Host != nil:
-			await = unit.Host.Await
-		case unit.Container != nil:
-			await = unit.Container.Await
-		case unit.SSHTunnel != nil:
-			await = unit.SSHTunnel.Await
-		}
+		await := unitAwait(unit)
 		if await.Resource != "" && await.Timeout == "" {
 			warnings = append(warnings, fmt.Sprintf("unit %q: await.resource is set without await.timeout, the unit will not wait for %s", name, await.Resource))
 		}
@@ -294,4 +289,84 @@ func preconditionWarnings(scope string, p *Preconditions) []string {
 		}
 	}
 	return warnings
+}
+
+// validateDurations checks the duration fields of every unit: stop_timeout,
+// await.timeout, ready.delay and ready.timeout. An invalid value used to be
+// replaced silently by the default.
+//
+// With resolved false (runp validate) the values containing {{vars}} are
+// skipped: the var values are only known when units start. With resolved
+// true the units must have their vars bound and the values are expanded.
+func validateDurations(rf *Runpfile, resolved bool) []error {
+	unitNames := make([]string, 0, len(rf.Units))
+	for name := range rf.Units {
+		unitNames = append(unitNames, name)
+	}
+	sort.Strings(unitNames)
+
+	var errs []error
+	for _, name := range unitNames {
+		unit := rf.Units[name]
+		if unit == nil {
+			continue
+		}
+		errs = append(errs, unitDurationErrors(name, unit, resolved)...)
+	}
+	return errs
+}
+
+func unitDurationErrors(name string, unit *RunpUnit, resolved bool) []error {
+	var errs []error
+	check := func(field, value string) (time.Duration, bool) {
+		if value == "" || (!resolved && varsRegexp.MatchString(value)) {
+			return 0, false
+		}
+		d, err := time.ParseDuration(value)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("unit %q: invalid %s %q: expected a duration such as \"5s\" or \"1m30s\"", name, field, value))
+			return 0, false
+		}
+		if d < 0 {
+			errs = append(errs, fmt.Errorf("unit %q: invalid %s %q: it must not be negative", name, field, value))
+			return 0, false
+		}
+		return d, true
+	}
+
+	check("stop_timeout", unit.StopTimeout)
+
+	await := unitAwait(unit)
+	if resolved && unit.Process() != nil {
+		await.Timeout = unit.Process().AwaitTimeout()
+	}
+	check("await.timeout", await.Timeout)
+
+	rc := unit.Ready
+	if resolved {
+		rc = rc.expand(unit.vars)
+	}
+	delay, delayOK := check("ready.delay", rc.Delay)
+	timeout, timeoutOK := check("ready.timeout", rc.Timeout)
+	if rc.Timeout == "" {
+		timeout, timeoutOK = defaultReadyTimeout, true
+	}
+	// Output and Cmd take priority over Delay, which is then unused.
+	if delayOK && timeoutOK && rc.Output == "" && rc.Cmd == "" && delay >= timeout {
+		errs = append(errs, fmt.Errorf("unit %q: ready.delay %s is not shorter than ready.timeout %s: the unit can never be ready", name, delay, timeout))
+	}
+	return errs
+}
+
+// unitAwait returns the await block of the unit's process.
+func unitAwait(unit *RunpUnit) AwaitCondition {
+	switch {
+	case unit.Host != nil:
+		return unit.Host.Await
+	case unit.Container != nil:
+		return unit.Container.Await
+	case unit.SSHTunnel != nil:
+		return unit.SSHTunnel.Await
+	}
+	return AwaitCondition{}
 }

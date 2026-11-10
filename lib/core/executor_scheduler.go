@@ -176,6 +176,9 @@ func (e *RunpfileExecutor) StartSingleUnit(unitName string) error {
 	if errs := validateVariableRefs(&Runpfile{Vars: e.rf.Vars, Units: map[string]*RunpUnit{unitName: unit}}); len(errs) > 0 {
 		return fmt.Errorf("cannot start: %w", multiError(errs))
 	}
+	if errs := validateDurations(&Runpfile{Units: map[string]*RunpUnit{unitName: unit}}, true); len(errs) > 0 {
+		return fmt.Errorf("cannot start: %w", multiError(errs))
+	}
 	warnInsecureSSHTunnels(e.rf.Units, map[string]bool{})
 	err := e.startUnit(unit)
 	if err != nil && !errors.Is(err, errShuttingDown) {
@@ -269,6 +272,13 @@ func (e *RunpfileExecutor) Start() error {
 		}
 		return fmt.Errorf("cannot start: %d undefined variable reference(s)", len(errs))
 	}
+	// An invalid duration would otherwise be replaced silently by a default.
+	if errs := validateDurations(activeUnits(e.rf, skipped), true); len(errs) > 0 {
+		for _, err := range errs {
+			ui.WriteLinef("%v", err)
+		}
+		return fmt.Errorf("cannot start: %d invalid duration(s)", len(errs))
+	}
 
 	// Validates depends_on references and cycles; the layers only give a
 	// deterministic launch order, readiness is tracked per unit.
@@ -322,6 +332,17 @@ func (e *RunpfileExecutor) Start() error {
 		return fmt.Errorf("%d unit(s) exited with an error", exited)
 	}
 	return nil
+}
+
+// activeUnits returns a Runpfile holding the units of rf not in skipped.
+func activeUnits(rf *Runpfile, skipped map[string]bool) *Runpfile {
+	units := make(map[string]*RunpUnit, len(rf.Units))
+	for name, unit := range rf.Units {
+		if !skipped[name] {
+			units[name] = unit
+		}
+	}
+	return &Runpfile{Vars: rf.Vars, Units: units}
 }
 
 // reportSkippedUnits logs the units skipped for unsatisfied preconditions.

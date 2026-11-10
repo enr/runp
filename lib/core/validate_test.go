@@ -199,3 +199,36 @@ func TestValidateVariableRefsInNotExpandedField(t *testing.T) {
 		t.Errorf("expected one error about description, got %v", errs)
 	}
 }
+
+func TestValidateDurations(t *testing.T) {
+	tests := []struct {
+		name string
+		unit *RunpUnit
+		want string // substring of the single expected error, "" for none
+	}{
+		{"valid", &RunpUnit{StopTimeout: "10s", Ready: ReadyCondition{Delay: "1s", Timeout: "5s"},
+			Host: &HostProcess{CommandLine: "true", Await: AwaitCondition{Timeout: "3s"}}}, ""},
+		{"stop_timeout without unit", &RunpUnit{StopTimeout: "30", Host: &HostProcess{}}, "stop_timeout"},
+		{"bad ready timeout", &RunpUnit{Ready: ReadyCondition{Output: "x", Timeout: "banana"}, Host: &HostProcess{}}, "ready.timeout"},
+		{"bad ready delay", &RunpUnit{Ready: ReadyCondition{Delay: "soon"}, Host: &HostProcess{}}, "ready.delay"},
+		{"bad await timeout", &RunpUnit{Container: &ContainerProcess{Await: AwaitCondition{Timeout: "5"}}}, "await.timeout"},
+		{"negative", &RunpUnit{StopTimeout: "-1s", Host: &HostProcess{}}, "stop_timeout"},
+		{"delay beyond timeout", &RunpUnit{Ready: ReadyCondition{Delay: "60s"}, Host: &HostProcess{}}, "ready.delay"},
+		{"vars not resolved yet", &RunpUnit{Ready: ReadyCondition{Delay: "{{vars d}}"}, Host: &HostProcess{}}, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.unit.Name = "u"
+			errs := validateDurations(&Runpfile{Units: map[string]*RunpUnit{"u": tt.unit}}, false)
+			if tt.want == "" {
+				if len(errs) != 0 {
+					t.Errorf("unexpected errors: %v", errs)
+				}
+				return
+			}
+			if len(errs) != 1 || !strings.Contains(errs[0].Error(), tt.want) {
+				t.Errorf("expected one error about %s, got %v", tt.want, errs)
+			}
+		})
+	}
+}
