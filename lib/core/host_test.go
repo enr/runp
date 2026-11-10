@@ -684,3 +684,29 @@ func TestHostProcess_AwaitTimeout(t *testing.T) {
 		t.Errorf("Expected '10s', got '%s'", result)
 	}
 }
+
+// Env values are expanded against the environment of runp before vars are
+// substituted: a "$" coming from a var value (e.g. a password passed with
+// --var) is kept as is.
+func TestEnvExpansionDoesNotTouchVarValues(t *testing.T) {
+	setupTestUI(t)
+	t.Setenv("RUNP_TEST_HOME", "/home/x")
+	vars := map[string]string{"pw": "pa$word$RUNP_TEST_HOME"}
+	env := map[string]string{"P": "$RUNP_TEST_HOME:$${{vars pw}}"}
+	want := "/home/x:$pa$word$RUNP_TEST_HOME"
+
+	host := &HostProcess{Env: env, vars: vars}
+	got := host.resolveEnvironment()
+	if len(got) != 1 || got[0] != "P="+want {
+		t.Errorf("host env: got %v, want P=%s", got, want)
+	}
+
+	c := &ContainerProcess{Image: "img", Env: env, vars: vars}
+	args, err := c.buildArgs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(strings.Join(args, "\n"), "\nP="+want+"\n") {
+		t.Errorf("container args: got %q, want -e P=%s", args, want)
+	}
+}

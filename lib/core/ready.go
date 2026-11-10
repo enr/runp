@@ -28,6 +28,17 @@ type ReadyCondition struct {
 	Timeout string `yaml:"timeout"`
 }
 
+// expand returns a copy of rc with {{vars}} references resolved.
+func (rc ReadyCondition) expand(vars map[string]string) ReadyCondition {
+	pre := newCliPreprocessor(vars)
+	return ReadyCondition{
+		Delay:   pre.process(rc.Delay),
+		Output:  pre.process(rc.Output),
+		Cmd:     pre.process(rc.Cmd),
+		Timeout: pre.process(rc.Timeout),
+	}
+}
+
 // IsSet reports whether any readiness condition is configured.
 func (rc ReadyCondition) IsSet() bool {
 	return rc.Delay != "" || rc.Output != "" || rc.Cmd != ""
@@ -47,7 +58,12 @@ func (rc ReadyCondition) parseTimeout() time.Duration {
 // reached. outputCh receives lines from the process stdout/stderr and is
 // consumed only by the ready.output condition; it may be nil for the other
 // condition types.
-func AwaitReady(rc ReadyCondition, outputCh <-chan string, logger Logger) error {
+//
+// exited receives the exit error of the process (nil for a successful exit)
+// when it terminates; it may be nil. A process that exits while a ready.delay
+// or ready.cmd condition is pending is ready if it exited successfully (it
+// completed its work) and failed otherwise.
+func AwaitReady(rc ReadyCondition, outputCh <-chan string, exited <-chan error, logger Logger) error {
 	if !rc.IsSet() {
 		return nil
 	}
@@ -65,7 +81,7 @@ func AwaitReady(rc ReadyCondition, outputCh <-chan string, logger Logger) error 
 	}
 	if rc.Cmd != "" {
 		logger.WriteLinef("Waiting for command %q to succeed (timeout: %s)...", rc.Cmd, timeout)
-		if err := awaitReadyFromCmd(ctx, rc.Cmd); err != nil {
+		if err := awaitReadyFromCmd(ctx, rc.Cmd, exited); err != nil {
 			return err
 		}
 		logger.WriteLinef("Ready: command %q succeeded", rc.Cmd)
@@ -76,7 +92,7 @@ func AwaitReady(rc ReadyCondition, outputCh <-chan string, logger Logger) error 
 		return fmt.Errorf("invalid ready delay %q: %w", rc.Delay, err)
 	}
 	logger.WriteLinef("Waiting %s before signaling ready...", d)
-	if err := awaitReadyFromDelay(ctx, d); err != nil {
+	if err := awaitReadyFromDelay(ctx, d, exited); err != nil {
 		return err
 	}
 	logger.WriteLinef("Ready: delay %s elapsed", d)
@@ -101,9 +117,18 @@ func awaitReadyFromOutput(ctx context.Context, pattern string, outputCh <-chan s
 	}
 }
 
-// awaitReadyFromCmd polls cmdLine every second until it exits with code 0 or
-// ctx is cancelled.
-func awaitReadyFromCmd(ctx context.Context, cmdLine string) error {
+// readyOnExit is the outcome of a pending readiness condition when the process
+// exits with exitErr.
+func readyOnExit(exitErr error) error {
+	if exitErr == nil {
+		return nil
+	}
+	return fmt.Errorf("process exited before being ready: %w", exitErr)
+}
+
+// awaitReadyFromCmd polls cmdLine every second until it exits with code 0,
+// the process exits or ctx is cancelled.
+func awaitReadyFromCmd(ctx context.Context, cmdLine string, exited <-chan error) error {
 	shell := defaultShell()
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
@@ -111,6 +136,8 @@ func awaitReadyFromCmd(ctx context.Context, cmdLine string) error {
 		select {
 		case <-ctx.Done():
 			return fmt.Errorf("ready_cmd: timeout waiting for command %q: %w", cmdLine, ctx.Err())
+		case err := <-exited:
+			return readyOnExit(err)
 		case <-ticker.C:
 			args := append(shell.Args, cmdLine)
 			cmd := exec.CommandContext(ctx, shell.Path, args...)
@@ -121,9 +148,12 @@ func awaitReadyFromCmd(ctx context.Context, cmdLine string) error {
 	}
 }
 
-// awaitReadyFromDelay blocks for delay or until ctx is cancelled.
-func awaitReadyFromDelay(ctx context.Context, delay time.Duration) error {
+// awaitReadyFromDelay blocks for delay, until the process exits or until ctx
+// is cancelled.
+func awaitReadyFromDelay(ctx context.Context, delay time.Duration, exited <-chan error) error {
 	select {
+	case err := <-exited:
+		return readyOnExit(err)
 	case <-ctx.Done():
 		return fmt.Errorf("ready_delay: context cancelled while waiting %s: %w", delay, ctx.Err())
 	case <-time.After(delay):

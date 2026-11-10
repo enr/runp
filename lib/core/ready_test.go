@@ -67,7 +67,7 @@ func TestReadyCondition_parseTimeout_Invalid(t *testing.T) {
 
 func TestAwaitReady_NoCondition(t *testing.T) {
 	rc := ReadyCondition{}
-	if err := AwaitReady(rc, nil, testLogger); err != nil {
+	if err := AwaitReady(rc, nil, nil, testLogger); err != nil {
 		t.Errorf("AwaitReady with no condition should return nil, got %v", err)
 	}
 }
@@ -77,7 +77,7 @@ func TestAwaitReady_NoCondition(t *testing.T) {
 func TestAwaitReady_Delay_Success(t *testing.T) {
 	rc := ReadyCondition{Delay: "50ms", Timeout: "5s"}
 	start := time.Now()
-	if err := AwaitReady(rc, nil, testLogger); err != nil {
+	if err := AwaitReady(rc, nil, nil, testLogger); err != nil {
 		t.Fatalf("expected nil, got %v", err)
 	}
 	if time.Since(start) < 40*time.Millisecond {
@@ -87,14 +87,14 @@ func TestAwaitReady_Delay_Success(t *testing.T) {
 
 func TestAwaitReady_Delay_InvalidFormat(t *testing.T) {
 	rc := ReadyCondition{Delay: "not-valid", Timeout: "5s"}
-	if err := AwaitReady(rc, nil, testLogger); err == nil {
+	if err := AwaitReady(rc, nil, nil, testLogger); err == nil {
 		t.Error("expected error for invalid delay format")
 	}
 }
 
 func TestAwaitReady_Delay_Timeout(t *testing.T) {
 	rc := ReadyCondition{Delay: "10s", Timeout: "50ms"}
-	if err := AwaitReady(rc, nil, testLogger); err == nil {
+	if err := AwaitReady(rc, nil, nil, testLogger); err == nil {
 		t.Error("expected timeout error when delay exceeds timeout")
 	}
 }
@@ -108,7 +108,7 @@ func TestAwaitReady_Output_PatternFound(t *testing.T) {
 	ch <- "server listening on :3000"
 	ch <- "accepting connections"
 
-	if err := AwaitReady(rc, ch, testLogger); err != nil {
+	if err := AwaitReady(rc, ch, nil, testLogger); err != nil {
 		t.Fatalf("expected nil, got %v", err)
 	}
 }
@@ -119,7 +119,7 @@ func TestAwaitReady_Output_PatternFoundSubstring(t *testing.T) {
 	ch <- "not yet"
 	ch <- "system ready to accept connections"
 
-	if err := AwaitReady(rc, ch, testLogger); err != nil {
+	if err := AwaitReady(rc, ch, nil, testLogger); err != nil {
 		t.Fatalf("expected nil, got %v", err)
 	}
 }
@@ -131,7 +131,7 @@ func TestAwaitReady_Output_ChannelClosedBeforeMatch(t *testing.T) {
 	ch <- "crashed before ready"
 	close(ch)
 
-	if err := AwaitReady(rc, ch, testLogger); err == nil {
+	if err := AwaitReady(rc, ch, nil, testLogger); err == nil {
 		t.Error("expected error when channel closed before pattern appeared")
 	}
 }
@@ -140,7 +140,7 @@ func TestAwaitReady_Output_Timeout(t *testing.T) {
 	rc := ReadyCondition{Output: "never-appears", Timeout: "50ms"}
 	ch := make(chan string) // unbuffered, nobody sends
 
-	if err := AwaitReady(rc, ch, testLogger); err == nil {
+	if err := AwaitReady(rc, ch, nil, testLogger); err == nil {
 		t.Error("expected timeout error")
 	}
 }
@@ -156,7 +156,7 @@ func TestAwaitReady_Output_PatternSentAsync(t *testing.T) {
 		ch <- "go!"
 	}()
 
-	if err := AwaitReady(rc, ch, testLogger); err != nil {
+	if err := AwaitReady(rc, ch, nil, testLogger); err != nil {
 		t.Fatalf("expected nil, got %v", err)
 	}
 }
@@ -165,14 +165,14 @@ func TestAwaitReady_Output_PatternSentAsync(t *testing.T) {
 
 func TestAwaitReady_Cmd_Succeeds(t *testing.T) {
 	rc := ReadyCondition{Cmd: "true", Timeout: "5s"}
-	if err := AwaitReady(rc, nil, testLogger); err != nil {
+	if err := AwaitReady(rc, nil, nil, testLogger); err != nil {
 		t.Fatalf("expected nil for 'true' command, got %v", err)
 	}
 }
 
 func TestAwaitReady_Cmd_Timeout(t *testing.T) {
 	rc := ReadyCondition{Cmd: "false", Timeout: "150ms"}
-	if err := AwaitReady(rc, nil, testLogger); err == nil {
+	if err := AwaitReady(rc, nil, nil, testLogger); err == nil {
 		t.Error("expected timeout error for always-failing command")
 	}
 }
@@ -186,7 +186,7 @@ func TestAwaitReady_Cmd_SucceedsAfterRetry(t *testing.T) {
 	}()
 
 	rc := ReadyCondition{Cmd: "test -f " + tmpFile, Timeout: "10s"}
-	if err := AwaitReady(rc, nil, testLogger); err != nil {
+	if err := AwaitReady(rc, nil, nil, testLogger); err != nil {
 		t.Fatalf("expected nil after retry, got %v", err)
 	}
 }
@@ -199,7 +199,7 @@ func TestAwaitReady_Priority_OutputOverCmd(t *testing.T) {
 	ch := make(chan string, 1)
 	ch <- "hi there"
 
-	if err := AwaitReady(rc, ch, testLogger); err != nil {
+	if err := AwaitReady(rc, ch, nil, testLogger); err != nil {
 		t.Fatalf("Output should take priority over Cmd; got %v", err)
 	}
 }
@@ -208,7 +208,7 @@ func TestAwaitReady_Priority_CmdOverDelay(t *testing.T) {
 	// Both Cmd and Delay are set; Cmd takes priority.
 	rc := ReadyCondition{Cmd: "true", Delay: "10s", Timeout: "5s"}
 	start := time.Now()
-	if err := AwaitReady(rc, nil, testLogger); err != nil {
+	if err := AwaitReady(rc, nil, nil, testLogger); err != nil {
 		t.Fatalf("Cmd should take priority over Delay; got %v", err)
 	}
 	if time.Since(start) > 3*time.Second {

@@ -33,7 +33,6 @@ func doEncrypt(c *cli.Context) error {
 		key = core.RandomKey()
 		generated = true
 	}
-	ui.Debugf("Encrypting secret using key: %s", key)
 	secret, err := core.EncryptToBase64([]byte(plain), key)
 	if err != nil {
 		return exitErrorf(exitCodeExec, "Encryption operation failed: %v", err)

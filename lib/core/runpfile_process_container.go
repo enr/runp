@@ -120,9 +120,11 @@ func (p *ContainerProcess) SetDir(wd string) {
 	p.WorkingDir = wd
 }
 
+// buildContainerName returns the name of the container, with its vars
+// resolved: it is used to start, look up and stop the container.
 func (p *ContainerProcess) buildContainerName() string {
 	if p.Name != "" {
-		return p.Name
+		return newCliPreprocessor(p.vars).process(p.Name)
 	}
 	return fmt.Sprintf("%s%s", containerNamePrefix, p.ID())
 }
@@ -140,7 +142,7 @@ func (p *ContainerProcess) buildArgs() ([]string, error) {
 	if !p.SkipRm {
 		args = append(args, "--rm")
 	}
-	args = append(args, "--name", pre.process(p.buildContainerName()))
+	args = append(args, "--name", p.buildContainerName())
 	if p.project != "" {
 		args = append(args, "--label", containerProjectLabel+"="+p.project)
 	}
@@ -169,7 +171,7 @@ func (p *ContainerProcess) buildArgs() ([]string, error) {
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		args = append(args, "-e", name+"="+expandEnvValue(pre.process(p.Env[name])))
+		args = append(args, "-e", name+"="+resolveEnvValue(pre, p.Env[name]))
 	}
 	args = append(args, img)
 	if p.Command != "" {
@@ -203,12 +205,12 @@ func (p *ContainerProcess) ShouldWait() bool {
 
 // AwaitResource returns the await resource.
 func (p *ContainerProcess) AwaitResource() string {
-	return p.Await.Resource
+	return newCliPreprocessor(p.vars).process(p.Await.Resource)
 }
 
 // AwaitTimeout returns the await timeout.
 func (p *ContainerProcess) AwaitTimeout() string {
-	return p.Await.Timeout
+	return newCliPreprocessor(p.vars).process(p.Await.Timeout)
 }
 
 // String representation of process

@@ -113,7 +113,8 @@ func performCheck(check EnvVarCheck, envReader func(string) string) string {
 
 	case EnvVarConditionIsUnset:
 		if currentValue != "" {
-			return fmt.Sprintf("Environment variable '%s' is set but should be unset (current value: '%s')", check.Name, currentValue)
+			// The value is not reported: it may be a secret.
+			return fmt.Sprintf("Environment variable '%s' is set but should be unset", check.Name)
 		}
 
 	case EnvVarConditionIsEqual:

@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/mitchellh/go-homedir"
@@ -90,7 +91,36 @@ func IsRunpfileValid(runpfile *Runpfile) (bool, []error) {
 			errs = append(errs, errors.New("Unit "+id+" must define exactly one process type: Host, SSHTunnel, or Container"))
 		}
 	}
+	errs = append(errs, duplicateUnitNames(runpfile)...)
 	return (len(errs) == 0), errs
+}
+
+// duplicateUnitNames reports units sharing the same name (the name field, or
+// the unit ID when unset): the name identifies the running process, its PID
+// file and its container, so such units would overwrite each other.
+func duplicateUnitNames(runpfile *Runpfile) []error {
+	byName := map[string][]string{}
+	for id, unit := range runpfile.Units {
+		name := id
+		if unit != nil && unit.Name != "" {
+			name = unit.Name
+		}
+		byName[name] = append(byName[name], id)
+	}
+	names := make([]string, 0, len(byName))
+	for name, ids := range byName {
+		if len(ids) > 1 {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	var errs []error
+	for _, name := range names {
+		ids := byName[name]
+		sort.Strings(ids)
+		errs = append(errs, fmt.Errorf("units %s have the same name %q: unit names must be unique", strings.Join(ids, ", "), name))
+	}
+	return errs
 }
 
 // validateUnitName rejects unit names that cannot be used safely as file
@@ -111,6 +141,8 @@ type runpfileSource struct {
 	path       string
 	importedBy string
 	chain      []string // ordered list of paths from root to this file's importer
+	// remoteURL is the URL a remote Runpfile was downloaded from to path.
+	remoteURL string
 }
 
 // LoadRunpfileFromPath returns an Runpfile object reading file from path.
@@ -120,6 +152,23 @@ func LoadRunpfileFromPath(runpfilePath string) (*Runpfile, error) {
 	}
 	visited := make(map[string]runpfileSource)
 	return loadRunpfileFromPath(rps, visited, false)
+}
+
+// LoadRemoteRunpfile returns the Runpfile downloaded from rawURL to the local
+// file runpfilePath (see FetchRunpfile). Its root is the current directory:
+// relative working directories are resolved against it, not against the
+// temporary directory of the download. Its project ID derives from rawURL,
+// and it cannot include other files.
+func LoadRemoteRunpfile(runpfilePath, rawURL string) (*Runpfile, error) {
+	rps := runpfileSource{path: runpfilePath, remoteURL: rawURL}
+	return loadRunpfileFromPath(rps, map[string]runpfileSource{}, false)
+}
+
+// LoadRemoteRunpfileForValidation is LoadRunpfileForValidation for a remote
+// Runpfile (see LoadRemoteRunpfile).
+func LoadRemoteRunpfileForValidation(runpfilePath, rawURL string) (*Runpfile, error) {
+	rps := runpfileSource{path: runpfilePath, remoteURL: rawURL}
+	return loadRunpfileFromPath(rps, map[string]runpfileSource{}, true)
 }
 
 // LoadRunpfileForValidation loads a Runpfile without failing on units that
@@ -170,7 +219,15 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 	if err != nil {
 		return nil, err
 	}
-	rf.Root, err = filepath.Abs(filepath.Dir(runpfile.path))
+	if runpfile.remoteURL != "" {
+		if len(rf.Include) > 0 {
+			return nil, fmt.Errorf("include is not supported in a remote Runpfile (%s): its included files cannot be fetched", runpfile.remoteURL)
+		}
+		rf.projectKey = runpfile.remoteURL
+		rf.Root, err = os.Getwd()
+	} else {
+		rf.Root, err = filepath.Abs(filepath.Dir(runpfile.path))
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +242,7 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 	}
 	if runpfile.importedBy == "" {
 		ui.WriteLinef("Runpfile root directory: %s", rf.Root)
-		project := ProjectID(rf.Root)
+		project := rf.ProjectID()
 		for _, unit := range rf.Units {
 			if unit.Container != nil {
 				unit.Container.project = project
@@ -199,7 +256,7 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 // configures its process (name, preconditions, working directory).
 func prepareUnits(rf *Runpfile, forValidation bool) error {
 	for id, unit := range rf.Units {
-		unit.vars = rf.Vars
+		unit.bindVars(rf.Vars)
 		unit.root = rf.Root
 		if unit.Name == "" {
 			unit.Name = id
@@ -275,9 +332,17 @@ func sliceContains(s []string, e string) bool {
 func envAsArray(in map[string]string) (out []string) {
 	out = []string{}
 	for name, val := range in {
-		out = append(out, fmt.Sprintf("%s=%s", name, expandEnvValue(val)))
+		out = append(out, fmt.Sprintf("%s=%s", name, val))
 	}
 	return out
+}
+
+// resolveEnvValue returns the value of an env entry: references to the
+// environment of runp are expanded in the value as written in the Runpfile,
+// then vars are substituted, so that a "$" in a var value (e.g. a password
+// passed with --var) is never expanded.
+func resolveEnvValue(pre *cliPreprocessor, value string) string {
+	return pre.process(expandEnvValue(value))
 }
 
 // expandEnvValue expands $VAR and ${VAR} references to the environment of
@@ -295,7 +360,9 @@ func expandEnvValue(s string) string {
 
 func loadRunpfileFromData(data []byte) (*Runpfile, error) {
 	rf := &Runpfile{}
-	err := unmarshalStrict(data, &rf)
+	// Decode into the struct, not into the pointer: a null document would
+	// otherwise set rf to nil.
+	err := unmarshalStrict(data, rf)
 	return rf, err
 }
 

@@ -178,3 +178,162 @@ units:
 	}
 	t.Fatal("dependent not started while the dependency's background child was running")
 }
+
+// A unit that exits with an error must make Start fail even when no other
+// unit depends on it, so that runp exits with a non-zero code.
+func TestStart_UnitExitErrorFailsStart(t *testing.T) {
+	notShuttingDown(t)
+	sut := newLifetimeExecutor(t, `
+units:
+  bad:
+    host:
+      command: "exit 7"
+  good:
+    host:
+      command: "true"
+`)
+	err := startWithTimeout(t, sut, 10*time.Second)
+	if err == nil {
+		t.Fatal("expected an error when a unit exits with an error")
+	}
+	if !strings.Contains(err.Error(), "exited with an error") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+// notShuttingDown clears the shutting-down flag of the global application
+// context for the duration of the test: other tests may leave it set, and
+// exits during a shutdown are not reported as errors.
+func notShuttingDown(t *testing.T) {
+	t.Helper()
+	ctx := GetApplicationContext()
+	ctx.Lock()
+	was := ctx.shuttingDown
+	ctx.shuttingDown = false
+	ctx.Unlock()
+	t.Cleanup(func() {
+		ctx.Lock()
+		ctx.shuttingDown = was
+		ctx.Unlock()
+	})
+}
+
+// A unit whose process dies before its ready.delay or ready.cmd condition is
+// satisfied is not ready: its dependents must not start.
+func TestStart_ProcessDeathFailsReadiness(t *testing.T) {
+	for name, ready := range map[string]string{
+		"delay": "delay: 3s",
+		"cmd":   "cmd: \"false\"",
+	} {
+		t.Run(name, func(t *testing.T) {
+			notShuttingDown(t)
+			marker := filepath.Join(t.TempDir(), "dependent-ran")
+			sut := newLifetimeExecutor(t, `
+units:
+  db:
+    ready:
+      `+ready+`
+      timeout: 5s
+    host:
+      command: "exit 3"
+  app:
+    depends_on: [db]
+    host:
+      command: "touch `+marker+`"
+`)
+			start := time.Now()
+			err := startWithTimeout(t, sut, 10*time.Second)
+			if err == nil {
+				t.Error("expected an error when a dependency dies before being ready")
+			}
+			if _, statErr := os.Stat(marker); statErr == nil {
+				t.Error("dependent started although its dependency died before being ready")
+			}
+			if elapsed := time.Since(start); elapsed > 2*time.Second {
+				t.Errorf("readiness failure detected after %v, expected as soon as the process exited", elapsed)
+			}
+		})
+	}
+}
+
+// A process that exits successfully before its ready condition is satisfied
+// has completed its work: it is ready, like a unit without ready condition.
+func TestStart_ProcessSuccessfulExitIsReady(t *testing.T) {
+	notShuttingDown(t)
+	marker := filepath.Join(t.TempDir(), "dependent-ran")
+	sut := newLifetimeExecutor(t, `
+units:
+  migrate:
+    ready:
+      delay: 3s
+    host:
+      command: "true"
+  app:
+    depends_on: [migrate]
+    host:
+      command: "touch `+marker+`"
+`)
+	if err := startWithTimeout(t, sut, 10*time.Second); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if _, statErr := os.Stat(marker); statErr != nil {
+		t.Error("dependent not started although its dependency completed successfully")
+	}
+}
+
+// A unit whose ready condition fails is a failure of the run even when no
+// other unit depends on it: runp stops the running units and reports it.
+func TestStart_FailedReadinessWithoutDependentsFailsStart(t *testing.T) {
+	notShuttingDown(t)
+	sut := newLifetimeExecutor(t, `
+units:
+  svc:
+    ready:
+      output: "never printed"
+      timeout: 500ms
+    host:
+      command: "sleep 30"
+  other:
+    host:
+      command: "sleep 30"
+`)
+	start := time.Now()
+	err := startWithTimeout(t, sut, 15*time.Second)
+	if err == nil {
+		t.Error("expected an error when a ready condition fails")
+	}
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
+		t.Errorf("running units not stopped after the readiness failure (took %v)", elapsed)
+	}
+}
+
+// {{vars}} in the ready and await blocks and in host.executable are expanded.
+func TestStart_VarsExpandedInReadyAwaitAndExecutable(t *testing.T) {
+	notShuttingDown(t)
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "dependent-ran")
+	sut := newLifetimeExecutor(t, `
+units:
+  svc:
+    ready:
+      cmd: 'test "{{vars msg}}" = hello'
+      timeout: "{{vars timeout}}"
+    host:
+      executable: "{{vars sh}}"
+      args: ["-c", "sleep 1"]
+      await:
+        resource: "file://{{vars dir}}"
+        timeout: "{{vars timeout}}"
+  dependent:
+    depends_on: [svc]
+    host:
+      command: "touch `+marker+`"
+`)
+	sut.rf.Vars = map[string]string{"msg": "hello", "timeout": "5s", "sh": "sh", "dir": dir}
+	if err := startWithTimeout(t, sut, 15*time.Second); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if _, statErr := os.Stat(marker); statErr != nil {
+		t.Error("dependent not started: vars not expanded in ready/await/executable")
+	}
+}

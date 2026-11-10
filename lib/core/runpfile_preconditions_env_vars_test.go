@@ -1,6 +1,7 @@
 package core
 
 import (
+	"strings"
 	"testing"
 
 	yaml "gopkg.in/yaml.v3"
@@ -491,5 +492,18 @@ func TestEnvVarsPreconditionYAMLParsingInPreconditions(t *testing.T) {
 	}
 	if unit.Preconditions.EnvVars.EnvVars[1].Value != "production" {
 		t.Errorf("Expected second check value to be 'production' but got '%s'", unit.Preconditions.EnvVars.EnvVars[1].Value)
+	}
+}
+
+// The value of a variable that must be unset may be a secret: it is not
+// included in the failure reason, which is logged.
+func TestEnvVarIsUnsetDoesNotLeakValue(t *testing.T) {
+	check := EnvVarCheck{Name: "TOKEN", Condition: EnvVarConditionIsUnset}
+	msg := performCheck(check, func(string) string { return "s3cr3t" })
+	if msg == "" {
+		t.Fatal("expected a failure for a set variable")
+	}
+	if strings.Contains(msg, "s3cr3t") {
+		t.Errorf("failure reason leaks the value: %s", msg)
 	}
 }

@@ -27,7 +27,7 @@ func doUp(c *cli.Context) error {
 
 	ui.Debugf("Starting execution with Runpfile root: %s", runpfile.Root)
 	if err := executor.Start(); err != nil {
-		return exitErrorf(exitCodeExec, "Failed to execute Runpfile: %s", resolveRunpfileArg(c))
+		return exitErrorf(exitCodeExec, "Failed to execute Runpfile %s: %v", resolveRunpfileArg(c), err)
 	}
 	return nil
 }
@@ -77,7 +77,7 @@ func resolveVars(runpfile *core.Runpfile, userVars []string) error {
 	if err != nil {
 		return exitErrorf(exitCodeVar, "Variable expansion failed: %v", err)
 	}
-	runpfile.Vars = vars
+	runpfile.SetVars(vars)
 	return nil
 }
 

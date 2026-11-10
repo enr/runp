@@ -214,7 +214,12 @@ func loadRunpfile(f, checksum string) (*core.Runpfile, error) {
 		return &core.Runpfile{}, runpfileNotFoundError(localPath)
 	}
 	ui.WriteLinef("Loaded: %s", displayPath)
-	runpfile, err := core.LoadRunpfileFromPath(localPath)
+	var runpfile *core.Runpfile
+	if isURL(f) {
+		runpfile, err = core.LoadRemoteRunpfile(localPath, f)
+	} else {
+		runpfile, err = core.LoadRunpfileFromPath(localPath)
+	}
 	if err != nil {
 		return &core.Runpfile{}, exitErrorf(exitCodeLoad,
 			"Cannot parse Runpfile at %s:\n  %s", displayPath, err.Error())

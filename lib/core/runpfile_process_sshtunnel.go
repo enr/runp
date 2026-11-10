@@ -38,6 +38,11 @@ func (e *Endpoint) String() string {
 	return fmt.Sprintf("%s:%d", host, e.Port)
 }
 
+// expand returns a copy of e with {{vars}} references resolved in the host.
+func (e Endpoint) expand(pre *cliPreprocessor) Endpoint {
+	return Endpoint{Host: pre.process(e.Host), Port: e.Port}
+}
+
 // SSHTunnelProcess implements RunpProcess.
 type SSHTunnelProcess struct {
 	WorkingDir string `yaml:"workdir"`
@@ -94,7 +99,7 @@ func (p *SSHTunnelProcess) VerifyPreconditions() PreconditionVerifyResult {
 	}
 
 	if p.TestCommand != "" {
-		cmdout, err := p.executeCmd(p.TestCommand)
+		cmdout, err := p.executeCmd(newCliPreprocessor(p.vars).process(p.TestCommand))
 		ui.Debugf("Test command output for %s:\n%s", p.TestCommand, cmdout.String())
 		if err != nil {
 			return PreconditionVerifyResult{
@@ -114,10 +119,9 @@ func (p *SSHTunnelProcess) executeCmd(command string) (*bytes.Buffer, error) {
 	if err != nil {
 		return nil, err
 	}
-	hostname := p.Jump.Host
-	port := p.Jump.Port
-	ui.Debugf("Test command %s on %s:%d", p.TestCommand, hostname, port)
-	conn, err := dialSSH(fmt.Sprintf("%s:%d", hostname, port), config)
+	jump := p.Jump.expand(newCliPreprocessor(p.vars))
+	ui.Debugf("Test command %s on %s", command, jump.String())
+	conn, err := dialSSH(jump.String(), config)
 	if err != nil {
 		return nil, err
 	}
@@ -164,11 +168,13 @@ func (p *SSHTunnelProcess) StartCommand() (RunpCommand, error) {
 	if p.Target.Port == 0 {
 		return nil, fmt.Errorf("target endpoint misconfiguration: port not specified (%s)", p.Target.String())
 	}
+	pre := newCliPreprocessor(p.vars)
+	local, jump, target := p.Local.expand(pre), p.Jump.expand(pre), p.Target.expand(pre)
 	p.cmd = &SSHTunnelCommandWrapper{
 		config:        config,
-		localAddress:  p.Local.String(),
-		jumpAddress:   p.Jump.String(),
-		targetAddress: p.Target.String(),
+		localAddress:  local.String(),
+		jumpAddress:   jump.String(),
+		targetAddress: target.String(),
 	}
 	return p.cmd, nil
 }
@@ -277,12 +283,12 @@ func (p *SSHTunnelProcess) ShouldWait() bool {
 
 // AwaitResource returns the await resource.
 func (p *SSHTunnelProcess) AwaitResource() string {
-	return p.Await.Resource
+	return newCliPreprocessor(p.vars).process(p.Await.Resource)
 }
 
 // AwaitTimeout returns the await timeout.
 func (p *SSHTunnelProcess) AwaitTimeout() string {
-	return p.Await.Timeout
+	return newCliPreprocessor(p.vars).process(p.Await.Timeout)
 }
 
 // IsStartable always true.
@@ -299,7 +305,7 @@ func (p *SSHTunnelProcess) resolveEnvironment() []string {
 	cliPreprocessor := newCliPreprocessor(p.vars)
 	processedEnv := map[string]string{}
 	for k, v := range p.Env {
-		processedEnv[k] = cliPreprocessor.process(v)
+		processedEnv[k] = resolveEnvValue(cliPreprocessor, v)
 	}
 	environment = append(environment, envAsArray(processedEnv)...)
 	return environment

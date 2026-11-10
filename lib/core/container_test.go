@@ -147,3 +147,26 @@ await:
 
 	assertContainerProcess(cp, expected, t)
 }
+
+// A container name with vars is expanded everywhere: the container is
+// started, looked up and stopped under the same name.
+func TestContainerNameWithVarsIsConsistent(t *testing.T) {
+	ConfigureUI(testLogger, LoggerConfig{})
+	p := &ContainerProcess{
+		Image:               "img",
+		Name:                "db-{{vars env}}",
+		vars:                map[string]string{"env": "dev"},
+		environmentSettings: &EnvironmentSettings{ContainerRunnerExe: "true"},
+	}
+	if got := p.buildContainerName(); got != "db-dev" {
+		t.Errorf("buildContainerName() = %q, want db-dev", got)
+	}
+	stop, err := p.StopCommand()
+	if err != nil {
+		t.Fatal(err)
+	}
+	args := stop.(*ExecCommandWrapper).cmd.Args
+	if args[len(args)-1] != "db-dev" {
+		t.Errorf("stop command %v does not target db-dev", args)
+	}
+}

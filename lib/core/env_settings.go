@@ -47,7 +47,9 @@ func loadEnvironmentSettings() *EnvironmentSettings {
 }
 
 func settingsFromBytes(f []byte, es *EnvironmentSettings) *EnvironmentSettings {
-	if err := yaml.Unmarshal(f, &es); err != nil {
+	// Decode into the struct, not into the pointer: a null document would
+	// otherwise set es to nil.
+	if err := yaml.Unmarshal(f, es); err != nil {
 		ui.WriteLinef("Failed to parse environment settings file: %v", err)
 		return es
 	}

@@ -16,7 +16,7 @@ import (
 func NewExecutor(rf *Runpfile) *RunpfileExecutor {
 	pidDir := ""
 	if rf.Root != "" {
-		if d, err := PIDDirForRoot(rf.Root); err == nil {
+		if d, err := PIDDirForRunpfile(rf); err == nil {
 			pidDir = d
 		}
 	}
@@ -60,6 +60,25 @@ type RunpfileExecutor struct {
 	// are then skipped.
 	aborted   chan struct{}
 	abortOnce sync.Once
+
+	// exitErrs collects the units whose process exited with an error outside
+	// a shutdown, so that Start reports them even when nothing depends on them.
+	exitMu   sync.Mutex
+	exitErrs []error
+}
+
+// recordExitError notes that a unit's process exited with an error.
+func (e *RunpfileExecutor) recordExitError(err error) {
+	e.exitMu.Lock()
+	defer e.exitMu.Unlock()
+	e.exitErrs = append(e.exitErrs, err)
+}
+
+// exitErrorCount returns the number of units whose process exited with an error.
+func (e *RunpfileExecutor) exitErrorCount() int {
+	e.exitMu.Lock()
+	defer e.exitMu.Unlock()
+	return len(e.exitErrs)
 }
 
 // longestName returns the longest unit name length. It is computed before any
@@ -76,25 +95,22 @@ func (e *RunpfileExecutor) initializeUnits() {
 		e.aborted = make(chan struct{})
 	}
 	for _, unit := range e.rf.Units {
-		unit.vars = e.rf.Vars
+		unit.bindVars(e.rf.Vars)
 		unit.secretKey = e.rf.SecretKey
 		unit.environmentSettings = e.environmentSettings
 		unit.process = nil
 		if unit.Host != nil {
-			unit.Host.vars = unit.vars
 			unit.Host.secretKey = unit.secretKey
 			unit.Host.stopTimeout = unit.StopTimeout
 			unit.Host.pidDir = e.PIDDir
 			unit.Host.environmentSettings = e.environmentSettings
 		}
 		if unit.Container != nil {
-			unit.Container.vars = unit.vars
 			unit.Container.secretKey = unit.secretKey
 			unit.Container.stopTimeout = unit.StopTimeout
 			unit.Container.environmentSettings = e.environmentSettings
 		}
 		if unit.SSHTunnel != nil {
-			unit.SSHTunnel.vars = unit.vars
 			unit.SSHTunnel.secretKey = unit.secretKey
 			unit.SSHTunnel.stopTimeout = unit.StopTimeout
 			unit.SSHTunnel.environmentSettings = e.environmentSettings
@@ -157,11 +173,21 @@ func (e *RunpfileExecutor) StartSingleUnit(unitName string) error {
 	if errs := validateVariableRefs(&Runpfile{Vars: e.rf.Vars, Units: map[string]*RunpUnit{unitName: unit}}); len(errs) > 0 {
 		return fmt.Errorf("cannot start: %w", multiError(errs))
 	}
+	if errs := validateDurations(&Runpfile{Units: map[string]*RunpUnit{unitName: unit}}, true); len(errs) > 0 {
+		return fmt.Errorf("cannot start: %w", multiError(errs))
+	}
 	warnInsecureSSHTunnels(e.rf.Units, map[string]bool{})
 	err := e.startUnit(unit)
+	if err != nil && !errors.Is(err, errShuttingDown) {
+		// e.g. a failed readiness: do not leave the unit running.
+		e.abort()
+	}
 	// A unit with a ready condition returns from startUnit while still
 	// running: wait for it so the caller does not leave it orphaned.
 	e.running.Wait()
+	if err == nil && e.exitErrorCount() > 0 {
+		return fmt.Errorf("unit %q exited with an error", unitName)
+	}
 	return err
 }
 
@@ -243,6 +269,13 @@ func (e *RunpfileExecutor) Start() error {
 		}
 		return fmt.Errorf("cannot start: %d undefined variable reference(s)", len(errs))
 	}
+	// An invalid duration would otherwise be replaced silently by a default.
+	if errs := validateDurations(activeUnits(e.rf, skipped), true); len(errs) > 0 {
+		for _, err := range errs {
+			ui.WriteLinef("%v", err)
+		}
+		return fmt.Errorf("cannot start: %d invalid duration(s)", len(errs))
+	}
 
 	// Validates depends_on references and cycles; the layers only give a
 	// deterministic launch order, readiness is tracked per unit.
@@ -286,10 +319,27 @@ func (e *RunpfileExecutor) Start() error {
 	wg.Wait()
 	e.running.Wait()
 
-	if len(errs) > 0 {
+	exited := e.exitErrorCount()
+	switch {
+	case len(errs) > 0 && exited > 0:
+		return fmt.Errorf("%d unit(s) failed to start, %d unit(s) exited with an error", len(errs), exited)
+	case len(errs) > 0:
 		return fmt.Errorf("%d unit(s) failed to start", len(errs))
+	case exited > 0:
+		return fmt.Errorf("%d unit(s) exited with an error", exited)
 	}
 	return nil
+}
+
+// activeUnits returns a Runpfile holding the units of rf not in skipped.
+func activeUnits(rf *Runpfile, skipped map[string]bool) *Runpfile {
+	units := make(map[string]*RunpUnit, len(rf.Units))
+	for name, unit := range rf.Units {
+		if !skipped[name] {
+			units[name] = unit
+		}
+	}
+	return &Runpfile{Vars: rf.Vars, Units: units}
 }
 
 // reportSkippedUnits logs the units skipped for unsatisfied preconditions.
@@ -402,8 +452,9 @@ func (e *RunpfileExecutor) startUnit(unit *RunpUnit) error {
 //   - other units: when the process exits (with its exit error); runUnit
 //     returns after the exit.
 //
-// The returned error reports failures to start the process; ready is not
-// called in that case.
+// The returned error reports failures to start the process (ready is not
+// called in that case) and readiness failures (ready is called with the
+// same cause): the caller stops the running units.
 func (e *RunpfileExecutor) runUnit(unit *RunpUnit, ready func(error)) error {
 	logger := e.LoggerFactory(unit.Name, e.longestName(), processLoggerConfiguration)
 	process := unit.Process()
@@ -448,14 +499,21 @@ func (e *RunpfileExecutor) runUnit(unit *RunpUnit, ready func(error)) error {
 		return err
 	}
 
-	w.Close()
 	e.running.Add(1)
 	// exitErr is written by the monitor goroutine before pwg.Done and read
 	// only after pwg.Wait.
 	var exitErr error
 	e.monitorProcessExit(cmd, process, logger, appContext, &pwg, &exitErr)
+	// exited receives the exit error once the process has exited, so that a
+	// pending readiness condition does not outlive the process.
+	exited := make(chan error, 1)
 	go func() {
 		pwg.Wait()
+		// The write end is closed only once the command has exited: in-process
+		// commands (SSH tunnels) keep writing their log to it while they run.
+		// A child process has its own copy, so its output ends as before.
+		w.Close()
+		exited <- exitErr
 		e.running.Done()
 	}()
 	if e.isAborted() {
@@ -465,17 +523,24 @@ func (e *RunpfileExecutor) runUnit(unit *RunpUnit, ready func(error)) error {
 		return fmt.Errorf("unit %s stopped: %w", unit.Name, errShuttingDown)
 	}
 
-	rc := unit.Ready
+	rc := unit.Ready.expand(unit.vars)
 	if rc.IsSet() {
 		// Output is read in a background goroutine so that AwaitReady can
 		// scan it for the ready pattern. runUnit returns as soon as readiness
 		// is known; the process keeps running and is tracked by e.running.
 		lineCh := make(chan string, 128)
 		go e.readProcessOutputToChannel(r, process, logger, lineCh)
-		if err := AwaitReady(rc, lineCh, logger); err != nil {
+		if err := AwaitReady(rc, lineCh, exited, logger); err != nil {
+			if e.isAborted() || appContext.IsShuttingDown() {
+				// The process was stopped by the shutdown, not a real failure.
+				return fmt.Errorf("unit %s not ready: %w", unit.Name, errShuttingDown)
+			}
 			logger.WriteLinef("Readiness check failed for unit %s: %v", unit.Name, err)
-			ready(fmt.Errorf("readiness check failed: %w", err))
-			return nil
+			readyErr := fmt.Errorf("readiness check failed: %w", err)
+			ready(readyErr)
+			// A failed readiness fails the run even without dependents: the
+			// caller stops the running units.
+			return fmt.Errorf("unit %s: %w", unit.Name, readyErr)
 		}
 		ready(nil)
 		return nil

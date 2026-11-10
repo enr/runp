@@ -468,6 +468,9 @@ func TestDoEncrypt(t *testing.T) {
 		if !strings.Contains(output, "Encrypted secret:") {
 			t.Errorf("Expected output to contain 'Encrypted secret:', got '%s'", output)
 		}
+		if strings.Contains(output, "testkey123") {
+			t.Errorf("The encryption key must never be logged, got '%s'", output)
+		}
 	})
 
 	t.Run("success with key-env", func(t *testing.T) {
@@ -489,6 +492,9 @@ func TestDoEncrypt(t *testing.T) {
 		output := s.getLines()
 		if !strings.Contains(output, "Encrypted secret:") {
 			t.Errorf("Expected output to contain 'Encrypted secret:', got '%s'", output)
+		}
+		if strings.Contains(output, "testkey123") {
+			t.Errorf("The encryption key must never be logged, got '%s'", output)
 		}
 	})
 

@@ -2,9 +2,10 @@ package core
 
 import (
 	"fmt"
+	"reflect"
 	"sort"
-
-	yaml "gopkg.in/yaml.v3"
+	"strings"
+	"time"
 )
 
 // ValidationResult holds errors and warnings produced by ValidateRunpfile.
@@ -26,6 +27,7 @@ func (r *ValidationResult) Valid() bool {
 //   - unit with multiple or missing process types
 //   - variable references that are not declared in the vars section
 //   - circular variable references in the vars section
+//   - invalid durations (stop_timeout, await.timeout, ready.delay/timeout)
 //
 // Warnings (informational, do not fail validation):
 //   - OS or runp-version preconditions that would cause a unit to be skipped
@@ -40,6 +42,7 @@ func ValidateRunpfile(rf *Runpfile) ValidationResult {
 	result.Errors = append(result.Errors, validateVariableRefs(rf)...)
 
 	result.Errors = append(result.Errors, validateDependsOn(rf)...)
+	result.Errors = append(result.Errors, validateDurations(rf, false)...)
 
 	result.Warnings = append(result.Warnings, collectPreconditionWarnings(rf)...)
 	result.Warnings = append(result.Warnings, collectAwaitWarnings(rf)...)
@@ -67,9 +70,106 @@ var implicitVars = map[string]bool{
 	"runp_file_separator": true,
 }
 
+// expandedFields lists the unit fields (as reported by unitStringFields) in
+// which runp resolves {{vars NAME}} references. A reference anywhere else
+// would reach the process as a literal string.
+var expandedFields = map[string]bool{
+	"ready.delay":   true,
+	"ready.output":  true,
+	"ready.cmd":     true,
+	"ready.timeout": true,
+
+	"host.command":        true,
+	"host.executable":     true,
+	"host.args[]":         true,
+	"host.shell.path":     true,
+	"host.shell.args[]":   true,
+	"host.workdir":        true,
+	"host.env.*":          true,
+	"host.await.resource": true,
+	"host.await.timeout":  true,
+
+	"container.image":          true,
+	"container.name":           true,
+	"container.ports[]":        true,
+	"container.volumes[]":      true,
+	"container.volumes_from[]": true,
+	"container.mounts[]":       true,
+	"container.shm_size":       true,
+	"container.command":        true,
+	"container.workdir":        true,
+	"container.env.*":          true,
+	"container.await.resource": true,
+	"container.await.timeout":  true,
+
+	"ssh_tunnel.user":               true,
+	"ssh_tunnel.auth.secret":        true,
+	"ssh_tunnel.auth.identity_file": true,
+	"ssh_tunnel.known_hosts_file":   true,
+	"ssh_tunnel.local.host":         true,
+	"ssh_tunnel.jump.host":          true,
+	"ssh_tunnel.target.host":        true,
+	"ssh_tunnel.test_command":       true,
+	"ssh_tunnel.await.resource":     true,
+	"ssh_tunnel.await.timeout":      true,
+}
+
+// fieldValue is a string value of a unit and the path of its field.
+type fieldValue struct {
+	path  string
+	value string
+}
+
+// unitStringFields returns every string value of unit with the path of its
+// field, built from the YAML names: "host.command", "host.args[]" for slice
+// items, "host.env.*" for map values and "host.env (key)" for map keys.
+func unitStringFields(unit *RunpUnit) []fieldValue {
+	var out []fieldValue
+	collectStringFields(reflect.ValueOf(unit), "", &out)
+	sort.SliceStable(out, func(i, j int) bool { return out[i].path < out[j].path })
+	return out
+}
+
+func collectStringFields(v reflect.Value, path string, out *[]fieldValue) {
+	switch v.Kind() {
+	case reflect.Ptr, reflect.Interface:
+		if !v.IsNil() {
+			collectStringFields(v.Elem(), path, out)
+		}
+	case reflect.Struct:
+		t := v.Type()
+		for i := 0; i < t.NumField(); i++ {
+			f := t.Field(i)
+			name := strings.Split(f.Tag.Get("yaml"), ",")[0]
+			if !f.IsExported() || name == "-" {
+				continue
+			}
+			if name == "" {
+				name = strings.ToLower(f.Name)
+			}
+			if path != "" {
+				name = path + "." + name
+			}
+			collectStringFields(v.Field(i), name, out)
+		}
+	case reflect.Slice, reflect.Array:
+		for i := 0; i < v.Len(); i++ {
+			collectStringFields(v.Index(i), path+"[]", out)
+		}
+	case reflect.Map:
+		iter := v.MapRange()
+		for iter.Next() {
+			collectStringFields(iter.Key(), path+" (key)", out)
+			collectStringFields(iter.Value(), path+".*", out)
+		}
+	case reflect.String:
+		*out = append(*out, fieldValue{path: path, value: v.String()})
+	}
+}
+
 // validateVariableRefs checks that every {{vars NAME}} reference inside a
-// unit resolves to a name declared in the Runpfile vars section (or to an
-// implicit var).
+// unit is in a field where runp expands it, and resolves to a name declared
+// in the Runpfile vars section (or to an implicit var).
 func validateVariableRefs(rf *Runpfile) []error {
 	var errs []error
 
@@ -82,13 +182,29 @@ func validateVariableRefs(rf *Runpfile) []error {
 
 	for _, unitName := range unitNames {
 		unit := rf.Units[unitName]
-		data, err := yaml.Marshal(unit)
-		if err != nil {
+		if unit == nil {
 			continue
 		}
-		refs := extractVarRefs(string(data))
-		for _, ref := range refs {
-			if _, declared := rf.Vars[ref]; !declared && !implicitVars[ref] {
+		reported := map[string]bool{}
+		for _, f := range unitStringFields(unit) {
+			refs := extractVarRefs(f.value)
+			if len(refs) == 0 {
+				continue
+			}
+			if !expandedFields[f.path] {
+				if !reported[f.path] {
+					reported[f.path] = true
+					errs = append(errs, fmt.Errorf(
+						"unit %q: variables are not supported in %s", unitName, f.path))
+				}
+				continue
+			}
+			for _, ref := range refs {
+				key := "var " + ref
+				if _, declared := rf.Vars[ref]; declared || implicitVars[ref] || reported[key] {
+					continue
+				}
+				reported[key] = true
 				errs = append(errs, fmt.Errorf(
 					"unit %q: variable %q referenced but not declared in vars section",
 					unitName, ref,
@@ -126,15 +242,7 @@ func collectAwaitWarnings(rf *Runpfile) []string {
 	var warnings []string
 	for _, name := range unitNames {
 		unit := rf.Units[name]
-		var await AwaitCondition
-		switch {
-		case unit.Host != nil:
-			await = unit.Host.Await
-		case unit.Container != nil:
-			await = unit.Container.Await
-		case unit.SSHTunnel != nil:
-			await = unit.SSHTunnel.Await
-		}
+		await := unitAwait(unit)
 		if await.Resource != "" && await.Timeout == "" {
 			warnings = append(warnings, fmt.Sprintf("unit %q: await.resource is set without await.timeout, the unit will not wait for %s", name, await.Resource))
 		}
@@ -181,4 +289,84 @@ func preconditionWarnings(scope string, p *Preconditions) []string {
 		}
 	}
 	return warnings
+}
+
+// validateDurations checks the duration fields of every unit: stop_timeout,
+// await.timeout, ready.delay and ready.timeout. An invalid value used to be
+// replaced silently by the default.
+//
+// With resolved false (runp validate) the values containing {{vars}} are
+// skipped: the var values are only known when units start. With resolved
+// true the units must have their vars bound and the values are expanded.
+func validateDurations(rf *Runpfile, resolved bool) []error {
+	unitNames := make([]string, 0, len(rf.Units))
+	for name := range rf.Units {
+		unitNames = append(unitNames, name)
+	}
+	sort.Strings(unitNames)
+
+	var errs []error
+	for _, name := range unitNames {
+		unit := rf.Units[name]
+		if unit == nil {
+			continue
+		}
+		errs = append(errs, unitDurationErrors(name, unit, resolved)...)
+	}
+	return errs
+}
+
+func unitDurationErrors(name string, unit *RunpUnit, resolved bool) []error {
+	var errs []error
+	check := func(field, value string) (time.Duration, bool) {
+		if value == "" || (!resolved && varsRegexp.MatchString(value)) {
+			return 0, false
+		}
+		d, err := time.ParseDuration(value)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("unit %q: invalid %s %q: expected a duration such as \"5s\" or \"1m30s\"", name, field, value))
+			return 0, false
+		}
+		if d < 0 {
+			errs = append(errs, fmt.Errorf("unit %q: invalid %s %q: it must not be negative", name, field, value))
+			return 0, false
+		}
+		return d, true
+	}
+
+	check("stop_timeout", unit.StopTimeout)
+
+	await := unitAwait(unit)
+	if resolved && unit.Process() != nil {
+		await.Timeout = unit.Process().AwaitTimeout()
+	}
+	check("await.timeout", await.Timeout)
+
+	rc := unit.Ready
+	if resolved {
+		rc = rc.expand(unit.vars)
+	}
+	delay, delayOK := check("ready.delay", rc.Delay)
+	timeout, timeoutOK := check("ready.timeout", rc.Timeout)
+	if rc.Timeout == "" {
+		timeout, timeoutOK = defaultReadyTimeout, true
+	}
+	// Output and Cmd take priority over Delay, which is then unused.
+	if delayOK && timeoutOK && rc.Output == "" && rc.Cmd == "" && delay >= timeout {
+		errs = append(errs, fmt.Errorf("unit %q: ready.delay %s is not shorter than ready.timeout %s: the unit can never be ready", name, delay, timeout))
+	}
+	return errs
+}
+
+// unitAwait returns the await block of the unit's process.
+func unitAwait(unit *RunpUnit) AwaitCondition {
+	switch {
+	case unit.Host != nil:
+		return unit.Host.Await
+	case unit.Container != nil:
+		return unit.Container.Await
+	case unit.SSHTunnel != nil:
+		return unit.SSHTunnel.Await
+	}
+	return AwaitCondition{}
 }

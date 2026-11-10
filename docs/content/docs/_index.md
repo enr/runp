@@ -297,8 +297,9 @@ timeout) and verified against `--checksum` when given.
 
 A Runpfile runs commands on your machine: plain `http://` URLs are accepted only together with `--checksum`.
 For the same reason, without `--checksum` a redirect from an `https://` URL to a non-`https://` URL is refused.
-Paths in a remote Runpfile (`include:`, `workdir`) are relative to a temporary directory, so remote Runpfiles
-should be self-contained.
+A remote Runpfile must be self-contained: `include:` is not supported. Relative `workdir` paths (and the
+`runp_root` var) refer to the current directory. Each URL is a distinct project for `runp status` and
+`runp reload` (PID files, container labels), so use the same URL for all the commands.
 
 ### Settings
 
@@ -511,7 +512,7 @@ If the process does not stop within the timeout, it will be killed.
 The default value is 5 seconds.
 
 - host units: the process group of the unit (the shell and its children) receives `SIGTERM`, then `SIGKILL`
-  after the timeout (on Windows the process is terminated);
+  after the timeout (on Windows the process and its children are terminated);
 
 - container units: the timeout is passed to `docker stop -t` (rounded up to whole seconds);
 - SSH tunnel units are closed immediately.
@@ -1003,6 +1004,7 @@ Use `--key-env` to pass the key through an environment variable (recommended):
 Host processes do **not** inherit the environment of runp: they receive only the variables listed in their
 `env` block. Forward the variables a process needs explicitly, e.g. `PATH: $PATH` or `HOME: ${HOME}`.
 Values are expanded against the environment of runp; use `$$` for a literal `$`.
+The values of vars used in `env` (`{{vars name}}`) are inserted as they are, without expansion.
 
 Container units receive their `env` block as `-e NAME=value` options; the container image defines the rest
 of their environment.
@@ -1035,6 +1037,12 @@ units:
 
 Variable names may contain letters, digits and underscores (e.g. `DB_HOST`). Referencing a variable
 that is not declared is an error: runp does not start any unit.
+
+Vars are resolved in the values that describe what a unit runs: commands, executables, args, shell,
+working directories, `env` values, `await`, `ready`, the container options (image, name, ports,
+volumes, mounts, shm size) and the SSH tunnel user, secret, identity and known hosts files, endpoint
+hosts and test command. They are not resolved elsewhere (e.g. `description`, `stop_timeout`,
+`depends_on`, preconditions, `env` names): `runp validate` and `runp up` report a var used there.
 
 The var `foo` will have value `FOO_DEFAULT_VALUE` or can be set from command line:
 

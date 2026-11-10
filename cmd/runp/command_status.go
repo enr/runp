@@ -15,8 +15,14 @@ func doStatus(c *cli.Context) error {
 		return err
 	}
 
+	// The vars (their defaults, and the implicit ones) resolve {{vars}} in
+	// the container names.
+	if err := resolveVars(runpfile, nil); err != nil {
+		return err
+	}
+
 	envSettings := core.LoadEnvironmentSettings()
-	pidDir, _ := core.PIDDirForRoot(runpfile.Root)
+	pidDir, _ := core.PIDDirForRunpfile(runpfile)
 
 	statuses := make([]core.UnitStatus, 0, len(runpfile.Units))
 	for _, unit := range runpfile.Units {
