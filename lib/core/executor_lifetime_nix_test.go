@@ -4,6 +4,8 @@
 package core
 
 import (
+	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -125,4 +127,61 @@ func TestStopProcess_DoesNotSignalCallerGroup(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("process not stopped")
 	}
+}
+
+// freeTCPPort returns a local TCP port with nothing listening on it.
+func freeTCPPort(t *testing.T) int {
+	t.Helper()
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	port := l.Addr().(*net.TCPAddr).Port
+	l.Close()
+	return port
+}
+
+// Errors of an SSH tunnel happen after the unit has started (e.g. the jump
+// server is unreachable when the first connection is forwarded): they must
+// reach the unit's output instead of being discarded.
+func TestStart_SSHTunnelRuntimeErrorsAreLogged(t *testing.T) {
+	notShuttingDown(t)
+	local, jump := freeTCPPort(t), freeTCPPort(t)
+	sut := newLifetimeExecutor(t, fmt.Sprintf(`
+units:
+  tun:
+    ssh_tunnel:
+      user: nobody
+      auth: {secret: x}
+      insecure_ignore_host_key: true
+      local: {host: 127.0.0.1, port: %d}
+      jump: {host: 127.0.0.1, port: %d}
+      target: {host: 127.0.0.1, port: 80}
+`, local, jump))
+	done := make(chan error, 1)
+	go func() { done <- sut.Start() }()
+	defer func() {
+		sut.abort()
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+			t.Error("tunnel not stopped")
+		}
+	}()
+
+	want := fmt.Sprintf("Failed to connect to jump server 127.0.0.1:%d", jump)
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if conn, err := net.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", local)); err == nil {
+			conn.Read(make([]byte, 1)) // returns when the tunnel drops the connection
+			conn.Close()
+		}
+		for _, line := range testLogger.outputLines() {
+			if strings.Contains(line, want) {
+				return
+			}
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Errorf("expected %q in the unit output", want)
 }

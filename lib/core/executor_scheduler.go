@@ -481,7 +481,6 @@ func (e *RunpfileExecutor) runUnit(unit *RunpUnit, ready func(error)) error {
 		return err
 	}
 
-	w.Close()
 	e.running.Add(1)
 	// exitErr is written by the monitor goroutine before pwg.Done and read
 	// only after pwg.Wait.
@@ -492,6 +491,10 @@ func (e *RunpfileExecutor) runUnit(unit *RunpUnit, ready func(error)) error {
 	exited := make(chan error, 1)
 	go func() {
 		pwg.Wait()
+		// The write end is closed only once the command has exited: in-process
+		// commands (SSH tunnels) keep writing their log to it while they run.
+		// A child process has its own copy, so its output ends as before.
+		w.Close()
 		exited <- exitErr
 		e.running.Done()
 	}()
