@@ -229,7 +229,7 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 // configures its process (name, preconditions, working directory).
 func prepareUnits(rf *Runpfile, forValidation bool) error {
 	for id, unit := range rf.Units {
-		unit.vars = rf.Vars
+		unit.bindVars(rf.Vars)
 		unit.root = rf.Root
 		if unit.Name == "" {
 			unit.Name = id

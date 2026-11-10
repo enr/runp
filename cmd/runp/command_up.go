@@ -77,7 +77,7 @@ func resolveVars(runpfile *core.Runpfile, userVars []string) error {
 	if err != nil {
 		return exitErrorf(exitCodeVar, "Variable expansion failed: %v", err)
 	}
-	runpfile.Vars = vars
+	runpfile.SetVars(vars)
 	return nil
 }
 

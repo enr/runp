@@ -15,6 +15,12 @@ func doStatus(c *cli.Context) error {
 		return err
 	}
 
+	// The vars (their defaults, and the implicit ones) resolve {{vars}} in
+	// the container names.
+	if err := resolveVars(runpfile, nil); err != nil {
+		return err
+	}
+
 	envSettings := core.LoadEnvironmentSettings()
 	pidDir, _ := core.PIDDirForRoot(runpfile.Root)
 

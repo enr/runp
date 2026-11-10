@@ -35,6 +35,32 @@ type RunpUnit struct {
 	environmentSettings *EnvironmentSettings
 }
 
+// SetVars sets the vars of the Runpfile and binds them to every unit and its
+// process, so that every command (up, reload, status...) resolves {{vars}}
+// with the same values.
+func (rf *Runpfile) SetVars(vars map[string]string) {
+	rf.Vars = vars
+	for _, unit := range rf.Units {
+		if unit != nil {
+			unit.bindVars(vars)
+		}
+	}
+}
+
+// bindVars sets the vars used to resolve {{vars}} in the unit and its process.
+func (u *RunpUnit) bindVars(vars map[string]string) {
+	u.vars = vars
+	if u.Host != nil {
+		u.Host.vars = vars
+	}
+	if u.Container != nil {
+		u.Container.vars = vars
+	}
+	if u.SSHTunnel != nil {
+		u.SSHTunnel.vars = vars
+	}
+}
+
 // Process returns the sub process
 func (u *RunpUnit) Process() RunpProcess {
 	if u.process == nil {

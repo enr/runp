@@ -95,25 +95,22 @@ func (e *RunpfileExecutor) initializeUnits() {
 		e.aborted = make(chan struct{})
 	}
 	for _, unit := range e.rf.Units {
-		unit.vars = e.rf.Vars
+		unit.bindVars(e.rf.Vars)
 		unit.secretKey = e.rf.SecretKey
 		unit.environmentSettings = e.environmentSettings
 		unit.process = nil
 		if unit.Host != nil {
-			unit.Host.vars = unit.vars
 			unit.Host.secretKey = unit.secretKey
 			unit.Host.stopTimeout = unit.StopTimeout
 			unit.Host.pidDir = e.PIDDir
 			unit.Host.environmentSettings = e.environmentSettings
 		}
 		if unit.Container != nil {
-			unit.Container.vars = unit.vars
 			unit.Container.secretKey = unit.secretKey
 			unit.Container.stopTimeout = unit.StopTimeout
 			unit.Container.environmentSettings = e.environmentSettings
 		}
 		if unit.SSHTunnel != nil {
-			unit.SSHTunnel.vars = unit.vars
 			unit.SSHTunnel.secretKey = unit.secretKey
 			unit.SSHTunnel.stopTimeout = unit.StopTimeout
 			unit.SSHTunnel.environmentSettings = e.environmentSettings

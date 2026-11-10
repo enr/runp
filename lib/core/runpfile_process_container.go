@@ -120,9 +120,11 @@ func (p *ContainerProcess) SetDir(wd string) {
 	p.WorkingDir = wd
 }
 
+// buildContainerName returns the name of the container, with its vars
+// resolved: it is used to start, look up and stop the container.
 func (p *ContainerProcess) buildContainerName() string {
 	if p.Name != "" {
-		return p.Name
+		return newCliPreprocessor(p.vars).process(p.Name)
 	}
 	return fmt.Sprintf("%s%s", containerNamePrefix, p.ID())
 }
@@ -140,7 +142,7 @@ func (p *ContainerProcess) buildArgs() ([]string, error) {
 	if !p.SkipRm {
 		args = append(args, "--rm")
 	}
-	args = append(args, "--name", pre.process(p.buildContainerName()))
+	args = append(args, "--name", p.buildContainerName())
 	if p.project != "" {
 		args = append(args, "--label", containerProjectLabel+"="+p.project)
 	}
