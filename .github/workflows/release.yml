@@ -12,7 +12,8 @@ jobs:
       matrix:
         platform: [ubuntu-latest]
     runs-on: ${{ matrix.platform }}
-    container: 'golang:1.25.0'
+    # Same Go version as the CI that tests the code.
+    container: 'golang:1.26'
     steps:
     - name: Prepare container
       run: |

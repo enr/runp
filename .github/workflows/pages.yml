@@ -26,7 +26,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Hugo
-        run: go install github.com/gohugoio/hugo@latest
+        # Pinned: a new Hugo release must not change or break the site unnoticed.
+        run: go install github.com/gohugoio/hugo@v0.168.0
 
       - name: Add Hugo to PATH
         run: echo "$HOME/go/bin" >> $GITHUB_PATH
