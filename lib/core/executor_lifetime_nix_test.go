@@ -185,3 +185,24 @@ units:
 	}
 	t.Errorf("expected %q in the unit output", want)
 }
+
+// The command line of a unit holds expanded vars, possibly secrets: it is
+// logged only at debug level, not when the process exits.
+func TestStart_ExitLogDoesNotContainCommandLine(t *testing.T) {
+	notShuttingDown(t)
+	sut := newLifetimeExecutor(t, `
+units:
+  u:
+    host:
+      command: "true # {{vars pw}}"
+`)
+	sut.rf.Vars = map[string]string{"pw": "s3cr3t-pw"}
+	if err := startWithTimeout(t, sut, 10*time.Second); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, line := range testLogger.outputLines() {
+		if strings.HasPrefix(line, "Process u finished") && strings.Contains(line, "s3cr3t-pw") {
+			t.Errorf("command line logged on exit: %s", line)
+		}
+	}
+}

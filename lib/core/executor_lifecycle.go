@@ -20,7 +20,9 @@ func (e *RunpfileExecutor) monitorProcessExit(cmd RunpCommand, process RunpProce
 			}
 		}()
 		exit <- cmd.Wait()
-		logger.WriteLinef("Process %s finished: %s", process.ID(), cmd)
+		// The command line holds expanded vars (possibly secrets): it is
+		// logged only at debug level, when the process starts.
+		logger.WriteLinef("Process %s finished", process.ID())
 	}()
 
 	go func() {
