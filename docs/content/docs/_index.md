@@ -511,7 +511,7 @@ If the process does not stop within the timeout, it will be killed.
 The default value is 5 seconds.
 
 - host units: the process group of the unit (the shell and its children) receives `SIGTERM`, then `SIGKILL`
-  after the timeout (on Windows the process is terminated);
+  after the timeout (on Windows the process and its children are terminated);
 
 - container units: the timeout is passed to `docker stop -t` (rounded up to whole seconds);
 - SSH tunnel units are closed immediately.

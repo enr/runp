@@ -64,3 +64,28 @@ func TestStopProcessGracefullyStopsProcessTree(t *testing.T) {
 		t.Error("process tree still running after stopProcessGracefully")
 	}
 }
+
+// runp up stops a host unit with stopProcess: it must stop the shell and its
+// children, not only the shell.
+func TestStopProcessStopsProcessTree(t *testing.T) {
+	cmd, r := startShellTree(t)
+	exited := make(chan struct{})
+	go func() {
+		cmd.Wait()
+		close(exited)
+	}()
+	hasExited := func() bool {
+		select {
+		case <-exited:
+			return true
+		default:
+			return false
+		}
+	}
+	if err := stopProcess(cmd.Process, hasExited, 2*time.Second, "tree"); err != nil {
+		t.Logf("stopProcess: %v", err)
+	}
+	if !outputClosedWithin(r, 15*time.Second) {
+		t.Error("children of the shell still running after stopProcess")
+	}
+}

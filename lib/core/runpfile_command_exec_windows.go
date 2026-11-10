@@ -157,15 +157,15 @@ func attemptFinalKill(p *os.Process, pid int, id string) error {
 	if !isProcessRunning(pid) {
 		return nil
 	}
-	err := p.Kill()
+	err := killProcessTree(p)
 	if err != nil {
 		return handleKillError(pid, err, id, true)
 	}
 	return nil
 }
 
-// stopProcess implements graceful shutdown for Windows: SIGTERM is not
-// available, so Kill() is used directly. exited reports whether the executor
+// stopProcess implements shutdown for Windows: SIGTERM is not available, so
+// the process tree is terminated directly. exited reports whether the executor
 // has already reaped the process.
 func stopProcess(p *os.Process, exited func() bool, timeout time.Duration, id string) error {
 	if p == nil || exited() {
@@ -182,9 +182,10 @@ func stopProcess(p *os.Process, exited func() bool, timeout time.Duration, id st
 		return nil
 	}
 
-	// On Windows, SIGTERM doesn't exist. We use Kill() which sends a termination signal.
-	// For bash scripts in Git Bash/WSL, this should still allow graceful handling.
-	err := p.Kill()
+	// On Windows, SIGTERM doesn't exist: the process is terminated. The whole
+	// tree is terminated, since Kill() alone (TerminateProcess) would stop the
+	// "cmd /C" shell and leave its children running.
+	err := killProcessTree(p)
 	if err != nil {
 		// Handle Kill() error - may continue with polling if TerminateProcess succeeds
 		handleErr := handleKillError(p.Pid, err, id, false)
