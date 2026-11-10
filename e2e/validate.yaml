@@ -125,3 +125,22 @@ specs:
             - valid
         stderr:
           is_empty: true
+
+  up_cycle_reports_cause:
+    description: runp up on a circular depends_on fails with exit 5 and reports the cycle
+    command:
+      working_dir: ..
+      exe: bin/runp
+      ext:
+        windows: .exe
+      args:
+        - "up"
+        - "--file"
+        - "examples/Runpfile-validate-cycle.yml"
+    expectations:
+      status:
+        equals_to: 5
+      output:
+        stderr:
+          contains_all:
+            - circular dependency
