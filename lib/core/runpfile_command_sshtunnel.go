@@ -253,8 +253,14 @@ func (c *SSHTunnelCommandWrapper) handle(local net.Conn) {
 	if err != nil {
 		c.pf("Failed to connect to target %s from jump server: %v", c.targetAddress, err)
 		local.Close()
-		// The client may be broken (e.g. jump server restarted): re-dial next time.
-		c.dropClient(client)
+		// A rejected channel (e.g. the target refused the connection) means
+		// the jump server answered: the client is healthy and still carries
+		// the other forwarded connections. Any other error means it may be
+		// broken (e.g. jump server restarted): re-dial next time.
+		var rejected *ssh.OpenChannelError
+		if !errors.As(err, &rejected) {
+			c.dropClient(client)
+		}
 		return
 	}
 	if !c.track(remote) {
