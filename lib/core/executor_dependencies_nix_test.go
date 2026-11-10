@@ -217,3 +217,66 @@ func notShuttingDown(t *testing.T) {
 		ctx.Unlock()
 	})
 }
+
+// A unit whose process dies before its ready.delay or ready.cmd condition is
+// satisfied is not ready: its dependents must not start.
+func TestStart_ProcessDeathFailsReadiness(t *testing.T) {
+	for name, ready := range map[string]string{
+		"delay": "delay: 3s",
+		"cmd":   "cmd: \"false\"",
+	} {
+		t.Run(name, func(t *testing.T) {
+			notShuttingDown(t)
+			marker := filepath.Join(t.TempDir(), "dependent-ran")
+			sut := newLifetimeExecutor(t, `
+units:
+  db:
+    ready:
+      `+ready+`
+      timeout: 5s
+    host:
+      command: "exit 3"
+  app:
+    depends_on: [db]
+    host:
+      command: "touch `+marker+`"
+`)
+			start := time.Now()
+			err := startWithTimeout(t, sut, 10*time.Second)
+			if err == nil {
+				t.Error("expected an error when a dependency dies before being ready")
+			}
+			if _, statErr := os.Stat(marker); statErr == nil {
+				t.Error("dependent started although its dependency died before being ready")
+			}
+			if elapsed := time.Since(start); elapsed > 2*time.Second {
+				t.Errorf("readiness failure detected after %v, expected as soon as the process exited", elapsed)
+			}
+		})
+	}
+}
+
+// A process that exits successfully before its ready condition is satisfied
+// has completed its work: it is ready, like a unit without ready condition.
+func TestStart_ProcessSuccessfulExitIsReady(t *testing.T) {
+	notShuttingDown(t)
+	marker := filepath.Join(t.TempDir(), "dependent-ran")
+	sut := newLifetimeExecutor(t, `
+units:
+  migrate:
+    ready:
+      delay: 3s
+    host:
+      command: "true"
+  app:
+    depends_on: [migrate]
+    host:
+      command: "touch `+marker+`"
+`)
+	if err := startWithTimeout(t, sut, 10*time.Second); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if _, statErr := os.Stat(marker); statErr != nil {
+		t.Error("dependent not started although its dependency completed successfully")
+	}
+}

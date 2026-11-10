@@ -482,8 +482,12 @@ func (e *RunpfileExecutor) runUnit(unit *RunpUnit, ready func(error)) error {
 	// only after pwg.Wait.
 	var exitErr error
 	e.monitorProcessExit(cmd, process, logger, appContext, &pwg, &exitErr)
+	// exited receives the exit error once the process has exited, so that a
+	// pending readiness condition does not outlive the process.
+	exited := make(chan error, 1)
 	go func() {
 		pwg.Wait()
+		exited <- exitErr
 		e.running.Done()
 	}()
 	if e.isAborted() {
@@ -500,7 +504,7 @@ func (e *RunpfileExecutor) runUnit(unit *RunpUnit, ready func(error)) error {
 		// is known; the process keeps running and is tracked by e.running.
 		lineCh := make(chan string, 128)
 		go e.readProcessOutputToChannel(r, process, logger, lineCh)
-		if err := AwaitReady(rc, lineCh, logger); err != nil {
+		if err := AwaitReady(rc, lineCh, exited, logger); err != nil {
 			logger.WriteLinef("Readiness check failed for unit %s: %v", unit.Name, err)
 			ready(fmt.Errorf("readiness check failed: %w", err))
 			return nil
