@@ -228,8 +228,10 @@ Supported keys:
 
 ### runp completion
 
-Print the shell completion script for `bash`, `zsh` or `fish`. Completion covers subcommands, flags and,
-for `runp reload`, the unit names of the Runpfile.
+Print the shell completion script for `bash`, `zsh` or `fish`. Completion covers subcommands, flags,
+the unit names of the Runpfile for `runp reload` (honouring `--file` and `RUNP_FILE`; remote Runpfiles are
+never fetched to complete a word), the settings keys for `runp config get|set` and the shell names for
+`runp completion`.
 
     source <(runp completion bash)                               # in ~/.bashrc
     source <(runp completion zsh)                                # in ~/.zshrc, after compinit

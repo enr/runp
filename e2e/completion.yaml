@@ -24,6 +24,89 @@ specs:
             - runp
         stderr:
           is_empty: true
+  completion_zsh:
+    description: completion zsh prints zsh completion script
+    command:
+      working_dir: ..
+      exe: bin/runp
+      ext:
+        windows: .exe
+      args:
+        - "completion"
+        - "zsh"
+    expectations:
+      status:
+        equals_to: 0
+      output:
+        stdout:
+          contains_all:
+            - "#compdef runp"
+            - _runp_zsh_completion
+        stderr:
+          is_empty: true
+  completion_fish:
+    description: completion fish prints fish completion script
+    command:
+      working_dir: ..
+      exe: bin/runp
+      ext:
+        windows: .exe
+      args:
+        - "completion"
+        - "fish"
+    expectations:
+      status:
+        equals_to: 0
+      output:
+        stdout:
+          contains_all:
+            - "complete -c runp"
+            - __fish_runp_args
+        stderr:
+          is_empty: true
+  completion_reload_unit_names:
+    description: reload completes the unit names of the selected Runpfile
+    command:
+      working_dir: ..
+      exe: bin/runp
+      ext:
+        windows: .exe
+      args:
+        - "reload"
+        - "-f"
+        - "examples/Runpfile-depends-on.yml"
+        - "--generate-bash-completion"
+    expectations:
+      status:
+        equals_to: 0
+      output:
+        stdout:
+          contains_all:
+            - api
+            - database
+            - worker
+        stderr:
+          is_empty: true
+  completion_flags_do_not_run_command:
+    description: completing a flag after "list" suggests flags instead of running list
+    command:
+      working_dir: ..
+      exe: bin/runp
+      ext:
+        windows: .exe
+      args:
+        - "list"
+        - "-"
+        - "--generate-bash-completion"
+    expectations:
+      status:
+        equals_to: 0
+      output:
+        stdout:
+          contains_all:
+            - "--output"
+          contains_none:
+            - NAME
   completion_invalid_shell:
     description: completion with unsupported shell name exits 3
     command:
