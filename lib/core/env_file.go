@@ -168,36 +168,48 @@ func parseDotenv(data []byte) (map[string]string, error) {
 		}
 		value = strings.TrimLeft(value, " \t")
 		if value != "" && (value[0] == '"' || value[0] == '\'') {
-			// A quoted value may span several lines.
-			for {
-				v, rest, closed := unquoteDotenv(value)
-				if closed {
-					rest = strings.TrimSpace(rest)
-					if rest != "" && !strings.HasPrefix(rest, "#") {
-						return nil, fmt.Errorf("line %d: unexpected characters after the closing quote", lineNo)
-					}
-					value = v
-					break
-				}
-				if i+1 >= len(lines) {
-					return nil, fmt.Errorf("line %d: unterminated quoted value", lineNo)
-				}
-				i++
-				value += "\n" + lines[i]
+			v, next, err := parseQuotedDotenvValue(lines, i, value)
+			if err != nil {
+				return nil, fmt.Errorf("line %d: %w", lineNo, err)
 			}
+			value, i = v, next
 		} else {
-			// An unquoted value ends at a " #" comment.
-			if idx := strings.Index(value, " #"); idx >= 0 {
-				value = value[:idx]
-			}
-			if idx := strings.Index(value, "\t#"); idx >= 0 {
-				value = value[:idx]
-			}
-			value = strings.TrimSpace(value)
+			value = trimUnquotedDotenvValue(value)
 		}
 		out[name] = value
 	}
 	return out, nil
+}
+
+// parseQuotedDotenvValue parses the quoted value starting on lines[i], which
+// may span several lines. It returns the value and the index of its last line.
+func parseQuotedDotenvValue(lines []string, i int, value string) (string, int, error) {
+	for {
+		v, rest, closed := unquoteDotenv(value)
+		if closed {
+			rest = strings.TrimSpace(rest)
+			if rest != "" && !strings.HasPrefix(rest, "#") {
+				return "", i, errors.New("unexpected characters after the closing quote")
+			}
+			return v, i, nil
+		}
+		if i+1 >= len(lines) {
+			return "", i, errors.New("unterminated quoted value")
+		}
+		i++
+		value += "\n" + lines[i]
+	}
+}
+
+// trimUnquotedDotenvValue removes a trailing " #" comment and the spaces
+// around an unquoted value.
+func trimUnquotedDotenvValue(value string) string {
+	for _, sep := range []string{" #", "\t#"} {
+		if idx := strings.Index(value, sep); idx >= 0 {
+			value = value[:idx]
+		}
+	}
+	return strings.TrimSpace(value)
 }
 
 // unquoteDotenv returns the content of the quoted value at the start of s,
@@ -256,6 +268,24 @@ func loadRootEnvFiles(files EnvFiles, root string, set map[string]bool) error {
 		set[name] = true
 	}
 	return nil
+}
+
+// applyRootEnvFiles records the Runpfile-level env files of rf for runp
+// validate and loads them (see loadRootEnvFiles), tracking the variables set
+// in src, shared with the included files. When forValidation is true errors
+// are ignored: runp validate reports them.
+func applyRootEnvFiles(rf *Runpfile, src *runpfileSource, forValidation bool) error {
+	if src.envSet == nil {
+		src.envSet = map[string]bool{}
+	}
+	for _, f := range rf.EnvFile {
+		rf.envFileRefs = append(rf.envFileRefs, envFileRef{file: f, root: rf.Root})
+	}
+	err := loadRootEnvFiles(rf.EnvFile, rf.Root, src.envSet)
+	if forValidation {
+		return nil
+	}
+	return err
 }
 
 // validateEnvFiles checks that the env files of the Runpfile and of its

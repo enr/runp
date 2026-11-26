@@ -182,6 +182,24 @@ func (p *ContainerProcess) buildArgsAndEnv() ([]string, []string, error) {
 	for _, ports := range p.Ports {
 		args = append(args, "-p", pre.process(ports))
 	}
+	envArgs, runnerEnv := p.envArgs(pre, fileEnv)
+	args = append(args, envArgs...)
+	args = append(args, img)
+	if p.Command != "" {
+		words, err := splitCommandLine(pre.process(p.Command))
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid command for container %s: %w", p.ID(), err)
+		}
+		args = append(args, words...)
+	}
+	return args, runnerEnv, nil
+}
+
+// envArgs returns the -e options of the container and the variables to set
+// in the environment of the runner: the env_file variables not overridden
+// by the env block are passed as "-e NAME", the env block as "-e NAME=value".
+func (p *ContainerProcess) envArgs(pre *cliPreprocessor, fileEnv map[string]string) ([]string, []string) {
+	var args []string
 	fileNames := make([]string, 0, len(fileEnv))
 	for name := range fileEnv {
 		if _, ok := p.Env[name]; !ok {
@@ -202,15 +220,7 @@ func (p *ContainerProcess) buildArgsAndEnv() ([]string, []string, error) {
 	for _, name := range names {
 		args = append(args, "-e", name+"="+resolveEnvValueWith(pre, p.Env[name], fileEnv))
 	}
-	args = append(args, img)
-	if p.Command != "" {
-		words, err := splitCommandLine(pre.process(p.Command))
-		if err != nil {
-			return nil, nil, fmt.Errorf("invalid command for container %s: %w", p.ID(), err)
-		}
-		args = append(args, words...)
-	}
-	return args, runnerEnv, nil
+	return args, runnerEnv
 }
 
 func (p *ContainerProcess) buildCmdImage() (*exec.Cmd, error) {

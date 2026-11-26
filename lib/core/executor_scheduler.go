@@ -131,6 +131,33 @@ func (e *RunpfileExecutor) initializeUnits() {
 	}
 }
 
+// validateBeforeStart runs the checks that need the final vars, so that an
+// invalid unit stops runp up before any unit starts.
+func (e *RunpfileExecutor) validateBeforeStart(skipped map[string]bool) error {
+	// An undefined var would otherwise reach commands as "{undefined:name}".
+	if errs := validateVariableRefs(e.rf); len(errs) > 0 {
+		for _, err := range errs {
+			ui.WriteLinef("%v", err)
+		}
+		return fmt.Errorf("cannot start: %d undefined variable reference(s)", len(errs))
+	}
+	// An invalid duration would otherwise be replaced silently by a default.
+	if errs := validateDurations(activeUnits(e.rf, skipped), true); len(errs) > 0 {
+		for _, err := range errs {
+			ui.WriteLinef("%v", err)
+		}
+		return fmt.Errorf("cannot start: %d invalid duration(s)", len(errs))
+	}
+	// A missing env_file would otherwise fail its unit after others started.
+	if errs := validateUnitEnvFiles(activeUnits(e.rf, skipped), true); len(errs) > 0 {
+		for _, err := range errs {
+			ui.WriteLinef("%v", err)
+		}
+		return fmt.Errorf("cannot start: %d invalid env_file(s)", len(errs))
+	}
+	return nil
+}
+
 // unitRoot returns the directory of the Runpfile defining the unit.
 func unitRoot(unit *RunpUnit, defaultRoot string) string {
 	if unit.root != "" {
@@ -277,26 +304,8 @@ func (e *RunpfileExecutor) Start() error {
 	reportSkippedUnits(skipped)
 	warnInsecureSSHTunnels(e.rf.Units, skipped)
 
-	// An undefined var would otherwise reach commands as "{undefined:name}".
-	if errs := validateVariableRefs(e.rf); len(errs) > 0 {
-		for _, err := range errs {
-			ui.WriteLinef("%v", err)
-		}
-		return fmt.Errorf("cannot start: %d undefined variable reference(s)", len(errs))
-	}
-	// An invalid duration would otherwise be replaced silently by a default.
-	if errs := validateDurations(activeUnits(e.rf, skipped), true); len(errs) > 0 {
-		for _, err := range errs {
-			ui.WriteLinef("%v", err)
-		}
-		return fmt.Errorf("cannot start: %d invalid duration(s)", len(errs))
-	}
-	// A missing env_file would otherwise fail its unit after others started.
-	if errs := validateUnitEnvFiles(activeUnits(e.rf, skipped), true); len(errs) > 0 {
-		for _, err := range errs {
-			ui.WriteLinef("%v", err)
-		}
-		return fmt.Errorf("cannot start: %d invalid env_file(s)", len(errs))
+	if err := e.validateBeforeStart(skipped); err != nil {
+		return err
 	}
 
 	// Validates depends_on references and cycles; the layers only give a

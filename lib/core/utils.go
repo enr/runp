@@ -234,15 +234,9 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 	if err != nil {
 		return nil, err
 	}
-	if runpfile.envSet == nil {
-		runpfile.envSet = map[string]bool{}
-	}
-	for _, f := range rf.EnvFile {
-		rf.envFileRefs = append(rf.envFileRefs, envFileRef{file: f, root: rf.Root})
-	}
 	// Loaded before the units are prepared, so that ${NAME} in their working
-	// directories sees the variables. runp validate reports the errors.
-	if err = loadRootEnvFiles(rf.EnvFile, rf.Root, runpfile.envSet); err != nil && !forValidation {
+	// directories sees the variables.
+	if err = applyRootEnvFiles(rf, &runpfile, forValidation); err != nil {
 		return nil, err
 	}
 	if err = prepareUnits(rf, forValidation); err != nil {
