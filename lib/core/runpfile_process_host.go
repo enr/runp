@@ -40,6 +40,9 @@ type HostProcess struct {
 	pidDir              string
 	startedPid          int
 	environmentSettings *EnvironmentSettings
+	// envFiles are the unit's env_file entries, relative to envFileRoot.
+	envFiles    EnvFiles
+	envFileRoot string
 }
 
 // PreStart implements RunpProcess. No-op for host processes.
@@ -171,8 +174,12 @@ func (p *HostProcess) buildCmdExecutable() (*exec.Cmd, error) {
 		exe = p1
 	}
 	ui.Debugf("Resolved executable path: %s", exe)
+	env, err := p.environment()
+	if err != nil {
+		return nil, err
+	}
 	cmd := exec.Command(exe, cliPreprocessor.processArgs(p.Args)...)
-	cmd.Env = p.resolveEnvironment()
+	cmd.Env = env
 	return cmd, nil
 }
 
@@ -184,9 +191,13 @@ func (p *HostProcess) buildCmdCommandline() (*exec.Cmd, error) {
 	}
 	ui.Debugf("Process %s will be started with variables: %v", p.ID(), p.vars)
 	ui.Debugf("Process %s will be started using shell: %s %q", p.ID(), exe, args)
+	env, err := p.environment()
+	if err != nil {
+		return nil, err
+	}
 	cliPreprocessor := newCliPreprocessor(p.vars)
 	cmd := exec.Command(exe, cliPreprocessor.processArgs(args)...)
-	cmd.Env = p.resolveEnvironment()
+	cmd.Env = env
 	return cmd, nil
 }
 
@@ -200,16 +211,37 @@ func (p *HostProcess) resolveShell() (string, []string, error) {
 	return shell.Path, append(shell.Args, shellCommand), nil
 }
 
+// resolveEnvironment returns the env block of the process with its values
+// resolved, ignoring the unit's env_file.
 func (p *HostProcess) resolveEnvironment() []string {
-	environment := []string{}
-	// Process env with current vars
-	cliPreprocessor := newCliPreprocessor(p.vars)
+	return envAsArray(p.resolveEnvBlock(newCliPreprocessor(p.vars), nil))
+}
+
+// environment returns the environment of the process: the variables of the
+// unit's env_file (later files win), overridden by the env block, whose
+// values can reference the env_file variables as ${NAME}.
+func (p *HostProcess) environment() ([]string, error) {
+	pre := newCliPreprocessor(p.vars)
+	fileEnv, err := loadEnvFiles(p.envFiles, p.envFileRoot, pre)
+	if err != nil {
+		return nil, fmt.Errorf("unit %s: %w", p.ID(), err)
+	}
+	env := map[string]string{}
+	for k, v := range fileEnv {
+		env[k] = v
+	}
+	for k, v := range p.resolveEnvBlock(pre, fileEnv) {
+		env[k] = v
+	}
+	return envAsArray(env), nil
+}
+
+func (p *HostProcess) resolveEnvBlock(pre *cliPreprocessor, fileEnv map[string]string) map[string]string {
 	processedEnv := map[string]string{}
 	for k, v := range p.Env {
-		processedEnv[k] = resolveEnvValue(cliPreprocessor, v)
+		processedEnv[k] = resolveEnvValueWith(pre, v, fileEnv)
 	}
-	environment = append(environment, envAsArray(processedEnv)...)
-	return environment
+	return processedEnv
 }
 
 func (p *HostProcess) resolveWorkingDir() string {

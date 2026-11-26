@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"sort"
@@ -43,6 +44,9 @@ type ContainerProcess struct {
 	secretKey           string
 	stopTimeout         string
 	environmentSettings *EnvironmentSettings
+	// envFiles are the unit's env_file entries, relative to envFileRoot.
+	envFiles    EnvFiles
+	envFileRoot string
 }
 
 // ID for the sub process
@@ -133,7 +137,20 @@ func (p *ContainerProcess) buildContainerName() string {
 // expanded exactly once and passed as a separate argument, without going
 // through a shell, so values cannot inject commands on the host.
 func (p *ContainerProcess) buildArgs() ([]string, error) {
+	args, _, err := p.buildArgsAndEnv()
+	return args, err
+}
+
+// buildArgsAndEnv returns the arguments of "<runner> run ..." and the
+// variables of the unit's env_file. These are passed as "-e NAME" and set in
+// the environment of the runner, so that their values (e.g. secrets) never
+// appear in its command line; the env block overrides them.
+func (p *ContainerProcess) buildArgsAndEnv() ([]string, []string, error) {
 	pre := newCliPreprocessor(p.vars)
+	fileEnv, err := loadEnvFiles(p.envFiles, p.envFileRoot, pre)
+	if err != nil {
+		return nil, nil, fmt.Errorf("unit %s: %w", p.ID(), err)
+	}
 	img := pre.process(p.Image)
 	ui.Debugf("Run image '%s'\n", img)
 
@@ -165,23 +182,35 @@ func (p *ContainerProcess) buildArgs() ([]string, error) {
 	for _, ports := range p.Ports {
 		args = append(args, "-p", pre.process(ports))
 	}
+	fileNames := make([]string, 0, len(fileEnv))
+	for name := range fileEnv {
+		if _, ok := p.Env[name]; !ok {
+			fileNames = append(fileNames, name)
+		}
+	}
+	sort.Strings(fileNames)
+	runnerEnv := make([]string, 0, len(fileNames))
+	for _, name := range fileNames {
+		args = append(args, "-e", name)
+		runnerEnv = append(runnerEnv, name+"="+fileEnv[name])
+	}
 	names := make([]string, 0, len(p.Env))
 	for name := range p.Env {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		args = append(args, "-e", name+"="+resolveEnvValue(pre, p.Env[name]))
+		args = append(args, "-e", name+"="+resolveEnvValueWith(pre, p.Env[name], fileEnv))
 	}
 	args = append(args, img)
 	if p.Command != "" {
 		words, err := splitCommandLine(pre.process(p.Command))
 		if err != nil {
-			return nil, fmt.Errorf("invalid command for container %s: %w", p.ID(), err)
+			return nil, nil, fmt.Errorf("invalid command for container %s: %w", p.ID(), err)
 		}
 		args = append(args, words...)
 	}
-	return args, nil
+	return args, runnerEnv, nil
 }
 
 func (p *ContainerProcess) buildCmdImage() (*exec.Cmd, error) {
@@ -189,11 +218,14 @@ func (p *ContainerProcess) buildCmdImage() (*exec.Cmd, error) {
 	if err != nil {
 		return nil, err
 	}
-	args, err := p.buildArgs()
+	args, runnerEnv, err := p.buildArgsAndEnv()
 	if err != nil {
 		return nil, err
 	}
 	cmd := exec.Command(containerRunner, args...)
+	if len(runnerEnv) > 0 {
+		cmd.Env = append(os.Environ(), runnerEnv...)
+	}
 	ui.Debugf("Container command:\n%s", strings.Join(cmd.Args, " "))
 	return cmd, nil
 }

@@ -104,11 +104,15 @@ func (e *RunpfileExecutor) initializeUnits() {
 			unit.Host.stopTimeout = unit.StopTimeout
 			unit.Host.pidDir = e.PIDDir
 			unit.Host.environmentSettings = e.environmentSettings
+			unit.Host.envFiles = unit.EnvFile
+			unit.Host.envFileRoot = unitRoot(unit, e.rf.Root)
 		}
 		if unit.Container != nil {
 			unit.Container.secretKey = unit.secretKey
 			unit.Container.stopTimeout = unit.StopTimeout
 			unit.Container.environmentSettings = e.environmentSettings
+			unit.Container.envFiles = unit.EnvFile
+			unit.Container.envFileRoot = unitRoot(unit, e.rf.Root)
 		}
 		if unit.SSHTunnel != nil {
 			unit.SSHTunnel.secretKey = unit.secretKey
@@ -125,6 +129,14 @@ func (e *RunpfileExecutor) initializeUnits() {
 			p.SetPreconditions(unit.Preconditions)
 		}
 	}
+}
+
+// unitRoot returns the directory of the Runpfile defining the unit.
+func unitRoot(unit *RunpUnit, defaultRoot string) string {
+	if unit.root != "" {
+		return unit.root
+	}
+	return defaultRoot
 }
 
 func (e *RunpfileExecutor) skippedUnits() map[string]bool {
@@ -174,6 +186,9 @@ func (e *RunpfileExecutor) StartSingleUnit(unitName string) error {
 		return fmt.Errorf("cannot start: %w", multiError(errs))
 	}
 	if errs := validateDurations(&Runpfile{Units: map[string]*RunpUnit{unitName: unit}}, true); len(errs) > 0 {
+		return fmt.Errorf("cannot start: %w", multiError(errs))
+	}
+	if errs := validateUnitEnvFiles(&Runpfile{Root: e.rf.Root, Units: map[string]*RunpUnit{unitName: unit}}, true); len(errs) > 0 {
 		return fmt.Errorf("cannot start: %w", multiError(errs))
 	}
 	warnInsecureSSHTunnels(e.rf.Units, map[string]bool{})
@@ -276,6 +291,13 @@ func (e *RunpfileExecutor) Start() error {
 		}
 		return fmt.Errorf("cannot start: %d invalid duration(s)", len(errs))
 	}
+	// A missing env_file would otherwise fail its unit after others started.
+	if errs := validateUnitEnvFiles(activeUnits(e.rf, skipped), true); len(errs) > 0 {
+		for _, err := range errs {
+			ui.WriteLinef("%v", err)
+		}
+		return fmt.Errorf("cannot start: %d invalid env_file(s)", len(errs))
+	}
 
 	// Validates depends_on references and cycles; the layers only give a
 	// deterministic launch order, readiness is tracked per unit.
@@ -339,7 +361,7 @@ func activeUnits(rf *Runpfile, skipped map[string]bool) *Runpfile {
 			units[name] = unit
 		}
 	}
-	return &Runpfile{Vars: rf.Vars, Units: units}
+	return &Runpfile{Vars: rf.Vars, Root: rf.Root, Units: units}
 }
 
 // reportSkippedUnits logs the units skipped for unsatisfied preconditions.

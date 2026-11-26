@@ -30,7 +30,7 @@ Runp uses a `Runpfile`, a sort of a sofisticated `Procfile` that describes the p
 Moreover the Runpfile handles:
 
 - working directory per process
-- environment variables per process
+- environment variables per process, also loaded from dotenv files (`env_file`)
 - user defined vars per system, defined in the Runpfile or passed at runtime as command line arguments
 - processes dependency: a process can wait for a given condition to start, e.g. a file appearing or another process being ready
 - explicit startup ordering via `depends_on`
@@ -1022,6 +1022,52 @@ A one-shot command using custom environment variables:
       env:
         MYHOME: ${HOME}
 ```
+
+### Load environment variables from a file (`env_file`)
+
+`env_file` loads variables from dotenv files, e.g. secrets or per-developer settings kept in a git-ignored
+`.env.local`, so that `runp up` works on its own without exporting them first. It takes a path, a
+`{path, required}` mapping or a list of them; relative paths are resolved against the directory of the
+Runpfile defining the key. Files are loaded in order: later files win.
+
+``` yaml
+# Runpfile level: loaded into the environment of runp before units start
+env_file: apps/backend/.env.local
+
+units:
+  db:
+    # unit level: only for this unit
+    env_file: apps/backend/.env.local
+    container:
+      image: postgres:17
+      env:
+        POSTGRES_PASSWORD: ${DB_PASSWORD}
+  backend:
+    env_file:
+      - apps/backend/.env
+      - path: apps/backend/.env.local   # later files win
+        required: false                 # skipped if missing
+    host:
+      command: ./mvnw spring-boot:run
+```
+
+- **Format:** `NAME=value` lines, with `#` comments, blank lines and an optional `export ` prefix. Values can
+  be quoted: single quotes are literal, double quotes accept `\n`, `\t`, `\"`, `\\` and may span lines.
+  Unquoted values end at ` #`. Nothing is expanded or evaluated.
+- **Runpfile level:** the variables are set in the environment of runp when the Runpfile is loaded, so they
+  can be referenced as `${NAME}` in every unit (`env` values, working directories) and are seen by the
+  `env_vars` preconditions. They override variables already exported; on a conflict the env_file of an
+  including Runpfile wins over the one of an included file. Host processes do not receive them unless
+  listed in their `env` block, as for any other variable of runp.
+- **Unit level:** the variables are set in the environment of the unit's process, and can be referenced as
+  `${NAME}` in its `env` block, which wins on a conflict. Container units receive them as `-e NAME`, with the
+  value passed in the environment of docker/podman, so it does not appear in their command line. The files
+  are read each time the unit starts (e.g. on `runp reload`), and their paths accept `{{vars}}`. Not supported
+  for SSH tunnel units.
+- **Precedence:** environment of runp < Runpfile-level `env_file` < unit-level `env_file` (in list order)
+  < the unit's `env` block. `{{vars}}` in `env` values are resolved as usual.
+- **Missing file:** an error by default (`runp up` starts no unit), unless `required: false`.
+- `runp validate` checks that the files exist and can be parsed; it and `--dry-run` never print their values.
 
 ### User defined variables
 

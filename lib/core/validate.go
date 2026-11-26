@@ -28,6 +28,7 @@ func (r *ValidationResult) Valid() bool {
 //   - variable references that are not declared in the vars section
 //   - circular variable references in the vars section
 //   - invalid durations (stop_timeout, await.timeout, ready.delay/timeout)
+//   - env_file entries that are missing (unless optional) or malformed
 //
 // Warnings (informational, do not fail validation):
 //   - OS or runp-version preconditions that would cause a unit to be skipped
@@ -42,6 +43,7 @@ func ValidateRunpfile(rf *Runpfile) ValidationResult {
 	result.Errors = append(result.Errors, validateVariableRefs(rf)...)
 
 	result.Errors = append(result.Errors, validateDependsOn(rf)...)
+	result.Errors = append(result.Errors, validateEnvFiles(rf)...)
 	result.Errors = append(result.Errors, validateDurations(rf, false)...)
 
 	result.Warnings = append(result.Warnings, collectPreconditionWarnings(rf)...)
@@ -74,6 +76,8 @@ var implicitVars = map[string]bool{
 // which runp resolves {{vars NAME}} references. A reference anywhere else
 // would reach the process as a literal string.
 var expandedFields = map[string]bool{
+	"env_file[].path": true,
+
 	"ready.delay":   true,
 	"ready.output":  true,
 	"ready.cmd":     true,
