@@ -1,0 +1,20 @@
+name: env_file example
+description: Load variables from dotenv files
+# Runpfile level: loaded into the environment of runp before units start,
+# usable as ${NAME} in every unit's env block.
+env_file: env-file/.env.example
+units:
+  greet:
+    description: print a variable from the Runpfile-level env_file
+    host:
+      command: echo "${MESSAGE}"
+      env:
+        MESSAGE: ${GREETING} from runp
+  secret:
+    description: unit-level env_file, later files win
+    env_file:
+      - env-file/.env.example
+      - path: env-file/.env.local
+        required: false
+    host:
+      command: echo "password length ${#DB_PASSWORD}"

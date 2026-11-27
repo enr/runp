@@ -13,6 +13,13 @@ type Runpfile struct {
 	SecretKey     string `yaml:"-"`
 	Include       []string
 	Preconditions Preconditions
+	// EnvFile lists dotenv files loaded into the environment of runp before
+	// units start, relative to the Runpfile directory.
+	EnvFile EnvFiles `yaml:"env_file"`
+
+	// envFileRefs lists the Runpfile-level env files of this Runpfile and of
+	// the included ones, with their directories (see validateEnvFiles).
+	envFileRefs []envFileRef
 
 	// projectKey identifies the Runpfile for ProjectID; the root when empty.
 	projectKey string
@@ -36,6 +43,9 @@ type RunpUnit struct {
 	DependsOn     []string `yaml:"depends_on"`
 	Preconditions Preconditions
 	Ready         ReadyCondition
+	// EnvFile lists dotenv files whose variables are set in the unit's
+	// environment, relative to the Runpfile directory; the env block wins.
+	EnvFile EnvFiles `yaml:"env_file"`
 
 	Host      *HostProcess
 	Container *ContainerProcess

@@ -144,3 +144,24 @@ specs:
         stderr:
           contains_all:
             - circular dependency
+
+  validate_env_file:
+    description: env_file entries are checked without printing their values
+    command:
+      working_dir: ..
+      exe: bin/runp
+      ext:
+        windows: .exe
+      args:
+        - "validate"
+        - "--file"
+        - "examples/Runpfile-env-file.yml"
+    expectations:
+      status:
+        equals_to: 0
+      output:
+        stdout:
+          contains_all:
+            - valid
+        stderr:
+          is_empty: true

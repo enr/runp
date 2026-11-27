@@ -143,6 +143,9 @@ type runpfileSource struct {
 	chain      []string // ordered list of paths from root to this file's importer
 	// remoteURL is the URL a remote Runpfile was downloaded from to path.
 	remoteURL string
+	// envSet tracks the variables set by the Runpfile-level env_file of the
+	// files loaded so far: an including file wins over the included ones.
+	envSet map[string]bool
 }
 
 // LoadRunpfileFromPath returns an Runpfile object reading file from path.
@@ -231,6 +234,11 @@ func loadRunpfileFromPath(runpfile runpfileSource, visited map[string]runpfileSo
 	if err != nil {
 		return nil, err
 	}
+	// Loaded before the units are prepared, so that ${NAME} in their working
+	// directories sees the variables.
+	if err = applyRootEnvFiles(rf, &runpfile, forValidation); err != nil {
+		return nil, err
+	}
 	if err = prepareUnits(rf, forValidation); err != nil {
 		return nil, err
 	}
@@ -293,6 +301,7 @@ func merge(runpfile runpfileSource, rf *Runpfile, inc string, visited map[string
 		path:       rpp,
 		importedBy: runpfile.path,
 		chain:      newChain,
+		envSet:     runpfile.envSet,
 	}
 	if rf.Units == nil {
 		rf.Units = map[string]*RunpUnit{}
@@ -307,6 +316,7 @@ func merge(runpfile runpfileSource, rf *Runpfile, inc string, visited map[string
 		}
 		rf.Units[k] = v
 	}
+	rf.envFileRefs = append(rf.envFileRefs, included.envFileRefs...)
 	// Vars declared in included files are available to all units; on a
 	// conflict the including file wins.
 	for k, v := range included.Vars {
@@ -342,18 +352,36 @@ func envAsArray(in map[string]string) (out []string) {
 // then vars are substituted, so that a "$" in a var value (e.g. a password
 // passed with --var) is never expanded.
 func resolveEnvValue(pre *cliPreprocessor, value string) string {
-	return pre.process(expandEnvValue(value))
+	return resolveEnvValueWith(pre, value, nil)
+}
+
+// resolveEnvValueWith is resolveEnvValue where the variables in extra (read
+// from the unit's env_file) take precedence over the environment of runp.
+func resolveEnvValueWith(pre *cliPreprocessor, value string, extra map[string]string) string {
+	return pre.process(expandEnvValueWith(value, extra))
 }
 
 // expandEnvValue expands $VAR and ${VAR} references to the environment of
 // runp; "$$" is an escape for a literal "$" (e.g. in passwords).
 func expandEnvValue(s string) string {
+	return expandEnvValueWith(s, nil)
+}
+
+// expandEnvValueWith is expandEnvValue where the variables in extra take
+// precedence over the environment of runp.
+func expandEnvValueWith(s string, extra map[string]string) string {
 	if !strings.Contains(s, "$") {
 		return s
 	}
+	lookup := func(name string) string {
+		if v, ok := extra[name]; ok {
+			return v
+		}
+		return os.Getenv(name)
+	}
 	parts := strings.Split(s, "$$")
 	for i, part := range parts {
-		parts[i] = os.ExpandEnv(part)
+		parts[i] = os.Expand(part, lookup)
 	}
 	return strings.Join(parts, "$")
 }

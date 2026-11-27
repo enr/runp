@@ -247,3 +247,20 @@ specs:
             - "runp_root="
         stderr:
           is_empty: true
+  up_env_file:
+    description: env_file at Runpfile and unit level feeds the env block and the process environment
+    command:
+      working_dir: ..
+      exe: bin/runp
+      args:
+        - "up"
+        - "--file"
+        - "examples/Runpfile-env-file.yml"
+    expectations:
+      status:
+        equals_to: 0
+      output:
+        stdout:
+          contains_all:
+            - hello from runp
+            - password length 6
